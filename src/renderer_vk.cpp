@@ -622,6 +622,67 @@ namespace MBRF
 		return true;
 	}
 
+	void RendererVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout)
+	{
+		VkAccessFlags srcAccessMask = 0;
+		VkAccessFlags dstAccessMask = 0;
+
+		VkPipelineStageFlags srcStageMask;
+		VkPipelineStageFlags dstStageMask;
+
+		switch (oldLayout)
+		{
+		case VK_IMAGE_LAYOUT_UNDEFINED:
+			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+			break;
+		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+			srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+			break;
+		default:
+			assert(0, "image transition FROM for this type layout not implemented yet!");
+
+			break;
+		}
+
+		switch (newLayout)
+		{
+		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+			dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+			break;
+		case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+			dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+
+			break;
+		default:
+			assert(0, "image transition TO for this type layout not implemented yet!");
+
+			break;
+		}
+
+		VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+		barrier.pNext = nullptr;
+		barrier.srcAccessMask = srcAccessMask;
+		barrier.dstAccessMask = dstAccessMask;
+		barrier.oldLayout = oldLayout;
+		barrier.newLayout = newLayout;
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.image = image;
+		// subresource range
+		barrier.subresourceRange.aspectMask = aspectFlags;
+		barrier.subresourceRange.baseMipLevel = 0;
+		barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+		barrier.subresourceRange.baseArrayLayer = 0;
+		barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+		vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+	}
+
 	void RendererVK::RecordTestGraphicsCommands()
 	{
 		// test recording
@@ -631,7 +692,7 @@ namespace MBRF
 		beginInfo.flags = 0; // Optional
 		beginInfo.pInheritanceInfo = nullptr; // Optional: only relevant for secondary command buffers. It specifies which state to inherit from the calling primary command buffers
 
-		for (int i = 0; i < m_graphicsCommandBuffers.size(); ++i)
+		for (int i = 0; i < (uint32_t) m_graphicsCommandBuffers.size(); ++i)
 		{
 			auto commandBuffer = m_graphicsCommandBuffers[i];
 
@@ -648,48 +709,15 @@ namespace MBRF
 
 			VkClearColorValue clearColorValue = { 1.0, 0.0, 0.0, 0.0 };
 
-			// TODO: transition from undefined to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-			VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-			barrier.pNext = nullptr;
-			barrier.srcAccessMask = 0;
-			barrier.dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-			barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			barrier.image = m_swapchainImages[uint32_t(i)];
-			// subresource range
-			barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			barrier.subresourceRange.baseMipLevel = 0;
-			barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-			barrier.subresourceRange.baseArrayLayer = 0;
-			barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+			// transition the swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 
-			vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-
-
+			TransitionImageLayout(commandBuffer, m_swapchainImages[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 			vkCmdClearColorImage(commandBuffer, m_swapchainImages[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValue, 1, &subresourceRange); //VK_IMAGE_LAYOUT_GENERAL
 
-			// transition the swapchain image to present mode. TODO: need to add command queues to be able to transition
+			// transition the swapchain image to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 
-			VkImageMemoryBarrier barrier2 = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-			barrier2.pNext = nullptr;
-			barrier2.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-			barrier2.dstAccessMask = 0;
-			barrier2.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-			barrier2.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-			barrier2.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			barrier2.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			barrier2.image = m_swapchainImages[uint32_t(i)];
-			// subresource range
-			barrier2.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			barrier2.subresourceRange.baseMipLevel = 0;
-			barrier2.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-			barrier2.subresourceRange.baseArrayLayer = 0;
-			barrier2.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-			vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier2);
+			TransitionImageLayout(commandBuffer, m_swapchainImages[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
 			VK_CHECK(vkEndCommandBuffer(commandBuffer));
 		}

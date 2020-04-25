@@ -31,6 +31,8 @@ namespace MBRF
 
 		bool AllocateCommandBuffers();
 
+		void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout);
+
 		void RecordTestGraphicsCommands();
 
 		void SubmitGraphicsQueue(uint32_t imageIndex, int currentFrame);
@@ -67,11 +69,14 @@ namespace MBRF
 		uint32_t m_graphicQueueFamily;
 		uint32_t m_presentationQueueFamily;
 
-		VkCommandPool m_graphicsCommandPool;
-		std::vector<VkCommandBuffer> m_graphicsCommandBuffers;
-
 		VkQueue m_graphicsQueue;
 		VkQueue m_presentationQueue;
+
+		VkCommandPool m_graphicsCommandPool;
+
+		// TODO: move all the frame dependent objects in a frame data structure, and just use a frame data array?
+
+		std::vector<VkCommandBuffer> m_graphicsCommandBuffers;
 
 		std::vector<VkSemaphore> m_acquireSemaphores;
 		std::vector<VkSemaphore> m_renderSemaphores;
