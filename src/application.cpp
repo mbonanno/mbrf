@@ -16,6 +16,8 @@ namespace MBRF
 		m_rendererVK.CreateSyncObjects(s_MaxFramesInFlight);
 		m_rendererVK.CreateCommandPools();
 		m_rendererVK.AllocateCommandBuffers();
+
+		m_rendererVK.RecordTestGraphicsCommands();
 	}
 
 	void Application::Cleanup()
@@ -37,9 +39,11 @@ namespace MBRF
 
 	void Application::Draw()
 	{
-		uint32_t imageIndex;
+		uint32_t imageIndex = m_rendererVK.AcquireNextSwapchainImage(currentFrame);
 
-		m_rendererVK.AcquireNextSwapchainImage(&imageIndex, currentFrame);
+		assert(imageIndex != UINT32_MAX);
+
+		m_rendererVK.SubmitGraphicsQueue(imageIndex, currentFrame);
 
 		m_rendererVK.PresentSwapchainImage(imageIndex, currentFrame);
 

@@ -3,7 +3,6 @@
 #include "vulkan/vulkan.h"
 
 #include <algorithm>
-#include <assert.h>
 #include <iostream>
 #include <set>
 
@@ -620,10 +619,11 @@ namespace MBRF
 
 		VK_CHECK(vkAllocateCommandBuffers(m_device, &allocateInfo, m_graphicsCommandBuffers.data()));
 
+		return true;
+	}
 
-
-
-
+	void RendererVK::RecordTestGraphicsCommands()
+	{
 		// test recording
 
 		VkCommandBufferBeginInfo beginInfo = {};
@@ -693,13 +693,6 @@ namespace MBRF
 
 			VK_CHECK(vkEndCommandBuffer(commandBuffer));
 		}
-		
-
-
-
-
-
-		return true;
 	}
 
 	bool RendererVK::WaitForDevice()
@@ -709,28 +702,27 @@ namespace MBRF
 		return true;
 	}
 
-	bool RendererVK::AcquireNextSwapchainImage(uint32_t* imageIndex, int currentFrame)
+	uint32_t RendererVK::AcquireNextSwapchainImage(int currentFrame)
 	{
-		VkResult result =  vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, m_acquireSemaphores[currentFrame], nullptr, imageIndex);
+		uint32_t imageIndex;
+		VkResult result =  vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, m_acquireSemaphores[currentFrame], nullptr, &imageIndex);
 
 		assert(result == VK_SUCCESS);
 
+		switch (result)
+		{
+		case VK_SUCCESS:
+		case VK_SUBOPTIMAL_KHR:
+			return imageIndex;
+		default:
+			return UINT32_MAX;
+		}
+	}
 
-		VK_CHECK(vkWaitForFences(m_device, 1, &m_fences[*imageIndex], VK_TRUE, UINT64_MAX));
-		VK_CHECK(vkResetFences(m_device, 1, &m_fences[*imageIndex]));
-
-
-
-
-
-
-
-
-
-
-
-
-		// TODO: REMOVE TEST
+	void RendererVK::SubmitGraphicsQueue(uint32_t imageIndex, int currentFrame)
+	{
+		VK_CHECK(vkWaitForFences(m_device, 1, &m_fences[imageIndex], VK_TRUE, UINT64_MAX));
+		VK_CHECK(vkResetFences(m_device, 1, &m_fences[imageIndex]));
 
 		VkSemaphore waitSemaphores[] = { m_acquireSemaphores[currentFrame] };
 		VkSemaphore signalSemaphores[] = { m_renderSemaphores[currentFrame] };
@@ -743,34 +735,11 @@ namespace MBRF
 		submitInfo.pWaitSemaphores = waitSemaphores;
 		submitInfo.pWaitDstStageMask = waitStages;
 		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &m_graphicsCommandBuffers[*imageIndex];
+		submitInfo.pCommandBuffers = &m_graphicsCommandBuffers[imageIndex];
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = signalSemaphores;
 
-
-
-
-
-		VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_fences[*imageIndex]));
-
-
-
-
-
-
-
-
-
-
-
-		switch (result)
-		{
-		case VK_SUCCESS:
-		case VK_SUBOPTIMAL_KHR:
-			return true;
-		default:
-			return false;
-		}
+		VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_fences[imageIndex]));
 	}
 
 	bool RendererVK::PresentSwapchainImage(uint32_t imageIndex, int currentFrame)

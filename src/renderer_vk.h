@@ -3,6 +3,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include "glfw/glfw3.h"
 
+#include <assert.h>
 #include <vector>
 
 namespace MBRF
@@ -30,7 +31,11 @@ namespace MBRF
 
 		bool AllocateCommandBuffers();
 
-		bool AcquireNextSwapchainImage(uint32_t* imageIndex, int currentFrame);
+		void RecordTestGraphicsCommands();
+
+		void SubmitGraphicsQueue(uint32_t imageIndex, int currentFrame);
+
+		uint32_t AcquireNextSwapchainImage(int currentFrame);
 		bool PresentSwapchainImage(uint32_t imageIndex, int currentFrame);
 
 		bool WaitForDevice();
