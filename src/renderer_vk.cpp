@@ -4,12 +4,38 @@
 
 #include <algorithm>
 #include <iostream>
+#include <fstream>
 #include <set>
 
 #define VK_CHECK(func) { VkResult res = func; assert(res == VK_SUCCESS); }
 
 namespace MBRF
 {
+	// ------------------------------- Utils -------------------------------
+
+	bool Utils::ReadFile(const char* fileName, std::vector<char> &fileOut)
+	{
+		std::ifstream file(fileName, std::ios::in | std::ios::binary | std::ios::ate);
+
+		if (!file.is_open())
+		{
+			std::cout << "failed to open file " << fileName << std::endl;
+			assert(0);
+			return false;
+		}
+
+		// std::ios::ate: open file at the end, convenient to get the file size
+		size_t size = (size_t)file.tellg();
+		fileOut.resize(size);
+
+		file.seekg(0, std::ios::beg);
+		file.read(fileOut.data(), size);
+
+		file.close();
+
+		return true;
+	}
+
 	// ------------------------------- Validation Layer utils -------------------------------
 
 	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
@@ -310,6 +336,8 @@ namespace MBRF
 			// TODO: check for swapchain
 
 			// check queues support
+
+			// TODO: remove the presentation queue and implicitly assume that graphics = presentation (if graphics has no presentation capability just fail)
 
 			m_graphicQueueFamily = FindDeviceQueueFamilyIndex(device, VK_QUEUE_GRAPHICS_BIT);
 			m_presentationQueueFamily = FindDevicePresentationQueueFamilyIndex(device);
@@ -641,8 +669,13 @@ namespace MBRF
 			srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
 			break;
+
+		case VK_IMAGE_LAYOUT_GENERAL:
+			srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			break;
 		default:
-			assert(0, "image transition FROM for this type layout not implemented yet!");
+			std::cout << "image transition FROM this type layout not implemented yet!" << std::endl;
+			assert(0);
 
 			break;
 		}
@@ -658,8 +691,13 @@ namespace MBRF
 			dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
 
 			break;
+		case VK_IMAGE_LAYOUT_GENERAL:
+			dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+
+			break;
 		default:
-			assert(0, "image transition TO for this type layout not implemented yet!");
+			std::cout << "image transition TO this type layout not implemented yet!" << std::endl;
+			assert(0);
 
 			break;
 		}
@@ -692,7 +730,7 @@ namespace MBRF
 		beginInfo.flags = 0; // Optional
 		beginInfo.pInheritanceInfo = nullptr; // Optional: only relevant for secondary command buffers. It specifies which state to inherit from the calling primary command buffers
 
-		for (int i = 0; i < (uint32_t) m_graphicsCommandBuffers.size(); ++i)
+		for (int i = 0; i < m_graphicsCommandBuffers.size(); ++i)
 		{
 			auto commandBuffer = m_graphicsCommandBuffers[i];
 
@@ -713,7 +751,7 @@ namespace MBRF
 
 			TransitionImageLayout(commandBuffer, m_swapchainImages[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-			vkCmdClearColorImage(commandBuffer, m_swapchainImages[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValue, 1, &subresourceRange); //VK_IMAGE_LAYOUT_GENERAL
+			vkCmdClearColorImage(commandBuffer, m_swapchainImages[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValue, 1, &subresourceRange);
 
 			// transition the swapchain image to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 
@@ -721,6 +759,43 @@ namespace MBRF
 
 			VK_CHECK(vkEndCommandBuffer(commandBuffer));
 		}
+	}
+
+	bool RendererVK::CreateShaderModuleFromFile(const char* fileName, VkShaderModule &shaderModule)
+	{
+		std::vector<char> shaderCode;
+		
+		if (!Utils::ReadFile(fileName, shaderCode))
+			return false;
+
+		VkShaderModuleCreateInfo createInfo = { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+		createInfo.pNext = nullptr;
+		createInfo.flags = 0;
+		createInfo.codeSize = shaderCode.size();
+		createInfo.pCode = reinterpret_cast<uint32_t*>(shaderCode.data());
+
+		VK_CHECK(vkCreateShaderModule(m_device, &createInfo, nullptr, &shaderModule));
+
+		return true;
+	}
+
+	bool RendererVK::CreateShaders()
+	{
+		bool result = true;
+
+		// TODO: put common data/shader dir path in a variable or define
+		result &= CreateShaderModuleFromFile("data/shaders/testvert.spv", m_testVertexShader);
+		result &= CreateShaderModuleFromFile("data/shaders/testfrag.spv", m_testFragmentShader);
+
+		assert(result);
+
+		return result;
+	}
+
+	void RendererVK::DestroyShaders()
+	{
+		vkDestroyShaderModule(m_device, m_testVertexShader, nullptr);
+		vkDestroyShaderModule(m_device, m_testFragmentShader, nullptr);
 	}
 
 	bool RendererVK::WaitForDevice()

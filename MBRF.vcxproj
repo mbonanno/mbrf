@@ -27,6 +27,10 @@
     <ClInclude Include="src\application.h" />
     <ClInclude Include="src\renderer_vk.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="data\shaders\test.frag" />
+    <None Include="data\shaders\test.vert" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{E05310CB-75D3-4984-BEB0-4C537FED9550}</ProjectGuid>

@@ -8,6 +8,12 @@
 
 namespace MBRF
 {
+	class Utils
+	{
+	public:
+		static bool ReadFile(const char* fileName, std::vector<char> &fileOut);
+	};
+
 	class RendererVK
 	{
 	public:
@@ -34,6 +40,10 @@ namespace MBRF
 		void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout);
 
 		void RecordTestGraphicsCommands();
+
+		bool CreateShaderModuleFromFile(const char* fileName, VkShaderModule &shaderModule);
+		bool CreateShaders();
+		void DestroyShaders();
 
 		void SubmitGraphicsQueue(uint32_t imageIndex, int currentFrame);
 
@@ -73,6 +83,9 @@ namespace MBRF
 		VkQueue m_presentationQueue;
 
 		VkCommandPool m_graphicsCommandPool;
+
+		VkShaderModule m_testVertexShader;
+		VkShaderModule m_testFragmentShader;
 
 		// TODO: move all the frame dependent objects in a frame data structure, and just use a frame data array?
 
