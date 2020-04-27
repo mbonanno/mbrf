@@ -769,26 +769,52 @@ namespace MBRF
 
 			VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
 
-			float clearColor[] = { 1,0,0,1 };
+#if 0
 
+			VkClearColorValue clearColorValue = { 1.0, 0.0, 0.0, 1.0 };
+			
+			// transition the swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+			
+			TransitionImageLayout(commandBuffer, m_swapchainImages[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+			
 			VkImageSubresourceRange subresourceRange;
 			subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 			subresourceRange.baseMipLevel = 0;
 			subresourceRange.levelCount = 1;
 			subresourceRange.baseArrayLayer = 0;
 			subresourceRange.layerCount = 1;
-
-			VkClearColorValue clearColorValue = { 1.0, 0.0, 0.0, 0.0 };
-
-			// transition the swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-
-			TransitionImageLayout(commandBuffer, m_swapchainImages[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
+			
 			vkCmdClearColorImage(commandBuffer, m_swapchainImages[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValue, 1, &subresourceRange);
-
+			
 			// transition the swapchain image to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-
+			
 			TransitionImageLayout(commandBuffer, m_swapchainImages[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+#else
+
+
+			VkRenderPassBeginInfo renderPassInfo = {};
+			renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+			renderPassInfo.renderPass = m_testRenderPass;
+			renderPassInfo.framebuffer = m_swapchainFramebuffers[i];
+
+			renderPassInfo.renderArea.offset = { 0, 0 };
+			renderPassInfo.renderArea.extent = m_swapchainImageExtent;
+
+			VkClearValue clearColorValue;
+			clearColorValue.color = { 1.0f, 0.0f, 1.0f, 1.0f };
+
+			renderPassInfo.clearValueCount = 1;
+			renderPassInfo.pClearValues = &clearColorValue;
+
+			vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+			vkCmdEndRenderPass(commandBuffer);
+
+#endif
+
+
+
 
 			VK_CHECK(vkEndCommandBuffer(commandBuffer));
 		}
@@ -798,7 +824,7 @@ namespace MBRF
 	{
 		VkAttachmentDescription attachmentDescriptions[1];
 		attachmentDescriptions[0].flags = 0;
-		attachmentDescriptions[0].format = VK_FORMAT_B8G8R8A8_SRGB;
+		attachmentDescriptions[0].format = m_swapchainImageFormat;
 		attachmentDescriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
 		attachmentDescriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		attachmentDescriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
