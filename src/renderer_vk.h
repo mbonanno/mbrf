@@ -29,6 +29,9 @@ namespace MBRF
 		bool CreateSwapchain(uint32_t width, uint32_t height);
 		void DestroySwapchain();
 
+		bool CreateSwapchainImageViews();
+		void DestroySwapchainImageViews();
+
 		bool CreateSyncObjects(int maxFramesInFlight);
 		void DestroySyncObjects();
 
@@ -40,6 +43,12 @@ namespace MBRF
 		void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout);
 
 		void RecordTestGraphicsCommands();
+
+		bool CreateTestRenderPass();
+		void DestroyTestRenderPass();
+
+		bool CreateFramebuffers();
+		void DestroyFramebuffers();
 
 		bool CreateShaderModuleFromFile(const char* fileName, VkShaderModule &shaderModule);
 		bool CreateShaders();
@@ -72,7 +81,10 @@ namespace MBRF
 		VkPhysicalDeviceFeatures m_physicalDeviceFeatures;
 
 		VkSwapchainKHR m_swapchain;
+		VkExtent2D m_swapchainImageExtent;
+		VkFormat m_swapchainImageFormat;
 		std::vector<VkImage> m_swapchainImages;
+		std::vector<VkImageView> m_swapchainImageViews;
 
 		VkDevice m_device;
 		
@@ -83,6 +95,9 @@ namespace MBRF
 		VkQueue m_presentationQueue;
 
 		VkCommandPool m_graphicsCommandPool;
+
+		VkRenderPass m_testRenderPass;
+		std::vector<VkFramebuffer> m_swapchainFramebuffers;
 
 		VkShaderModule m_testVertexShader;
 		VkShaderModule m_testFragmentShader;

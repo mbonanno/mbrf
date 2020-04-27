@@ -442,20 +442,18 @@ namespace MBRF
 
 		// set swapchain images size
 
-		VkExtent2D imageExtent;
-
 		// check if the window's size is determined by the swapchain images size
 		if (surfaceCapabilities.currentExtent.width == 0xFFFFFFFF)
 		{
 			VkExtent2D minImageSize = surfaceCapabilities.minImageExtent;
 			VkExtent2D maxImageSize = surfaceCapabilities.maxImageExtent;
 
-			imageExtent.width = std::min(std::max(width, minImageSize.width), maxImageSize.width);
-			imageExtent.height = std::min(std::max(height, minImageSize.height), maxImageSize.height);
+			m_swapchainImageExtent.width = std::min(std::max(width, minImageSize.width), maxImageSize.width);
+			m_swapchainImageExtent.height = std::min(std::max(height, minImageSize.height), maxImageSize.height);
 		}
 		else
 		{
-			imageExtent = surfaceCapabilities.currentExtent;
+			m_swapchainImageExtent = surfaceCapabilities.currentExtent;
 		}
 
 		// set images usage
@@ -481,7 +479,7 @@ namespace MBRF
 		// Set format
 
 		VkSurfaceFormatKHR desiredFormat = { VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
-		VkFormat imageFormat = VK_FORMAT_UNDEFINED;
+		m_swapchainImageFormat = VK_FORMAT_UNDEFINED;
 		VkColorSpaceKHR imageColorSpace;
 
 		uint32_t formatsCount;
@@ -499,7 +497,7 @@ namespace MBRF
 		// if the only element has VK_FORMAT_UNDEFINED then we are free to choose whatever format and colorspace we want
 		if (formatsCount == 1 && supportedFormats[0].format == VK_FORMAT_UNDEFINED)
 		{
-			imageFormat = desiredFormat.format;
+			m_swapchainImageFormat = desiredFormat.format;
 			imageColorSpace = desiredFormat.colorSpace;
 		}
 		else
@@ -509,7 +507,7 @@ namespace MBRF
 			{
 				if (format.format == desiredFormat.format && format.colorSpace == desiredFormat.colorSpace)
 				{
-					imageFormat = desiredFormat.format;
+					m_swapchainImageFormat = desiredFormat.format;
 					imageColorSpace = desiredFormat.colorSpace;
 
 					break;
@@ -517,13 +515,13 @@ namespace MBRF
 			}
 
 			// if a format + colorspace match wasn't found, look for only the matching format, and accept whatever colorspace is supported with that format
-			if (imageFormat == VK_FORMAT_UNDEFINED)
+			if (m_swapchainImageFormat == VK_FORMAT_UNDEFINED)
 			{
 				for (auto format : supportedFormats)
 				{
 					if (format.format == desiredFormat.format)
 					{
-						imageFormat = desiredFormat.format;
+						m_swapchainImageFormat = desiredFormat.format;
 						imageColorSpace = format.colorSpace;
 
 						break;
@@ -532,14 +530,14 @@ namespace MBRF
 			}
 
 			// if a format match wasn't found, accept the first format and colorspace supported available
-			if (imageFormat == VK_FORMAT_UNDEFINED)
+			if (m_swapchainImageFormat == VK_FORMAT_UNDEFINED)
 			{
-				imageFormat = supportedFormats[0].format;
+				m_swapchainImageFormat = supportedFormats[0].format;
 				imageColorSpace = supportedFormats[0].colorSpace;
 			}	
 		}
 
-		assert(imageFormat != VK_FORMAT_UNDEFINED);
+		assert(m_swapchainImageFormat != VK_FORMAT_UNDEFINED);
 
 		// Create Swapchain
 
@@ -548,9 +546,9 @@ namespace MBRF
 		swapchainCreateInfo.flags = 0;
 		swapchainCreateInfo.surface = m_presentationSurface;
 		swapchainCreateInfo.minImageCount = imageCount;
-		swapchainCreateInfo.imageFormat = imageFormat;
+		swapchainCreateInfo.imageFormat = m_swapchainImageFormat;
 		swapchainCreateInfo.imageColorSpace = imageColorSpace;
-		swapchainCreateInfo.imageExtent = imageExtent;
+		swapchainCreateInfo.imageExtent = m_swapchainImageExtent;
 		swapchainCreateInfo.imageArrayLayers = 1;
 		swapchainCreateInfo.imageUsage = imageUsage;
 		swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -578,6 +576,41 @@ namespace MBRF
 	void RendererVK::DestroySwapchain()
 	{
 		vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+	}
+
+	bool RendererVK::CreateSwapchainImageViews()
+	{
+		size_t imageCount = m_swapchainImages.size();
+
+		m_swapchainImageViews.resize(imageCount);
+
+		for (size_t i = 0; i < imageCount; ++i)
+		{
+			VkImageViewCreateInfo imageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+			imageViewCreateInfo.pNext = nullptr;
+			imageViewCreateInfo.flags = 0;
+			imageViewCreateInfo.image = m_swapchainImages[i];
+			imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+			imageViewCreateInfo.format = m_swapchainImageFormat;
+			// subresource range
+			imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+			imageViewCreateInfo.subresourceRange.levelCount = 1;
+			imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+			imageViewCreateInfo.subresourceRange.layerCount = 1;
+
+			VK_CHECK(vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &m_swapchainImageViews[i]));
+		}
+
+		return true;
+	}
+
+	void RendererVK::DestroySwapchainImageViews()
+	{
+		for (size_t i = 0; i < m_swapchainImageViews.size(); ++i)
+		{
+			vkDestroyImageView(m_device, m_swapchainImageViews[i], nullptr);
+		}
 	}
 
 	bool RendererVK::CreateSyncObjects(int maxFramesInFlight)
@@ -758,6 +791,86 @@ namespace MBRF
 			TransitionImageLayout(commandBuffer, m_swapchainImages[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
 			VK_CHECK(vkEndCommandBuffer(commandBuffer));
+		}
+	}
+
+	bool RendererVK::CreateTestRenderPass()
+	{
+		VkAttachmentDescription attachmentDescriptions[1];
+		attachmentDescriptions[0].flags = 0;
+		attachmentDescriptions[0].format = VK_FORMAT_B8G8R8A8_SRGB;
+		attachmentDescriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
+		attachmentDescriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachmentDescriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachmentDescriptions[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachmentDescriptions[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachmentDescriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachmentDescriptions[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+		VkAttachmentReference attatchmentReferences[1];
+		attatchmentReferences[0].attachment = 0;
+		attatchmentReferences[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkSubpassDescription subpassDescriptions[1];
+		subpassDescriptions[0].flags = 0;
+		subpassDescriptions[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		subpassDescriptions[0].inputAttachmentCount = 0;
+		subpassDescriptions[0].pInputAttachments = nullptr;
+		subpassDescriptions[0].colorAttachmentCount = 1;
+		subpassDescriptions[0].pColorAttachments = attatchmentReferences;
+		subpassDescriptions[0].pResolveAttachments = 0;
+		subpassDescriptions[0].pDepthStencilAttachment = nullptr;
+		subpassDescriptions[0].preserveAttachmentCount = 0;
+		subpassDescriptions[0].pPreserveAttachments = nullptr;
+
+
+		VkRenderPassCreateInfo createInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+		createInfo.pNext = nullptr;
+		createInfo.flags = 0;
+		createInfo.attachmentCount = 1;
+		createInfo.pAttachments = attachmentDescriptions;
+		createInfo.subpassCount = 1;
+		createInfo.pSubpasses = subpassDescriptions;
+		createInfo.dependencyCount = 0;
+		createInfo.pDependencies = nullptr;
+
+		VK_CHECK(vkCreateRenderPass(m_device, &createInfo, nullptr, &m_testRenderPass));
+
+		return true;
+	}
+
+	void RendererVK::DestroyTestRenderPass()
+	{
+		vkDestroyRenderPass(m_device, m_testRenderPass, nullptr);
+	}
+
+	bool RendererVK::CreateFramebuffers()
+	{
+		m_swapchainFramebuffers.resize(m_swapchainImages.size());
+
+		for (size_t i = 0; i < m_swapchainImages.size(); ++i)
+		{
+			VkFramebufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+			createInfo.pNext = nullptr;
+			createInfo.flags = 0;
+			createInfo.renderPass = m_testRenderPass;
+			createInfo.attachmentCount = 1;
+			createInfo.pAttachments = &m_swapchainImageViews[i];
+			createInfo.width = m_swapchainImageExtent.width;
+			createInfo.height = m_swapchainImageExtent.height;
+			createInfo.layers = 1;
+
+			VK_CHECK(vkCreateFramebuffer(m_device, &createInfo, nullptr, &m_swapchainFramebuffers[i]));
+		}
+
+		return true;
+	}
+
+	void RendererVK::DestroyFramebuffers()
+	{
+		for (size_t i = 0; i < m_swapchainFramebuffers.size(); ++i)
+		{
+			vkDestroyFramebuffer(m_device, m_swapchainFramebuffers[i], nullptr);
 		}
 	}
 

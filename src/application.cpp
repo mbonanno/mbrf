@@ -12,10 +12,13 @@ namespace MBRF
 		m_rendererVK.CreateInstance(true);
 		m_rendererVK.CreatePresentationSurface(m_window);
 		m_rendererVK.CreateDevice();
-		m_rendererVK.CreateSwapchain(s_windowWidth, s_windowHeight);	
+		m_rendererVK.CreateSwapchain(s_windowWidth, s_windowHeight);
+		m_rendererVK.CreateSwapchainImageViews();
 		m_rendererVK.CreateSyncObjects(s_MaxFramesInFlight);
 		m_rendererVK.CreateCommandPools();
 		m_rendererVK.AllocateCommandBuffers();
+		m_rendererVK.CreateTestRenderPass();
+		m_rendererVK.CreateFramebuffers();
 		m_rendererVK.CreateShaders();
 
 		m_rendererVK.RecordTestGraphicsCommands();
@@ -26,8 +29,11 @@ namespace MBRF
 		m_rendererVK.WaitForDevice();
 
 		m_rendererVK.DestroyShaders();
+		m_rendererVK.DestroyFramebuffers();
+		m_rendererVK.DestroyTestRenderPass();
 		m_rendererVK.DestroyCommandPools();
 		m_rendererVK.DestroySyncObjects();
+		m_rendererVK.DestroySwapchainImageViews();
 		m_rendererVK.DestroySwapchain();
 		m_rendererVK.DestroyDevice();
 		m_rendererVK.DestroyPresentationSurface();
