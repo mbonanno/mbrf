@@ -849,6 +849,15 @@ namespace MBRF
 		subpassDescriptions[0].preserveAttachmentCount = 0;
 		subpassDescriptions[0].pPreserveAttachments = nullptr;
 
+		VkSubpassDependency dependency;
+		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+		dependency.dstSubpass = 0;
+		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		dependency.srcAccessMask = 0;
+		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		dependency.dependencyFlags = 0;
+
 
 		VkRenderPassCreateInfo createInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
 		createInfo.pNext = nullptr;
@@ -857,8 +866,8 @@ namespace MBRF
 		createInfo.pAttachments = attachmentDescriptions;
 		createInfo.subpassCount = 1;
 		createInfo.pSubpasses = subpassDescriptions;
-		createInfo.dependencyCount = 0;
-		createInfo.pDependencies = nullptr;
+		createInfo.dependencyCount = 1;
+		createInfo.pDependencies = &dependency;
 
 		VK_CHECK(vkCreateRenderPass(m_device, &createInfo, nullptr, &m_testRenderPass));
 
