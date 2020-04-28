@@ -54,6 +54,9 @@ namespace MBRF
 		bool CreateShaders();
 		void DestroyShaders();
 
+		bool CreateGraphicsPipelines();
+		void DestroyGraphicsPipelines();
+
 		void SubmitGraphicsQueue(uint32_t imageIndex, int currentFrame);
 
 		uint32_t AcquireNextSwapchainImage(int currentFrame);
@@ -101,6 +104,9 @@ namespace MBRF
 
 		VkShaderModule m_testVertexShader;
 		VkShaderModule m_testFragmentShader;
+
+		VkPipelineLayout m_testGraphicsPipelineLayout;
+		VkPipeline m_testGraphicsPipeline;
 
 		// TODO: move all the frame dependent objects in a frame data structure, and just use a frame data array?
 

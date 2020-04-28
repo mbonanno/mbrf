@@ -20,6 +20,7 @@ namespace MBRF
 		m_rendererVK.CreateTestRenderPass();
 		m_rendererVK.CreateFramebuffers();
 		m_rendererVK.CreateShaders();
+		m_rendererVK.CreateGraphicsPipelines();
 
 		m_rendererVK.RecordTestGraphicsCommands();
 	}
@@ -28,6 +29,7 @@ namespace MBRF
 	{
 		m_rendererVK.WaitForDevice();
 
+		m_rendererVK.DestroyGraphicsPipelines();
 		m_rendererVK.DestroyShaders();
 		m_rendererVK.DestroyFramebuffers();
 		m_rendererVK.DestroyTestRenderPass();
