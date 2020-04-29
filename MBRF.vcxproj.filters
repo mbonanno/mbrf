@@ -27,12 +27,18 @@
     <ClCompile Include="src\renderer_vk.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\swapchain_vk.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\application.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\renderer_vk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\swapchain_vk.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,10 +1,6 @@
 #pragma once
 
-#define GLFW_INCLUDE_VULKAN
-#include "glfw/glfw3.h"
-
-#include <assert.h>
-#include <vector>
+#include "swapchain_vk.h"
 
 namespace MBRF
 {
@@ -17,22 +13,25 @@ namespace MBRF
 	class RendererVK
 	{
 	public:
+		bool Init(GLFWwindow* window, uint32_t width, uint32_t height);
+		void Cleanup();
+
+		void Draw();
+
+	private:
 		bool CreateInstance(bool enableValidation);
 		void DestroyInstance();
-
-		bool CreatePresentationSurface(GLFWwindow* window);
-		void DestroyPresentationSurface();
 
 		bool CreateDevice();
 		void DestroyDevice();
 
+		bool CreatePresentationSurface(GLFWwindow* window);
+		void DestroyPresentationSurface();
+
 		bool CreateSwapchain(uint32_t width, uint32_t height);
 		void DestroySwapchain();
 
-		bool CreateSwapchainImageViews();
-		void DestroySwapchainImageViews();
-
-		bool CreateSyncObjects(int maxFramesInFlight);
+		bool CreateSyncObjects();
 		void DestroySyncObjects();
 
 		bool CreateCommandPools();
@@ -59,9 +58,6 @@ namespace MBRF
 
 		void SubmitGraphicsQueue(uint32_t imageIndex, int currentFrame);
 
-		uint32_t AcquireNextSwapchainImage(int currentFrame);
-		bool PresentSwapchainImage(uint32_t imageIndex, int currentFrame);
-
 		bool WaitForDevice();
 
 	private:
@@ -74,20 +70,18 @@ namespace MBRF
 	private:
 		bool m_validationLayerEnabled;
 
+		uint32_t m_currentFrame;
+		static const int s_maxFramesInFlight = 2;
+
 		// vulkan (TODO: move in a wrapper)
 		VkInstance m_instance;
 		VkDebugUtilsMessengerEXT m_debugMessenger;
-		VkSurfaceKHR m_presentationSurface;
 
 		VkPhysicalDevice m_physicalDevice;
 		VkPhysicalDeviceProperties m_physicalDeviceProperties;
 		VkPhysicalDeviceFeatures m_physicalDeviceFeatures;
 
-		VkSwapchainKHR m_swapchain;
-		VkExtent2D m_swapchainImageExtent;
-		VkFormat m_swapchainImageFormat;
-		std::vector<VkImage> m_swapchainImages;
-		std::vector<VkImageView> m_swapchainImageViews;
+		SwapchainVK m_swapchain;
 
 		VkDevice m_device;
 		

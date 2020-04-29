@@ -1,13 +1,8 @@
 #include "renderer_vk.h"
 
-#include "vulkan/vulkan.h"
-
-#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <set>
-
-#define VK_CHECK(func) { VkResult res = func; assert(res == VK_SUCCESS); }
 
 namespace MBRF
 {
@@ -71,6 +66,55 @@ namespace MBRF
 
 	const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
 	const std::vector<const char*> requiredExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+
+	bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
+	{
+		m_currentFrame = 0;
+
+		CreateInstance(true);
+		CreatePresentationSurface(window);
+		CreateDevice();
+		CreateSwapchain(width, height);
+		CreateSyncObjects();
+		CreateCommandPools();
+		AllocateCommandBuffers();
+		CreateTestRenderPass();
+		CreateFramebuffers();
+		CreateShaders();
+		CreateGraphicsPipelines();
+
+		RecordTestGraphicsCommands();
+		return true;
+	}
+
+	void RendererVK::Cleanup()
+	{
+		WaitForDevice();
+
+		DestroyGraphicsPipelines();
+		DestroyShaders();
+		DestroyFramebuffers();
+		DestroyTestRenderPass();
+		DestroyCommandPools();
+		DestroySyncObjects();
+		DestroySwapchain();
+		DestroyDevice();
+		DestroyPresentationSurface();
+		DestroyInstance();
+	}
+
+	void RendererVK::Draw()
+	{
+		uint32_t imageIndex = m_swapchain.AcquireNextImage(m_acquireSemaphores[m_currentFrame]);
+
+		assert(imageIndex != UINT32_MAX);
+
+		SubmitGraphicsQueue(imageIndex, m_currentFrame);
+
+		m_swapchain.PresentQueue(m_graphicsQueue, imageIndex, m_renderSemaphores[m_currentFrame]);
+
+		m_currentFrame = (m_currentFrame + 1) % s_maxFramesInFlight;
+	}
 
 	bool RendererVK::CheckExtensionsSupport(const std::vector<const char*>& requiredExtensions, const std::vector<VkExtensionProperties>& availableExtensions)
 	{
@@ -198,6 +242,8 @@ namespace MBRF
 		if (m_validationLayerEnabled)
 			VK_CHECK(CreateDebugUtilsMessengerEXT(m_instance, &debugCreateInfo, nullptr, &m_debugMessenger));
 
+		m_swapchain.SetInstance(m_instance);
+
 		return true;
 	}
 
@@ -207,21 +253,6 @@ namespace MBRF
 			DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
 
 		vkDestroyInstance(m_instance, nullptr);
-	}
-
-	bool RendererVK::CreatePresentationSurface(GLFWwindow* window)
-	{
-		m_presentationSurface = VK_NULL_HANDLE;
-		VK_CHECK(glfwCreateWindowSurface(m_instance, window, nullptr, &m_presentationSurface));
-
-		assert(m_presentationSurface != VK_NULL_HANDLE);
-
-		return m_presentationSurface != VK_NULL_HANDLE;
-	}
-
-	void RendererVK::DestroyPresentationSurface()
-	{
-		vkDestroySurfaceKHR(m_instance, m_presentationSurface, nullptr);
 	}
 
 	uint32_t RendererVK::FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFlags desiredCapabilities, bool queryPresentationSupport)
@@ -245,7 +276,7 @@ namespace MBRF
 				if (queryPresentationSupport)
 				{
 					VkBool32 presentationSupported = VK_FALSE;
-					VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(device, index, m_presentationSurface, &presentationSupported);
+					VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(device, index, m_swapchain.m_presentationSurface, &presentationSupported);
 
 					if (!presentationSupported)
 						continue;
@@ -277,7 +308,7 @@ namespace MBRF
 			VkQueueFamilyProperties queueFamily = queueFamilies[index];
 
 			VkBool32 presentationSupported = VK_FALSE;
-			VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(device, index, m_presentationSurface, &presentationSupported);
+			VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(device, index, m_swapchain.m_presentationSurface, &presentationSupported);
 
 			if (presentationSupported)
 			{
@@ -396,6 +427,8 @@ namespace MBRF
 
 		vkGetDeviceQueue(m_device, m_graphicsQueueFamily, 0, &m_graphicsQueue);
 
+		m_swapchain.SetDevices(m_physicalDevice, m_device);
+
 		return true;
 	}
 
@@ -404,229 +437,37 @@ namespace MBRF
 		vkDestroyDevice(m_device, nullptr);
 	}
 
+	bool RendererVK::CreatePresentationSurface(GLFWwindow* window)
+	{
+		return m_swapchain.CreatePresentationSurface(window);
+	}
+
+	void RendererVK::DestroyPresentationSurface()
+	{
+		m_swapchain.DestroyPresentationSurface();
+	}
+
 	bool RendererVK::CreateSwapchain(uint32_t width, uint32_t height)
 	{
-		// set presentation mode
-
-		VkPresentModeKHR desiredPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
-		VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;  // always supported
-
-		uint32_t presentModesCount;
-		VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_presentationSurface, &presentModesCount, nullptr));
-
-		assert(presentModesCount > 0);
-
-		if (presentModesCount == 0)
-			return false;
-
-		std::vector<VkPresentModeKHR> supportedPresentModes;
-		supportedPresentModes.resize(presentModesCount);
-		VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_presentationSurface, &presentModesCount, supportedPresentModes.data()));
-
-		for (auto currentPresentMode : supportedPresentModes)
-		{
-			if (currentPresentMode == desiredPresentMode)
-			{
-				presentMode = currentPresentMode;
-				break;
-			}
-		}
-
-		assert(presentMode == desiredPresentMode);
-
-		// set number of images
-
-		VkSurfaceCapabilitiesKHR surfaceCapabilities;
-		VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_presentationSurface, &surfaceCapabilities));
-
-		uint32_t imageCount = surfaceCapabilities.minImageCount + 1;
-		if (surfaceCapabilities.maxImageCount > 0)
-			imageCount = std::min(imageCount, surfaceCapabilities.maxImageCount);
-
-		// set swapchain images size
-
-		// check if the window's size is determined by the swapchain images size
-		if (surfaceCapabilities.currentExtent.width == 0xFFFFFFFF)
-		{
-			VkExtent2D minImageSize = surfaceCapabilities.minImageExtent;
-			VkExtent2D maxImageSize = surfaceCapabilities.maxImageExtent;
-
-			m_swapchainImageExtent.width = std::min(std::max(width, minImageSize.width), maxImageSize.width);
-			m_swapchainImageExtent.height = std::min(std::max(height, minImageSize.height), maxImageSize.height);
-		}
-		else
-		{
-			m_swapchainImageExtent = surfaceCapabilities.currentExtent;
-		}
-
-		// set images usage
-
-		VkImageUsageFlags desiredUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;  // this usage is always guaranteed. so no real need to check. Adding the check for completeness
-		VkImageUsageFlags imageUsage = surfaceCapabilities.supportedUsageFlags & desiredUsage;
-
-		assert(imageUsage == desiredUsage);
-
-		if (imageUsage != desiredUsage)
-			return false;
-
-		// set transform (not really required on PC, adding the code for completeness)
-
-		VkSurfaceTransformFlagBitsKHR desiredTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-		VkSurfaceTransformFlagBitsKHR surfaceTransform;
-
-		if (desiredTransform & surfaceCapabilities.supportedTransforms)
-			surfaceTransform = desiredTransform;
-		else
-			surfaceTransform = surfaceCapabilities.currentTransform;
-
-		// Set format
-
-		VkSurfaceFormatKHR desiredFormat = { VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
-		m_swapchainImageFormat = VK_FORMAT_UNDEFINED;
-		VkColorSpaceKHR imageColorSpace;
-
-		uint32_t formatsCount;
-		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, m_presentationSurface, &formatsCount, nullptr));
-
-		assert(formatsCount > 0);
-
-		if (formatsCount == 0)
-			return false;
-
-		std::vector<VkSurfaceFormatKHR> supportedFormats;
-		supportedFormats.resize(formatsCount);
-		VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, m_presentationSurface, &formatsCount, supportedFormats.data()));
-
-		// if the only element has VK_FORMAT_UNDEFINED then we are free to choose whatever format and colorspace we want
-		if (formatsCount == 1 && supportedFormats[0].format == VK_FORMAT_UNDEFINED)
-		{
-			m_swapchainImageFormat = desiredFormat.format;
-			imageColorSpace = desiredFormat.colorSpace;
-		}
-		else
-		{
-			// look for format + colorspace match
-			for (auto format : supportedFormats)
-			{
-				if (format.format == desiredFormat.format && format.colorSpace == desiredFormat.colorSpace)
-				{
-					m_swapchainImageFormat = desiredFormat.format;
-					imageColorSpace = desiredFormat.colorSpace;
-
-					break;
-				}
-			}
-
-			// if a format + colorspace match wasn't found, look for only the matching format, and accept whatever colorspace is supported with that format
-			if (m_swapchainImageFormat == VK_FORMAT_UNDEFINED)
-			{
-				for (auto format : supportedFormats)
-				{
-					if (format.format == desiredFormat.format)
-					{
-						m_swapchainImageFormat = desiredFormat.format;
-						imageColorSpace = format.colorSpace;
-
-						break;
-					}
-				}
-			}
-
-			// if a format match wasn't found, accept the first format and colorspace supported available
-			if (m_swapchainImageFormat == VK_FORMAT_UNDEFINED)
-			{
-				m_swapchainImageFormat = supportedFormats[0].format;
-				imageColorSpace = supportedFormats[0].colorSpace;
-			}	
-		}
-
-		assert(m_swapchainImageFormat != VK_FORMAT_UNDEFINED);
-
-		// Create Swapchain
-
-		VkSwapchainCreateInfoKHR swapchainCreateInfo = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
-		swapchainCreateInfo.pNext = nullptr;
-		swapchainCreateInfo.flags = 0;
-		swapchainCreateInfo.surface = m_presentationSurface;
-		swapchainCreateInfo.minImageCount = imageCount;
-		swapchainCreateInfo.imageFormat = m_swapchainImageFormat;
-		swapchainCreateInfo.imageColorSpace = imageColorSpace;
-		swapchainCreateInfo.imageExtent = m_swapchainImageExtent;
-		swapchainCreateInfo.imageArrayLayers = 1;
-		swapchainCreateInfo.imageUsage = imageUsage;
-		swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		swapchainCreateInfo.queueFamilyIndexCount = 0;  // number of queue families having access to the image(s) of the swapchain when imageSharingMode is VK_SHARING_MODE_CONCURRENT
-		swapchainCreateInfo.pQueueFamilyIndices = nullptr;
-		swapchainCreateInfo.preTransform = surfaceTransform;
-		swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-		swapchainCreateInfo.presentMode = presentMode;
-		swapchainCreateInfo.clipped = VK_TRUE;
-		swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
-
-		VK_CHECK(vkCreateSwapchainKHR(m_device, &swapchainCreateInfo, nullptr, &m_swapchain));
-
-		// Get handles of swapchain images
-
-		// query imageCount again, as we only required the min number of images. The driver might have created more
-		VK_CHECK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, nullptr));
-
-		m_swapchainImages.resize(imageCount);
-		VK_CHECK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &imageCount, m_swapchainImages.data()));
-
-		return true;
+		return m_swapchain.Create(width, height);
 	}
 
 	void RendererVK::DestroySwapchain()
 	{
-		vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+		m_swapchain.Cleanup();
 	}
 
-	bool RendererVK::CreateSwapchainImageViews()
+	bool RendererVK::CreateSyncObjects()
 	{
-		size_t imageCount = m_swapchainImages.size();
-
-		m_swapchainImageViews.resize(imageCount);
-
-		for (size_t i = 0; i < imageCount; ++i)
-		{
-			VkImageViewCreateInfo imageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-			imageViewCreateInfo.pNext = nullptr;
-			imageViewCreateInfo.flags = 0;
-			imageViewCreateInfo.image = m_swapchainImages[i];
-			imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-			imageViewCreateInfo.format = m_swapchainImageFormat;
-			// subresource range
-			imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-			imageViewCreateInfo.subresourceRange.levelCount = 1;
-			imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-			imageViewCreateInfo.subresourceRange.layerCount = 1;
-
-			VK_CHECK(vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &m_swapchainImageViews[i]));
-		}
-
-		return true;
-	}
-
-	void RendererVK::DestroySwapchainImageViews()
-	{
-		for (size_t i = 0; i < m_swapchainImageViews.size(); ++i)
-		{
-			vkDestroyImageView(m_device, m_swapchainImageViews[i], nullptr);
-		}
-	}
-
-	bool RendererVK::CreateSyncObjects(int maxFramesInFlight)
-	{
-		m_acquireSemaphores.resize(maxFramesInFlight);
-		m_renderSemaphores.resize(maxFramesInFlight);
-		m_fences.resize(m_swapchainImages.size());
+		m_acquireSemaphores.resize(s_maxFramesInFlight);
+		m_renderSemaphores.resize(s_maxFramesInFlight);
+		m_fences.resize(m_swapchain.m_imageCount);
 
 		VkSemaphoreCreateInfo semaphoreCreateInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 		semaphoreCreateInfo.pNext = nullptr;
 		semaphoreCreateInfo.flags = 0;
 
-		for (int i = 0; i < maxFramesInFlight; ++i)
+		for (int i = 0; i < s_maxFramesInFlight; ++i)
 		{
 			VK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_acquireSemaphores[i]));
 			VK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_renderSemaphores[i]));
@@ -673,7 +514,7 @@ namespace MBRF
 
 	bool RendererVK::AllocateCommandBuffers()
 	{
-		m_graphicsCommandBuffers.resize(m_swapchainImages.size());
+		m_graphicsCommandBuffers.resize(m_swapchain.m_imageCount);
 
 		VkCommandBufferAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
 		allocateInfo.pNext = nullptr;
@@ -778,7 +619,7 @@ namespace MBRF
 			
 			// transition the swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 			
-			TransitionImageLayout(commandBuffer, m_swapchainImages[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+			TransitionImageLayout(commandBuffer, m_swapchain.m_images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 			
 			VkImageSubresourceRange subresourceRange;
 			subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -787,11 +628,11 @@ namespace MBRF
 			subresourceRange.baseArrayLayer = 0;
 			subresourceRange.layerCount = 1;
 			
-			vkCmdClearColorImage(commandBuffer, m_swapchainImages[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValue, 1, &subresourceRange);
+			vkCmdClearColorImage(commandBuffer, m_swapchain.m_images[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValue, 1, &subresourceRange);
 			
 			// transition the swapchain image to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 			
-			TransitionImageLayout(commandBuffer, m_swapchainImages[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+			TransitionImageLayout(commandBuffer, m_swapchain.m_images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
 #else
 
@@ -802,7 +643,7 @@ namespace MBRF
 			renderPassInfo.framebuffer = m_swapchainFramebuffers[i];
 
 			renderPassInfo.renderArea.offset = { 0, 0 };
-			renderPassInfo.renderArea.extent = m_swapchainImageExtent;
+			renderPassInfo.renderArea.extent = m_swapchain.m_imageExtent;
 
 			VkClearValue clearColorValue;
 			clearColorValue.color = { 0.3f, 0.3f, 0.3f, 1.0f };
@@ -831,7 +672,7 @@ namespace MBRF
 	{
 		VkAttachmentDescription attachmentDescriptions[1];
 		attachmentDescriptions[0].flags = 0;
-		attachmentDescriptions[0].format = m_swapchainImageFormat;
+		attachmentDescriptions[0].format = m_swapchain.m_imageFormat;
 		attachmentDescriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
 		attachmentDescriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		attachmentDescriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -888,18 +729,18 @@ namespace MBRF
 
 	bool RendererVK::CreateFramebuffers()
 	{
-		m_swapchainFramebuffers.resize(m_swapchainImages.size());
+		m_swapchainFramebuffers.resize(m_swapchain.m_imageCount);
 
-		for (size_t i = 0; i < m_swapchainImages.size(); ++i)
+		for (size_t i = 0; i < m_swapchainFramebuffers.size(); ++i)
 		{
 			VkFramebufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 			createInfo.pNext = nullptr;
 			createInfo.flags = 0;
 			createInfo.renderPass = m_testRenderPass;
 			createInfo.attachmentCount = 1;
-			createInfo.pAttachments = &m_swapchainImageViews[i];
-			createInfo.width = m_swapchainImageExtent.width;
-			createInfo.height = m_swapchainImageExtent.height;
+			createInfo.pAttachments = &m_swapchain.m_imageViews[i];
+			createInfo.width = m_swapchain.m_imageExtent.width;
+			createInfo.height = m_swapchain.m_imageExtent.height;
 			createInfo.layers = 1;
 
 			VK_CHECK(vkCreateFramebuffer(m_device, &createInfo, nullptr, &m_swapchainFramebuffers[i]));
@@ -987,8 +828,8 @@ namespace MBRF
 		inputAssemblyCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 		inputAssemblyCreateInfo.primitiveRestartEnable = VK_FALSE;
 
-		VkViewport viewport = {0, 0, (float) m_swapchainImageExtent.width, (float) m_swapchainImageExtent.height, 0.0f, 1.0f};
-		VkRect2D scissor = {0, 0, m_swapchainImageExtent};
+		VkViewport viewport = {0, 0, (float)m_swapchain.m_imageExtent.width, (float)m_swapchain.m_imageExtent.height, 0.0f, 1.0f};
+		VkRect2D scissor = {0, 0, m_swapchain.m_imageExtent};
 
 		VkPipelineViewportStateCreateInfo viewportStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
 		viewportStateCreateInfo.pNext = nullptr;
@@ -1094,23 +935,6 @@ namespace MBRF
 		return true;
 	}
 
-	uint32_t RendererVK::AcquireNextSwapchainImage(int currentFrame)
-	{
-		uint32_t imageIndex;
-		VkResult result =  vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, m_acquireSemaphores[currentFrame], nullptr, &imageIndex);
-
-		assert(result == VK_SUCCESS);
-
-		switch (result)
-		{
-		case VK_SUCCESS:
-		case VK_SUBOPTIMAL_KHR:
-			return imageIndex;
-		default:
-			return UINT32_MAX;
-		}
-	}
-
 	void RendererVK::SubmitGraphicsQueue(uint32_t imageIndex, int currentFrame)
 	{
 		VK_CHECK(vkWaitForFences(m_device, 1, &m_fences[imageIndex], VK_TRUE, UINT64_MAX));
@@ -1132,22 +956,6 @@ namespace MBRF
 		submitInfo.pSignalSemaphores = signalSemaphores;
 
 		VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_fences[imageIndex]));
-	}
-
-	bool RendererVK::PresentSwapchainImage(uint32_t imageIndex, int currentFrame)
-	{
-		VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
-		presentInfo.pNext = nullptr;
-		presentInfo.waitSemaphoreCount = 1;
-		presentInfo.pWaitSemaphores = &m_renderSemaphores[currentFrame];
-		presentInfo.swapchainCount = 1;
-		presentInfo.pSwapchains = &m_swapchain;
-		presentInfo.pImageIndices = &imageIndex;
-		presentInfo.pResults = nullptr;
-
-		VK_CHECK(vkQueuePresentKHR(m_graphicsQueue, &presentInfo));
-
-		return true;
 	}
 
 }

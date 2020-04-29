@@ -7,39 +7,12 @@ namespace MBRF
 {
 	void Application::Init()
 	{
-		currentFrame = 0;
-
-		m_rendererVK.CreateInstance(true);
-		m_rendererVK.CreatePresentationSurface(m_window);
-		m_rendererVK.CreateDevice();
-		m_rendererVK.CreateSwapchain(s_windowWidth, s_windowHeight);
-		m_rendererVK.CreateSwapchainImageViews();
-		m_rendererVK.CreateSyncObjects(s_MaxFramesInFlight);
-		m_rendererVK.CreateCommandPools();
-		m_rendererVK.AllocateCommandBuffers();
-		m_rendererVK.CreateTestRenderPass();
-		m_rendererVK.CreateFramebuffers();
-		m_rendererVK.CreateShaders();
-		m_rendererVK.CreateGraphicsPipelines();
-
-		m_rendererVK.RecordTestGraphicsCommands();
+		m_rendererVK.Init(m_window, s_windowWidth, s_windowHeight);
 	}
 
 	void Application::Cleanup()
 	{
-		m_rendererVK.WaitForDevice();
-
-		m_rendererVK.DestroyGraphicsPipelines();
-		m_rendererVK.DestroyShaders();
-		m_rendererVK.DestroyFramebuffers();
-		m_rendererVK.DestroyTestRenderPass();
-		m_rendererVK.DestroyCommandPools();
-		m_rendererVK.DestroySyncObjects();
-		m_rendererVK.DestroySwapchainImageViews();
-		m_rendererVK.DestroySwapchain();
-		m_rendererVK.DestroyDevice();
-		m_rendererVK.DestroyPresentationSurface();
-		m_rendererVK.DestroyInstance();
+		m_rendererVK.Cleanup();
 	}
 
 	void Application::Update()
@@ -49,15 +22,7 @@ namespace MBRF
 
 	void Application::Draw()
 	{
-		uint32_t imageIndex = m_rendererVK.AcquireNextSwapchainImage(currentFrame);
-
-		assert(imageIndex != UINT32_MAX);
-
-		m_rendererVK.SubmitGraphicsQueue(imageIndex, currentFrame);
-
-		m_rendererVK.PresentSwapchainImage(imageIndex, currentFrame);
-
-		currentFrame = (currentFrame + 1) % s_MaxFramesInFlight;
+		m_rendererVK.Draw();
 	}
 
 	void Application::Run()

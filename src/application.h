@@ -18,9 +18,6 @@ namespace MBRF
 		RendererVK m_rendererVK;
 
 		GLFWwindow* m_window;
-
-		static const int s_MaxFramesInFlight = 2;
-		int currentFrame;
 	};
 
 }
