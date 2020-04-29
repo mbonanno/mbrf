@@ -25,12 +25,6 @@ namespace MBRF
 		bool CreateDevice();
 		void DestroyDevice();
 
-		bool CreatePresentationSurface(GLFWwindow* window);
-		void DestroyPresentationSurface();
-
-		bool CreateSwapchain(uint32_t width, uint32_t height);
-		void DestroySwapchain();
-
 		bool CreateSyncObjects();
 		void DestroySyncObjects();
 

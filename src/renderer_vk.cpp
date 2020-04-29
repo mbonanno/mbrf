@@ -72,9 +72,15 @@ namespace MBRF
 		m_currentFrame = 0;
 
 		CreateInstance(true);
-		CreatePresentationSurface(window);
+
+		m_swapchain.SetInstance(m_instance);
+		m_swapchain.CreatePresentationSurface(window);
+
 		CreateDevice();
-		CreateSwapchain(width, height);
+
+		m_swapchain.SetDevices(m_physicalDevice, m_device);
+		m_swapchain.Create(width, height);
+
 		CreateSyncObjects();
 		CreateCommandPools();
 		AllocateCommandBuffers();
@@ -97,9 +103,9 @@ namespace MBRF
 		DestroyTestRenderPass();
 		DestroyCommandPools();
 		DestroySyncObjects();
-		DestroySwapchain();
+		m_swapchain.Cleanup();
 		DestroyDevice();
-		DestroyPresentationSurface();
+		m_swapchain.DestroyPresentationSurface();
 		DestroyInstance();
 	}
 
@@ -241,8 +247,6 @@ namespace MBRF
 
 		if (m_validationLayerEnabled)
 			VK_CHECK(CreateDebugUtilsMessengerEXT(m_instance, &debugCreateInfo, nullptr, &m_debugMessenger));
-
-		m_swapchain.SetInstance(m_instance);
 
 		return true;
 	}
@@ -427,34 +431,12 @@ namespace MBRF
 
 		vkGetDeviceQueue(m_device, m_graphicsQueueFamily, 0, &m_graphicsQueue);
 
-		m_swapchain.SetDevices(m_physicalDevice, m_device);
-
 		return true;
 	}
 
 	void RendererVK::DestroyDevice()
 	{
 		vkDestroyDevice(m_device, nullptr);
-	}
-
-	bool RendererVK::CreatePresentationSurface(GLFWwindow* window)
-	{
-		return m_swapchain.CreatePresentationSurface(window);
-	}
-
-	void RendererVK::DestroyPresentationSurface()
-	{
-		m_swapchain.DestroyPresentationSurface();
-	}
-
-	bool RendererVK::CreateSwapchain(uint32_t width, uint32_t height)
-	{
-		return m_swapchain.Create(width, height);
-	}
-
-	void RendererVK::DestroySwapchain()
-	{
-		m_swapchain.Cleanup();
 	}
 
 	bool RendererVK::CreateSyncObjects()
