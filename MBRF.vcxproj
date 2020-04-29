@@ -28,8 +28,12 @@
     <ClInclude Include="src\renderer_vk.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="data\shaders\test.frag" />
-    <None Include="data\shaders\test.vert" />
+    <CustomBuild Include="data\shaders\test.frag">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="data\shaders\test.vert">
+      <FileType>Document</FileType>
+    </CustomBuild>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
@@ -111,6 +115,18 @@
       <AdditionalDependencies>glfw3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/NODEFAULTLIB:MSVCRT %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <CustomBuild>
+      <Command>glslc.exe -o %(Identity).spv %(Identity)</Command>
+    </CustomBuild>
+    <CustomBuild>
+      <Message>Building shader: %(Identity)</Message>
+    </CustomBuild>
+    <CustomBuild>
+      <Outputs>%(Identity).spv</Outputs>
+    </CustomBuild>
+    <CustomBuild>
+      <LinkObjects>false</LinkObjects>
+    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -128,6 +144,18 @@
       <AdditionalDependencies>glfw3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/NODEFAULTLIB:MSVCRT %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <CustomBuild>
+      <Command>glslc.exe -o %(Identity).spv %(Identity)</Command>
+    </CustomBuild>
+    <CustomBuild>
+      <Message>Building shader: %(Identity)</Message>
+    </CustomBuild>
+    <CustomBuild>
+      <Outputs>%(Identity).spv</Outputs>
+    </CustomBuild>
+    <CustomBuild>
+      <LinkObjects>false</LinkObjects>
+    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -148,6 +176,18 @@
       <AdditionalLibraryDirectories>extern\glfw\lib-vc2017;extern\vulkan\Lib32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>glfw3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <CustomBuild>
+      <Command>glslc.exe -o %(Identity).spv %(Identity)</Command>
+    </CustomBuild>
+    <CustomBuild>
+      <Message>Building shader: %(Identity)</Message>
+    </CustomBuild>
+    <CustomBuild>
+      <Outputs>%(Identity).spv</Outputs>
+    </CustomBuild>
+    <CustomBuild>
+      <LinkObjects>false</LinkObjects>
+    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -168,6 +208,18 @@
       <AdditionalLibraryDirectories>extern\glfw\lib-vc2017;extern\vulkan\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>glfw3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <CustomBuild>
+      <Command>glslc.exe -o %(Identity).spv %(Identity)</Command>
+    </CustomBuild>
+    <CustomBuild>
+      <Message>Building shader: %(Identity)</Message>
+    </CustomBuild>
+    <CustomBuild>
+      <Outputs>%(Identity).spv</Outputs>
+    </CustomBuild>
+    <CustomBuild>
+      <LinkObjects>false</LinkObjects>
+    </CustomBuild>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

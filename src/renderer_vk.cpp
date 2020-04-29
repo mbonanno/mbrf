@@ -936,8 +936,8 @@ namespace MBRF
 		bool result = true;
 
 		// TODO: put common data/shader dir path in a variable or define
-		result &= CreateShaderModuleFromFile("data/shaders/testvert.spv", m_testVertexShader);
-		result &= CreateShaderModuleFromFile("data/shaders/testfrag.spv", m_testFragmentShader);
+		result &= CreateShaderModuleFromFile("data/shaders/test.vert.spv", m_testVertexShader);
+		result &= CreateShaderModuleFromFile("data/shaders/test.frag.spv", m_testFragmentShader);
 
 		assert(result);
 
