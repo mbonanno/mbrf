@@ -68,7 +68,7 @@ namespace MBRF
 		bool CheckExtensionsSupport(const std::vector<const char*>& requiredExtensions, const std::vector<VkExtensionProperties>& availableExtensions);
 		bool CheckLayersSupport(const std::vector<const char*>& requiredLayers, const std::vector<VkLayerProperties>& availableLayers);
 
-		uint32_t FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFlags desiredCapabilities);
+		uint32_t FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFlags desiredCapabilities, bool queryPresentationSupport);
 		uint32_t FindDevicePresentationQueueFamilyIndex(VkPhysicalDevice device);
 
 	private:
@@ -91,11 +91,9 @@ namespace MBRF
 
 		VkDevice m_device;
 		
-		uint32_t m_graphicQueueFamily;
-		uint32_t m_presentationQueueFamily;
+		uint32_t m_graphicsQueueFamily;
 
 		VkQueue m_graphicsQueue;
-		VkQueue m_presentationQueue;
 
 		VkCommandPool m_graphicsCommandPool;
 

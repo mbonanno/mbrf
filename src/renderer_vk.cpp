@@ -224,7 +224,7 @@ namespace MBRF
 		vkDestroySurfaceKHR(m_instance, m_presentationSurface, nullptr);
 	}
 
-	uint32_t RendererVK::FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFlags desiredCapabilities)
+	uint32_t RendererVK::FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFlags desiredCapabilities, bool queryPresentationSupport)
 	{
 		uint32_t queueFamilyCount;
 		vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
@@ -242,6 +242,15 @@ namespace MBRF
 
 			if (queueFamily.queueCount > 0 && (queueFamily.queueFlags & desiredCapabilities) != 0)
 			{
+				if (queryPresentationSupport)
+				{
+					VkBool32 presentationSupported = VK_FALSE;
+					VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(device, index, m_presentationSurface, &presentationSupported);
+
+					if (!presentationSupported)
+						continue;
+				}
+
 				queueFamilyIndex = index;
 
 				break;
@@ -339,10 +348,9 @@ namespace MBRF
 
 			// TODO: remove the presentation queue and implicitly assume that graphics = presentation (if graphics has no presentation capability just fail)
 
-			m_graphicQueueFamily = FindDeviceQueueFamilyIndex(device, VK_QUEUE_GRAPHICS_BIT);
-			m_presentationQueueFamily = FindDevicePresentationQueueFamilyIndex(device);
+			m_graphicsQueueFamily = FindDeviceQueueFamilyIndex(device, VK_QUEUE_GRAPHICS_BIT, true);
 
-			if (m_graphicQueueFamily != 0xFFFF && m_presentationQueueFamily != 0xFFFF)
+			if (m_graphicsQueueFamily != 0xFFFF)
 			{
 				m_physicalDevice = device;
 				m_physicalDeviceProperties = properties;
@@ -360,7 +368,7 @@ namespace MBRF
 		// Create logical device
 
 		// graphics and presentation queue can have the same family index
-		std::set<uint32_t> uniqueQueueFamilies = { m_graphicQueueFamily, m_presentationQueueFamily };
+		std::set<uint32_t> uniqueQueueFamilies = { m_graphicsQueueFamily };
 
 		std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 
@@ -390,8 +398,7 @@ namespace MBRF
 
 		VK_CHECK(vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device));
 
-		vkGetDeviceQueue(m_device, m_graphicQueueFamily, 0, &m_graphicsQueue);
-		vkGetDeviceQueue(m_device, m_presentationQueueFamily, 0, &m_presentationQueue);
+		vkGetDeviceQueue(m_device, m_graphicsQueueFamily, 0, &m_graphicsQueue);
 
 		return true;
 	}
@@ -656,7 +663,7 @@ namespace MBRF
 		VkCommandPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
 		createInfo.pNext = nullptr;
 		createInfo.flags = 0; // optional
-		createInfo.queueFamilyIndex = m_graphicQueueFamily;
+		createInfo.queueFamilyIndex = m_graphicsQueueFamily;
 
 		VK_CHECK(vkCreateCommandPool(m_device, &createInfo, nullptr, &m_graphicsCommandPool));
 
@@ -1142,7 +1149,7 @@ namespace MBRF
 		presentInfo.pImageIndices = &imageIndex;
 		presentInfo.pResults = nullptr;
 
-		VK_CHECK(vkQueuePresentKHR(m_presentationQueue, &presentInfo));
+		VK_CHECK(vkQueuePresentKHR(m_graphicsQueue, &presentInfo));
 
 		return true;
 	}
