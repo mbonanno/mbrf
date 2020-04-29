@@ -342,11 +342,7 @@ namespace MBRF
 
 			CheckLayersSupport(validationLayers, availableLayers);
 
-			// TODO: check for swapchain
-
 			// check queues support
-
-			// TODO: remove the presentation queue and implicitly assume that graphics = presentation (if graphics has no presentation capability just fail)
 
 			m_graphicsQueueFamily = FindDeviceQueueFamilyIndex(device, VK_QUEUE_GRAPHICS_BIT, true);
 
