@@ -89,13 +89,18 @@ namespace MBRF
 		CreateShaders();
 		CreateGraphicsPipelines();
 
+		CreateTestVertexBuffer();
+
 		RecordTestGraphicsCommands();
+
 		return true;
 	}
 
 	void RendererVK::Cleanup()
 	{
 		WaitForDevice();
+
+		DestroyTestVertexBuffer();
 
 		DestroyGraphicsPipelines();
 		DestroyShaders();
@@ -637,6 +642,11 @@ namespace MBRF
 
 			vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipeline);
 
+			VkBuffer vbs[] = { m_testVertexBuffer };
+			VkDeviceSize offsets[] = { 0 };
+
+			vkCmdBindVertexBuffers(commandBuffer, 0, 1, vbs, offsets);
+
 			vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
 			vkCmdEndRenderPass(commandBuffer);
@@ -796,13 +806,30 @@ namespace MBRF
 		shaderStageCreateInfos[1].pName = "main";
 		shaderStageCreateInfos[1].pSpecializationInfo = nullptr;
 
+		VkVertexInputBindingDescription bindingDescription[1];
+		bindingDescription[0].binding = 0;
+		bindingDescription[0].stride = sizeof(TestVertex);
+		bindingDescription[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+		VkVertexInputAttributeDescription attributeDescription[2];
+		// pos
+		attributeDescription[0].location = 0; // shader input location
+		attributeDescription[0].binding = 0; // vertex buffer binding
+		attributeDescription[0].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescription[0].offset = offsetof(TestVertex, pos);
+		// color
+		attributeDescription[1].location = 1; // shader input location
+		attributeDescription[1].binding = 0; // vertex buffer binding
+		attributeDescription[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		attributeDescription[1].offset = offsetof(TestVertex, color);
+
 		VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 		vertexInputCreateInfo.pNext = nullptr;
 		vertexInputCreateInfo.flags = 0;
-		vertexInputCreateInfo.vertexBindingDescriptionCount = 0;
-		vertexInputCreateInfo.pVertexBindingDescriptions = nullptr;
-		vertexInputCreateInfo.vertexAttributeDescriptionCount = 0;
-		vertexInputCreateInfo.pVertexAttributeDescriptions = nullptr;
+		vertexInputCreateInfo.vertexBindingDescriptionCount = 1;
+		vertexInputCreateInfo.pVertexBindingDescriptions = bindingDescription;
+		vertexInputCreateInfo.vertexAttributeDescriptionCount = 2;
+		vertexInputCreateInfo.pVertexAttributeDescriptions = attributeDescription;
 
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
 		inputAssemblyCreateInfo.pNext = nullptr;
@@ -938,6 +965,76 @@ namespace MBRF
 		submitInfo.pSignalSemaphores = signalSemaphores;
 
 		VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_fences[imageIndex]));
+	}
+
+	void RendererVK::CreateTestVertexBuffer()
+	{
+		VkDeviceSize size = sizeof(m_testTriangleVerts);
+
+		VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+		createInfo.pNext = nullptr;
+		createInfo.flags = 0;
+		createInfo.size = size;
+		createInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		createInfo.queueFamilyIndexCount = 0;
+		createInfo.pQueueFamilyIndices = nullptr;
+
+		VK_CHECK(vkCreateBuffer(m_device, &createInfo, nullptr, &m_testVertexBuffer));
+
+		VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
+		vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &deviceMemoryProperties);
+
+		VkMemoryRequirements memoryRequirements;
+		vkGetBufferMemoryRequirements(m_device, m_testVertexBuffer, &memoryRequirements);
+
+		m_testVertexBufferMemory = VK_NULL_HANDLE;
+
+		VkMemoryPropertyFlagBits memoryProperties = VkMemoryPropertyFlagBits(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT /*| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT*/);
+
+		for (uint32_t type = 0; type < deviceMemoryProperties.memoryTypeCount; ++type)
+		{
+			if ((memoryRequirements.memoryTypeBits & (1 << type)) && ((deviceMemoryProperties.memoryTypes[type].propertyFlags & memoryProperties) == memoryProperties))
+			{
+				VkMemoryAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+				allocateInfo.pNext = nullptr;
+				allocateInfo.allocationSize = memoryRequirements.size;
+				allocateInfo.memoryTypeIndex = type;
+
+				VK_CHECK(vkAllocateMemory(m_device, &allocateInfo, nullptr, &m_testVertexBufferMemory));
+
+				break;
+			}
+		}
+
+		assert(m_testVertexBufferMemory != VK_NULL_HANDLE);
+
+		if (m_testVertexBufferMemory)
+			vkBindBufferMemory(m_device, m_testVertexBuffer, m_testVertexBufferMemory, 0);
+
+		void* data;
+		VK_CHECK(vkMapMemory(m_device, m_testVertexBufferMemory, 0, size, 0, &data));
+		std::memcpy(data, m_testTriangleVerts, size);
+
+		// instead of flushing could just set VK_MEMORY_PROPERTY_HOST_COHERENT_BIT as additional property. I am flushing here because why not. Testing shit
+
+		VkMappedMemoryRange memoryRanges[1];
+		memoryRanges[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+		memoryRanges[0].pNext = nullptr;
+		memoryRanges[0].memory = m_testVertexBufferMemory;
+		memoryRanges[0].offset = 0;
+		memoryRanges[0].size = VK_WHOLE_SIZE;
+
+		vkFlushMappedMemoryRanges(m_device, 1, memoryRanges);
+
+		vkUnmapMemory(m_device, m_testVertexBufferMemory);
+	}
+
+	void RendererVK::DestroyTestVertexBuffer()
+	{
+		vkFreeMemory(m_device, m_testVertexBufferMemory, nullptr);
+
+		vkDestroyBuffer(m_device, m_testVertexBuffer, nullptr);
 	}
 
 }

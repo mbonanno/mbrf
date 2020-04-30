@@ -1,5 +1,9 @@
 #pragma once
 
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE // use the Vulkan range of 0.0 to 1.0, instead of the -1 to 1.0 OpenGL range
+#include "glm.hpp"
+
 #include "swapchain_vk.h"
 
 namespace MBRF
@@ -54,6 +58,9 @@ namespace MBRF
 
 		bool WaitForDevice();
 
+		void CreateTestVertexBuffer();
+		void DestroyTestVertexBuffer();
+
 	private:
 		bool CheckExtensionsSupport(const std::vector<const char*>& requiredExtensions, const std::vector<VkExtensionProperties>& availableExtensions);
 		bool CheckLayersSupport(const std::vector<const char*>& requiredLayers, const std::vector<VkLayerProperties>& availableLayers);
@@ -93,6 +100,22 @@ namespace MBRF
 
 		VkPipelineLayout m_testGraphicsPipelineLayout;
 		VkPipeline m_testGraphicsPipeline;
+
+		struct TestVertex
+		{
+			glm::vec2 pos;
+			glm::vec4 color;
+		};
+
+		TestVertex m_testTriangleVerts[3] =
+		{
+			{{0.0, -0.5}, {1.0, 0.0, 0.0, 1.0}},
+			{{0.5, 0.5}, {0.0, 1.0, 0.0, 1.0}},
+			{{-0.5, 0.5}, {0.0, 0.0, 1.0, 1.0}}
+		};
+
+		VkBuffer m_testVertexBuffer;
+		VkDeviceMemory m_testVertexBufferMemory;
 
 		// TODO: move all the frame dependent objects in a frame data structure, and just use a frame data array?
 
