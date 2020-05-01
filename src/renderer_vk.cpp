@@ -62,6 +62,88 @@ namespace MBRF
 		return VK_FALSE;
 	}
 
+	// ------------------------------- BufferVK -------------------------------
+
+	uint32_t findMemoryType(VkMemoryPropertyFlagBits requiredProperties, VkMemoryRequirements memoryRequirements, VkPhysicalDeviceMemoryProperties deviceMemoryProperties)
+	{
+		for (uint32_t type = 0; type < deviceMemoryProperties.memoryTypeCount; ++type)
+		{
+			if ((memoryRequirements.memoryTypeBits & (1 << type)) && ((deviceMemoryProperties.memoryTypes[type].propertyFlags & requiredProperties) == requiredProperties))
+				return type;
+		}
+
+		return 0xFFFF;
+	}
+
+	bool BufferVK::Create(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memoryProperties, VkPhysicalDeviceMemoryProperties deviceMemoryProperties)
+	{
+		assert(m_buffer == VK_NULL_HANDLE);
+
+		VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+		createInfo.pNext = nullptr;
+		createInfo.flags = 0;
+		createInfo.size = size;
+		createInfo.usage = usage;
+		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		createInfo.queueFamilyIndexCount = 0;
+		createInfo.pQueueFamilyIndices = nullptr;
+
+		VK_CHECK(vkCreateBuffer(device, &createInfo, nullptr, &m_buffer));
+
+		VkMemoryRequirements memoryRequirements;
+		vkGetBufferMemoryRequirements(device, m_buffer, &memoryRequirements);
+
+		m_hasCpuAccess = memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+
+		uint32_t memoryType = findMemoryType(memoryProperties, memoryRequirements, deviceMemoryProperties);
+
+		assert(memoryType != 0xFFFF);
+
+		if (memoryType == 0xFFFF)
+			return false;
+
+		VkMemoryAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+		allocateInfo.pNext = nullptr;
+		allocateInfo.allocationSize = memoryRequirements.size;
+		allocateInfo.memoryTypeIndex = memoryType;
+
+		VK_CHECK(vkAllocateMemory(device, &allocateInfo, nullptr, &m_memory));
+
+		assert(m_memory != VK_NULL_HANDLE);
+
+		if (!m_memory)
+			return false;
+
+		vkBindBufferMemory(device, m_buffer, m_memory, 0);
+
+
+		if (m_hasCpuAccess)
+		{
+			// leave it permanently mapped until destruction
+			VK_CHECK(vkMapMemory(device, m_memory, 0, size, 0, &m_data));
+
+			if (!(memoryProperties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
+			{
+				VkMappedMemoryRange memoryRanges[1];
+				memoryRanges[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+				memoryRanges[0].pNext = nullptr;
+				memoryRanges[0].memory = m_memory;
+				memoryRanges[0].offset = 0;
+				memoryRanges[0].size = VK_WHOLE_SIZE;
+
+				VK_CHECK(vkFlushMappedMemoryRanges(device, 1, memoryRanges));
+			}
+		}
+
+		return true;
+	}
+
+	void BufferVK::Destroy(VkDevice device)
+	{
+		vkFreeMemory(device, m_memory, nullptr);
+		vkDestroyBuffer(device, m_buffer, nullptr);
+	}
+
 	// ------------------------------- RendererVK -------------------------------
 
 	const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
@@ -89,7 +171,7 @@ namespace MBRF
 		CreateShaders();
 		CreateGraphicsPipelines();
 
-		CreateTestVertexBuffer();
+		CreateTestVertexAndTriangleBuffers();
 
 		RecordTestGraphicsCommands();
 
@@ -100,7 +182,7 @@ namespace MBRF
 	{
 		WaitForDevice();
 
-		DestroyTestVertexBuffer();
+		DestroyTestVertexAndTriangleBuffers();
 
 		DestroyGraphicsPipelines();
 		DestroyShaders();
@@ -642,12 +724,13 @@ namespace MBRF
 
 			vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipeline);
 
-			VkBuffer vbs[] = { m_testVertexBuffer };
+			VkBuffer vbs[] = { m_testVertexBuffer.m_buffer };
 			VkDeviceSize offsets[] = { 0 };
 
 			vkCmdBindVertexBuffers(commandBuffer, 0, 1, vbs, offsets);
+			vkCmdBindIndexBuffer(commandBuffer, m_testIndexBuffer.m_buffer, 0, VK_INDEX_TYPE_UINT32);
 
-			vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+			vkCmdDrawIndexed(commandBuffer, sizeof(m_testTriangleIndices) / sizeof(uint32_t), 1, 0, 0, 0);
 
 			vkCmdEndRenderPass(commandBuffer);
 
@@ -967,74 +1050,30 @@ namespace MBRF
 		VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_fences[imageIndex]));
 	}
 
-	void RendererVK::CreateTestVertexBuffer()
+	void RendererVK::CreateTestVertexAndTriangleBuffers()
 	{
 		VkDeviceSize size = sizeof(m_testTriangleVerts);
-
-		VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-		createInfo.pNext = nullptr;
-		createInfo.flags = 0;
-		createInfo.size = size;
-		createInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		createInfo.queueFamilyIndexCount = 0;
-		createInfo.pQueueFamilyIndices = nullptr;
-
-		VK_CHECK(vkCreateBuffer(m_device, &createInfo, nullptr, &m_testVertexBuffer));
 
 		VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
 		vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &deviceMemoryProperties);
 
-		VkMemoryRequirements memoryRequirements;
-		vkGetBufferMemoryRequirements(m_device, m_testVertexBuffer, &memoryRequirements);
+		m_testVertexBuffer.Create(m_device, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VkMemoryPropertyFlagBits(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT), deviceMemoryProperties);
 
-		m_testVertexBufferMemory = VK_NULL_HANDLE;
+		std::memcpy(m_testVertexBuffer.m_data, m_testTriangleVerts, size);
 
-		VkMemoryPropertyFlagBits memoryProperties = VkMemoryPropertyFlagBits(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT /*| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT*/);
+		// index buffer
 
-		for (uint32_t type = 0; type < deviceMemoryProperties.memoryTypeCount; ++type)
-		{
-			if ((memoryRequirements.memoryTypeBits & (1 << type)) && ((deviceMemoryProperties.memoryTypes[type].propertyFlags & memoryProperties) == memoryProperties))
-			{
-				VkMemoryAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-				allocateInfo.pNext = nullptr;
-				allocateInfo.allocationSize = memoryRequirements.size;
-				allocateInfo.memoryTypeIndex = type;
+		size = sizeof(m_testTriangleIndices);
 
-				VK_CHECK(vkAllocateMemory(m_device, &allocateInfo, nullptr, &m_testVertexBufferMemory));
+		m_testIndexBuffer.Create(m_device, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VkMemoryPropertyFlagBits(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT), deviceMemoryProperties);
 
-				break;
-			}
-		}
-
-		assert(m_testVertexBufferMemory != VK_NULL_HANDLE);
-
-		if (m_testVertexBufferMemory)
-			vkBindBufferMemory(m_device, m_testVertexBuffer, m_testVertexBufferMemory, 0);
-
-		void* data;
-		VK_CHECK(vkMapMemory(m_device, m_testVertexBufferMemory, 0, size, 0, &data));
-		std::memcpy(data, m_testTriangleVerts, size);
-
-		// instead of flushing could just set VK_MEMORY_PROPERTY_HOST_COHERENT_BIT as additional property. I am flushing here because why not. Testing shit
-
-		VkMappedMemoryRange memoryRanges[1];
-		memoryRanges[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-		memoryRanges[0].pNext = nullptr;
-		memoryRanges[0].memory = m_testVertexBufferMemory;
-		memoryRanges[0].offset = 0;
-		memoryRanges[0].size = VK_WHOLE_SIZE;
-
-		vkFlushMappedMemoryRanges(m_device, 1, memoryRanges);
-
-		vkUnmapMemory(m_device, m_testVertexBufferMemory);
+		std::memcpy(m_testIndexBuffer.m_data, m_testTriangleIndices, size);
 	}
 
-	void RendererVK::DestroyTestVertexBuffer()
+	void RendererVK::DestroyTestVertexAndTriangleBuffers()
 	{
-		vkFreeMemory(m_device, m_testVertexBufferMemory, nullptr);
-
-		vkDestroyBuffer(m_device, m_testVertexBuffer, nullptr);
+		m_testVertexBuffer.Destroy(m_device);
+		m_testIndexBuffer.Destroy(m_device);
 	}
 
 }

@@ -14,6 +14,19 @@ namespace MBRF
 		static bool ReadFile(const char* fileName, std::vector<char> &fileOut);
 	};
 
+	class BufferVK
+	{
+	public:
+		bool Create(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memoryProperties, VkPhysicalDeviceMemoryProperties deviceMemoryProperties);
+		void Destroy(VkDevice device);
+
+		VkBuffer m_buffer = VK_NULL_HANDLE;
+		VkDeviceMemory m_memory = VK_NULL_HANDLE;
+		void* m_data;
+
+		bool m_hasCpuAccess = false;
+	};
+
 	class RendererVK
 	{
 	public:
@@ -58,8 +71,8 @@ namespace MBRF
 
 		bool WaitForDevice();
 
-		void CreateTestVertexBuffer();
-		void DestroyTestVertexBuffer();
+		void CreateTestVertexAndTriangleBuffers();
+		void DestroyTestVertexAndTriangleBuffers();
 
 	private:
 		bool CheckExtensionsSupport(const std::vector<const char*>& requiredExtensions, const std::vector<VkExtensionProperties>& availableExtensions);
@@ -114,8 +127,10 @@ namespace MBRF
 			{{-0.5, 0.5}, {0.0, 0.0, 1.0, 1.0}}
 		};
 
-		VkBuffer m_testVertexBuffer;
-		VkDeviceMemory m_testVertexBufferMemory;
+		uint32_t m_testTriangleIndices[3] = { 0, 1, 2 };
+
+		BufferVK m_testVertexBuffer;
+		BufferVK m_testIndexBuffer;
 
 		// TODO: move all the frame dependent objects in a frame data structure, and just use a frame data array?
 
