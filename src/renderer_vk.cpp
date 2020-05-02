@@ -196,6 +196,11 @@ namespace MBRF
 		DestroyInstance();
 	}
 
+	void RendererVK::Update(float dt)
+	{
+
+	}
+
 	void RendererVK::Draw()
 	{
 		uint32_t imageIndex = m_swapchain.AcquireNextImage(m_acquireSemaphores[m_currentFrame]);
@@ -730,6 +735,8 @@ namespace MBRF
 			vkCmdBindVertexBuffers(commandBuffer, 0, 1, vbs, offsets);
 			vkCmdBindIndexBuffer(commandBuffer, m_testIndexBuffer.m_buffer, 0, VK_INDEX_TYPE_UINT32);
 
+			vkCmdPushConstants(commandBuffer, m_testGraphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m_pushConstantTestColor), &m_pushConstantTestColor);
+
 			vkCmdDrawIndexed(commandBuffer, sizeof(m_testTriangleIndices) / sizeof(uint32_t), 1, 0, 0, 0);
 
 			vkCmdEndRenderPass(commandBuffer);
@@ -977,13 +984,18 @@ namespace MBRF
 		colorBlendCreateInfo.blendConstants[2] = 0.0f;
 		colorBlendCreateInfo.blendConstants[3] = 0.0f;
 
+		VkPushConstantRange pushConstantRange;
+		pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+		pushConstantRange.offset = 0;
+		pushConstantRange.size = sizeof(m_pushConstantTestColor);
+
 		VkPipelineLayoutCreateInfo layoutCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 		layoutCreateInfo.pNext = nullptr;
 		layoutCreateInfo.flags = 0;
 		layoutCreateInfo.setLayoutCount = 0;
 		layoutCreateInfo.pSetLayouts = nullptr;
-		layoutCreateInfo.pushConstantRangeCount = 0;
-		layoutCreateInfo.pPushConstantRanges = nullptr;
+		layoutCreateInfo.pushConstantRangeCount = 1;
+		layoutCreateInfo.pPushConstantRanges = &pushConstantRange;
 
 		VK_CHECK(vkCreatePipelineLayout(m_device, &layoutCreateInfo, nullptr, &m_testGraphicsPipelineLayout));
 

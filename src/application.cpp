@@ -17,7 +17,8 @@ namespace MBRF
 
 	void Application::Update()
 	{
-
+		// TODO: add timer to calculate frame timings
+		m_rendererVK.Update(1.0f);
 	}
 
 	void Application::Draw()

@@ -33,6 +33,7 @@ namespace MBRF
 		bool Init(GLFWwindow* window, uint32_t width, uint32_t height);
 		void Cleanup();
 
+		void Update(float dt);
 		void Draw();
 
 	private:
@@ -131,6 +132,8 @@ namespace MBRF
 
 		BufferVK m_testVertexBuffer;
 		BufferVK m_testIndexBuffer;
+
+		glm::vec4 m_pushConstantTestColor = glm::vec4(1, 1, 0, 1);
 
 		// TODO: move all the frame dependent objects in a frame data structure, and just use a frame data array?
 
