@@ -169,6 +169,9 @@ namespace MBRF
 		CreateTestRenderPass();
 		CreateFramebuffers();
 		CreateShaders();
+
+		CreateDescriptors();
+
 		CreateGraphicsPipelines();
 
 		CreateTestVertexAndTriangleBuffers();
@@ -184,6 +187,8 @@ namespace MBRF
 
 		DestroyTestVertexAndTriangleBuffers();
 
+		DestroyDescriptors();
+
 		DestroyGraphicsPipelines();
 		DestroyShaders();
 		DestroyFramebuffers();
@@ -198,12 +203,19 @@ namespace MBRF
 
 	void RendererVK::Update(float dt)
 	{
-
+		m_uboTest.m_testColor.x += dt * 0.0001f;
+		if (m_uboTest.m_testColor.x > 1.0f)
+			m_uboTest.m_testColor.x = 0.0f;
 	}
 
 	void RendererVK::Draw()
 	{
 		uint32_t imageIndex = m_swapchain.AcquireNextImage(m_acquireSemaphores[m_currentFrame]);
+
+
+		// update uniform buffer
+		std::memcpy(m_uboBuffers[imageIndex].m_data, &m_uboTest, sizeof(UBOTest));
+
 
 		assert(imageIndex != UINT32_MAX);
 
@@ -735,6 +747,8 @@ namespace MBRF
 			vkCmdBindVertexBuffers(commandBuffer, 0, 1, vbs, offsets);
 			vkCmdBindIndexBuffer(commandBuffer, m_testIndexBuffer.m_buffer, 0, VK_INDEX_TYPE_UINT32);
 
+			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipelineLayout, 0, 1, &m_descriptorSets[i], 0, nullptr);
+
 			vkCmdPushConstants(commandBuffer, m_testGraphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m_pushConstantTestColor), &m_pushConstantTestColor);
 
 			vkCmdDrawIndexed(commandBuffer, sizeof(m_testTriangleIndices) / sizeof(uint32_t), 1, 0, 0, 0);
@@ -992,8 +1006,8 @@ namespace MBRF
 		VkPipelineLayoutCreateInfo layoutCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 		layoutCreateInfo.pNext = nullptr;
 		layoutCreateInfo.flags = 0;
-		layoutCreateInfo.setLayoutCount = 0;
-		layoutCreateInfo.pSetLayouts = nullptr;
+		layoutCreateInfo.setLayoutCount = 1;
+		layoutCreateInfo.pSetLayouts = &m_descriptorSetLayout;
 		layoutCreateInfo.pushConstantRangeCount = 1;
 		layoutCreateInfo.pPushConstantRanges = &pushConstantRange;
 
@@ -1066,6 +1080,7 @@ namespace MBRF
 	{
 		VkDeviceSize size = sizeof(m_testTriangleVerts);
 
+		// TODO: store as class member
 		VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
 		vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &deviceMemoryProperties);
 
@@ -1086,6 +1101,103 @@ namespace MBRF
 	{
 		m_testVertexBuffer.Destroy(m_device);
 		m_testIndexBuffer.Destroy(m_device);
+	}
+
+	bool RendererVK::CreateDescriptors()
+	{
+		// Create UBO
+
+		VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
+		vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &deviceMemoryProperties);
+
+		m_uboBuffers.resize(m_swapchain.m_imageCount);
+
+		for (size_t i = 0; i < m_uboBuffers.size(); ++i)
+		{
+			m_uboBuffers[i].Create(m_device, sizeof(UBOTest), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VkMemoryPropertyFlagBits(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT), deviceMemoryProperties);
+
+			std::memcpy(m_uboBuffers[i].m_data, &m_uboTest, sizeof(UBOTest));
+		}
+		
+
+		// Create Descriptor Pool
+		VkDescriptorPoolSize poolSizes[1];
+		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		poolSizes[0].descriptorCount = m_swapchain.m_imageCount;
+
+		VkDescriptorPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+		createInfo.pNext = nullptr;
+		createInfo.flags = 0;
+		createInfo.maxSets = m_swapchain.m_imageCount;
+		createInfo.poolSizeCount = sizeof(poolSizes) / sizeof(VkDescriptorPoolSize);
+		createInfo.pPoolSizes = poolSizes;
+
+		VK_CHECK(vkCreateDescriptorPool(m_device, &createInfo, nullptr, &m_descriptorPool));
+
+		// Create Descriptor Set Layouts
+
+		VkDescriptorSetLayoutBinding bindings[1];
+		bindings[0].binding = 0;
+		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		bindings[0].descriptorCount = 1;
+		bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+		bindings[0].pImmutableSamplers = nullptr;
+
+		VkDescriptorSetLayoutCreateInfo layoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+		layoutCreateInfo.pNext = nullptr;
+		layoutCreateInfo.flags = 0;
+		layoutCreateInfo.bindingCount = 1;
+		layoutCreateInfo.pBindings = bindings;
+
+		VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutCreateInfo, nullptr, &m_descriptorSetLayout));
+
+		// Create Descriptor Sets
+
+		std::vector<VkDescriptorSetLayout> layouts(m_swapchain.m_imageCount, m_descriptorSetLayout);
+		
+		VkDescriptorSetAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+		allocInfo.pNext = nullptr;
+		allocInfo.descriptorPool = m_descriptorPool;
+		allocInfo.descriptorSetCount = (uint32_t) layouts.size();
+		allocInfo.pSetLayouts = layouts.data();
+
+		m_descriptorSets.resize(m_swapchain.m_imageCount);
+
+		VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, m_descriptorSets.data()));
+
+		for(size_t i = 0; i < m_descriptorSets.size(); ++i)
+		{
+			VkDescriptorBufferInfo bufferInfo;
+			bufferInfo.buffer = m_uboBuffers[i].m_buffer;
+			bufferInfo.offset = 0;
+			bufferInfo.range = sizeof(UBOTest);
+
+			VkWriteDescriptorSet descriptorWrites[1];
+			descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrites[0].pNext = nullptr;
+			descriptorWrites[0].dstSet = m_descriptorSets[i];
+			descriptorWrites[0].dstBinding = 0;
+			descriptorWrites[0].dstArrayElement = 0;
+			descriptorWrites[0].descriptorCount = 1;
+			descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			descriptorWrites[0].pImageInfo = nullptr;
+			descriptorWrites[0].pBufferInfo = &bufferInfo;
+			descriptorWrites[0].pTexelBufferView = nullptr;
+
+			vkUpdateDescriptorSets(m_device, sizeof(descriptorWrites) / sizeof(VkWriteDescriptorSet), descriptorWrites, 0, nullptr);
+		}
+
+		return true;
+	}
+
+	void RendererVK::DestroyDescriptors()
+	{
+		for (size_t i = 0; i < m_uboBuffers.size(); ++i)
+			m_uboBuffers[i].Destroy(m_device);
+
+		vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
+
+		vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
 	}
 
 }

@@ -75,6 +75,9 @@ namespace MBRF
 		void CreateTestVertexAndTriangleBuffers();
 		void DestroyTestVertexAndTriangleBuffers();
 
+		bool CreateDescriptors();
+		void DestroyDescriptors();
+
 	private:
 		bool CheckExtensionsSupport(const std::vector<const char*>& requiredExtensions, const std::vector<VkExtensionProperties>& availableExtensions);
 		bool CheckLayersSupport(const std::vector<const char*>& requiredLayers, const std::vector<VkLayerProperties>& availableLayers);
@@ -133,7 +136,16 @@ namespace MBRF
 		BufferVK m_testVertexBuffer;
 		BufferVK m_testIndexBuffer;
 
-		glm::vec4 m_pushConstantTestColor = glm::vec4(1, 1, 0, 1);
+		glm::vec4 m_pushConstantTestColor = glm::vec4(0, 1, 0, 1);
+
+		struct UBOTest
+		{
+			glm::vec4 m_testColor;
+		};
+
+		UBOTest m_uboTest = {{1, 0, 1, 1}};
+
+		std::vector<BufferVK> m_uboBuffers;
 
 		// TODO: move all the frame dependent objects in a frame data structure, and just use a frame data array?
 
@@ -143,6 +155,10 @@ namespace MBRF
 		std::vector<VkSemaphore> m_renderSemaphores;
 
 		std::vector<VkFence> m_fences;
+
+		VkDescriptorPool m_descriptorPool;
+		VkDescriptorSetLayout m_descriptorSetLayout;
+		std::vector<VkDescriptorSet> m_descriptorSets;
 	};
 
 }

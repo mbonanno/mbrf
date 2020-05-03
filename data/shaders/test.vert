@@ -12,6 +12,11 @@ vec4 vertColors[3] = vec4[](
 	vec4(0.0, 0.0, 1.0, 1.0)
 	);
 
+layout(set = 0, binding = 0) uniform UBO
+{
+	vec4 testColor;
+}ubo;
+
 layout(push_constant) uniform PushConsts
 {
 	vec4 pushTest;
@@ -28,5 +33,5 @@ void main()
 	//outColor = vertColors[gl_VertexIndex];
 
 	gl_Position = vec4(inPosition, 0.0, 1.0);
-	outColor = pushConsts.pushTest; //inColor
+	outColor = ubo.testColor; //pushConsts.pushTest; //inColor
 }
