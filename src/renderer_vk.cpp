@@ -62,88 +62,6 @@ namespace MBRF
 		return VK_FALSE;
 	}
 
-	// ------------------------------- BufferVK -------------------------------
-
-	uint32_t findMemoryType(VkMemoryPropertyFlagBits requiredProperties, VkMemoryRequirements memoryRequirements, VkPhysicalDeviceMemoryProperties deviceMemoryProperties)
-	{
-		for (uint32_t type = 0; type < deviceMemoryProperties.memoryTypeCount; ++type)
-		{
-			if ((memoryRequirements.memoryTypeBits & (1 << type)) && ((deviceMemoryProperties.memoryTypes[type].propertyFlags & requiredProperties) == requiredProperties))
-				return type;
-		}
-
-		return 0xFFFF;
-	}
-
-	bool BufferVK::Create(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memoryProperties, VkPhysicalDeviceMemoryProperties deviceMemoryProperties)
-	{
-		assert(m_buffer == VK_NULL_HANDLE);
-
-		VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-		createInfo.pNext = nullptr;
-		createInfo.flags = 0;
-		createInfo.size = size;
-		createInfo.usage = usage;
-		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		createInfo.queueFamilyIndexCount = 0;
-		createInfo.pQueueFamilyIndices = nullptr;
-
-		VK_CHECK(vkCreateBuffer(device, &createInfo, nullptr, &m_buffer));
-
-		VkMemoryRequirements memoryRequirements;
-		vkGetBufferMemoryRequirements(device, m_buffer, &memoryRequirements);
-
-		m_hasCpuAccess = memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-
-		uint32_t memoryType = findMemoryType(memoryProperties, memoryRequirements, deviceMemoryProperties);
-
-		assert(memoryType != 0xFFFF);
-
-		if (memoryType == 0xFFFF)
-			return false;
-
-		VkMemoryAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-		allocateInfo.pNext = nullptr;
-		allocateInfo.allocationSize = memoryRequirements.size;
-		allocateInfo.memoryTypeIndex = memoryType;
-
-		VK_CHECK(vkAllocateMemory(device, &allocateInfo, nullptr, &m_memory));
-
-		assert(m_memory != VK_NULL_HANDLE);
-
-		if (!m_memory)
-			return false;
-
-		vkBindBufferMemory(device, m_buffer, m_memory, 0);
-
-
-		if (m_hasCpuAccess)
-		{
-			// leave it permanently mapped until destruction
-			VK_CHECK(vkMapMemory(device, m_memory, 0, size, 0, &m_data));
-
-			if (!(memoryProperties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
-			{
-				VkMappedMemoryRange memoryRanges[1];
-				memoryRanges[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-				memoryRanges[0].pNext = nullptr;
-				memoryRanges[0].memory = m_memory;
-				memoryRanges[0].offset = 0;
-				memoryRanges[0].size = VK_WHOLE_SIZE;
-
-				VK_CHECK(vkFlushMappedMemoryRanges(device, 1, memoryRanges));
-			}
-		}
-
-		return true;
-	}
-
-	void BufferVK::Destroy(VkDevice device)
-	{
-		vkFreeMemory(device, m_memory, nullptr);
-		vkDestroyBuffer(device, m_buffer, nullptr);
-	}
-
 	// ------------------------------- RendererVK -------------------------------
 
 	const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
@@ -214,7 +132,7 @@ namespace MBRF
 
 
 		// update uniform buffer
-		std::memcpy(m_uboBuffers[imageIndex].m_data, &m_uboTest, sizeof(UBOTest));
+		UpdateBuffer(m_uboBuffers[imageIndex], sizeof(UBOTest), &m_uboTest);
 
 
 		assert(imageIndex != UINT32_MAX);
@@ -688,8 +606,7 @@ namespace MBRF
 	{
 		// test recording
 
-		VkCommandBufferBeginInfo beginInfo = {};
-		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO  };
 		beginInfo.flags = 0; // Optional
 		beginInfo.pInheritanceInfo = nullptr; // Optional: only relevant for secondary command buffers. It specifies which state to inherit from the calling primary command buffers
 
@@ -1062,8 +979,7 @@ namespace MBRF
 		VkSemaphore signalSemaphores[] = { m_renderSemaphores[currentFrame] };
 		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
-		VkSubmitInfo submitInfo;
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 		submitInfo.pNext = nullptr;
 		submitInfo.waitSemaphoreCount = 1;
 		submitInfo.pWaitSemaphores = waitSemaphores;
@@ -1080,43 +996,35 @@ namespace MBRF
 	{
 		VkDeviceSize size = sizeof(m_testTriangleVerts);
 
-		// TODO: store as class member
-		VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
-		vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &deviceMemoryProperties);
+		CreateBuffer(m_testVertexBuffer, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-		m_testVertexBuffer.Create(m_device, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VkMemoryPropertyFlagBits(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT), deviceMemoryProperties);
-
-		std::memcpy(m_testVertexBuffer.m_data, m_testTriangleVerts, size);
+		UpdateBuffer(m_testVertexBuffer, size, m_testTriangleVerts);
 
 		// index buffer
 
 		size = sizeof(m_testTriangleIndices);
 
-		m_testIndexBuffer.Create(m_device, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VkMemoryPropertyFlagBits(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT), deviceMemoryProperties);
+		CreateBuffer(m_testIndexBuffer, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-		std::memcpy(m_testIndexBuffer.m_data, m_testTriangleIndices, size);
+		UpdateBuffer(m_testIndexBuffer, size, m_testTriangleIndices);
 	}
 
 	void RendererVK::DestroyTestVertexAndTriangleBuffers()
 	{
-		m_testVertexBuffer.Destroy(m_device);
-		m_testIndexBuffer.Destroy(m_device);
+		DestroyBuffer(m_testVertexBuffer);
+		DestroyBuffer(m_testIndexBuffer);
 	}
 
 	bool RendererVK::CreateDescriptors()
 	{
 		// Create UBO
 
-		VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
-		vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &deviceMemoryProperties);
-
 		m_uboBuffers.resize(m_swapchain.m_imageCount);
 
 		for (size_t i = 0; i < m_uboBuffers.size(); ++i)
 		{
-			m_uboBuffers[i].Create(m_device, sizeof(UBOTest), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VkMemoryPropertyFlagBits(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT), deviceMemoryProperties);
-
-			std::memcpy(m_uboBuffers[i].m_data, &m_uboTest, sizeof(UBOTest));
+			CreateBuffer(m_uboBuffers[i], sizeof(UBOTest), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+			UpdateBuffer(m_uboBuffers[i], sizeof(UBOTest), &m_uboTest);
 		}
 		
 
@@ -1193,11 +1101,180 @@ namespace MBRF
 	void RendererVK::DestroyDescriptors()
 	{
 		for (size_t i = 0; i < m_uboBuffers.size(); ++i)
-			m_uboBuffers[i].Destroy(m_device);
+			DestroyBuffer(m_uboBuffers[i]);
 
 		vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
 
 		vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
+	}
+
+	uint32_t RendererVK::FindMemoryType(VkMemoryPropertyFlags requiredProperties, VkMemoryRequirements memoryRequirements, VkPhysicalDeviceMemoryProperties deviceMemoryProperties)
+	{
+		for (uint32_t type = 0; type < deviceMemoryProperties.memoryTypeCount; ++type)
+		{
+			if ((memoryRequirements.memoryTypeBits & (1 << type)) && ((deviceMemoryProperties.memoryTypes[type].propertyFlags & requiredProperties) == requiredProperties))
+				return type;
+		}
+
+		return 0xFFFF;
+	}
+
+	bool RendererVK::CreateBuffer(BufferVK& buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryProperties)
+	{
+		assert(buffer.m_buffer == VK_NULL_HANDLE);
+
+		buffer.m_size = size;
+		buffer.m_usage = usage;
+
+		buffer.m_hasCpuAccess = memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+
+		// if we are not using host memory, we need VK_BUFFER_USAGE_TRANSFER_DST_BIT so we can upload data to the GPU via staging buffers
+		if (!buffer.m_hasCpuAccess)
+			buffer.m_usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+		VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+		createInfo.pNext = nullptr;
+		createInfo.flags = 0;
+		createInfo.size = buffer.m_size;
+		createInfo.usage = buffer.m_usage;
+		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		createInfo.queueFamilyIndexCount = 0;
+		createInfo.pQueueFamilyIndices = nullptr;
+
+		VK_CHECK(vkCreateBuffer(m_device, &createInfo, nullptr, &buffer.m_buffer));
+
+		VkMemoryRequirements memoryRequirements;
+		vkGetBufferMemoryRequirements(m_device, buffer.m_buffer, &memoryRequirements);
+
+		VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
+		vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &deviceMemoryProperties);
+
+		uint32_t memoryType = FindMemoryType(memoryProperties, memoryRequirements, deviceMemoryProperties);
+
+		assert(memoryType != 0xFFFF);
+
+		if (memoryType == 0xFFFF)
+			return false;
+
+		VkMemoryAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+		allocateInfo.pNext = nullptr;
+		allocateInfo.allocationSize = memoryRequirements.size;
+		allocateInfo.memoryTypeIndex = memoryType;
+
+		VK_CHECK(vkAllocateMemory(m_device, &allocateInfo, nullptr, &buffer.m_memory));
+
+		assert(buffer.m_memory != VK_NULL_HANDLE);
+
+		if (!buffer.m_memory)
+			return false;
+
+		vkBindBufferMemory(m_device, buffer.m_buffer, buffer.m_memory, 0);
+
+		if (buffer.m_hasCpuAccess)
+		{
+			// leave it permanently mapped until destruction
+			VK_CHECK(vkMapMemory(m_device, buffer.m_memory, 0, buffer.m_size, 0, &buffer.m_data));
+
+			assert(buffer.m_data);
+
+			if (!(memoryProperties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
+			{
+				VkMappedMemoryRange memoryRanges[1];
+				memoryRanges[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+				memoryRanges[0].pNext = nullptr;
+				memoryRanges[0].memory = buffer.m_memory;
+				memoryRanges[0].offset = 0;
+				memoryRanges[0].size = VK_WHOLE_SIZE;
+
+				VK_CHECK(vkFlushMappedMemoryRanges(m_device, 1, memoryRanges));
+			}
+		}
+
+		return true;
+	}
+
+	bool RendererVK::UpdateBuffer(BufferVK& buffer, VkDeviceSize size, void* data)
+	{
+		assert(size <= buffer.m_size);
+
+		if (buffer.m_hasCpuAccess)
+		{
+			std::memcpy(buffer.m_data, data, size);
+
+			return true;
+		}
+
+		// if we have no CPU access, we need to create a staging buffer and upload it to GPU
+
+		if (!(buffer.m_usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT))
+		{
+			assert(!"Cannot upload data to device local memory via staging buffer. Usage needs to be VK_BUFFER_USAGE_TRANSFER_DST_BIT.");
+			return false;
+		}
+
+		BufferVK stagingBuffer;
+		CreateBuffer(stagingBuffer, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+
+		std::memcpy(stagingBuffer.m_data, data, size);
+
+		// Copy staging buffer to device local memory
+
+		VkCommandBuffer commandBuffer = BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+		VkBufferCopy region;
+		region.srcOffset = 0;
+		region.dstOffset = 0;
+		region.size = size;
+
+		vkCmdCopyBuffer(commandBuffer, stagingBuffer.m_buffer, buffer.m_buffer, 1, &region);
+
+		SubmitCommandBufferAndWait(commandBuffer);
+
+		vkFreeCommandBuffers(m_device, m_graphicsCommandPool, 1, &commandBuffer);
+
+		DestroyBuffer(stagingBuffer);
+
+		return true;
+	}
+
+	void RendererVK::DestroyBuffer(BufferVK& buffer)
+	{
+		vkFreeMemory(m_device, buffer.m_memory, nullptr);
+		vkDestroyBuffer(m_device, buffer.m_buffer, nullptr);
+	}
+
+	VkCommandBuffer RendererVK::BeginNewCommandBuffer(VkCommandBufferUsageFlags usage)
+	{
+		VkCommandBufferAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+		allocInfo.pNext = nullptr;
+		allocInfo.commandPool = m_graphicsCommandPool;
+		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		allocInfo.commandBufferCount = 1;
+
+		VkCommandBuffer commandBuffer;
+		VK_CHECK(vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer));
+
+		VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+		beginInfo.flags = usage;
+		beginInfo.pInheritanceInfo = nullptr;
+
+		VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
+
+		return commandBuffer;
+	}
+
+	void RendererVK::SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer)
+	{
+		VK_CHECK(vkEndCommandBuffer(commandBuffer));
+
+		VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+		submitInfo.pNext = nullptr;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &commandBuffer;
+
+		VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, nullptr));
+
+		VK_CHECK(vkQueueWaitIdle(m_graphicsQueue));
 	}
 
 }

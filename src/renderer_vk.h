@@ -14,15 +14,13 @@ namespace MBRF
 		static bool ReadFile(const char* fileName, std::vector<char> &fileOut);
 	};
 
-	class BufferVK
+	struct BufferVK
 	{
-	public:
-		bool Create(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memoryProperties, VkPhysicalDeviceMemoryProperties deviceMemoryProperties);
-		void Destroy(VkDevice device);
-
 		VkBuffer m_buffer = VK_NULL_HANDLE;
 		VkDeviceMemory m_memory = VK_NULL_HANDLE;
-		void* m_data;
+		VkDeviceSize m_size = 0;
+		VkBufferUsageFlags m_usage;
+		void* m_data = nullptr;
 
 		bool m_hasCpuAccess = false;
 	};
@@ -84,6 +82,17 @@ namespace MBRF
 
 		uint32_t FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFlags desiredCapabilities, bool queryPresentationSupport);
 		uint32_t FindDevicePresentationQueueFamilyIndex(VkPhysicalDevice device);
+
+		uint32_t FindMemoryType(VkMemoryPropertyFlags requiredProperties, VkMemoryRequirements memoryRequirements, VkPhysicalDeviceMemoryProperties deviceMemoryProperties);
+
+		// TODO: move back all the buffer creation stuff in a separate BufferVK class
+		bool CreateBuffer(BufferVK& buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryProperties);
+		void DestroyBuffer(BufferVK& buffer);
+
+		bool UpdateBuffer(BufferVK& buffer, VkDeviceSize size, void* data);
+
+		VkCommandBuffer BeginNewCommandBuffer(VkCommandBufferUsageFlags usage);
+		void SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer);
 
 	private:
 		bool m_validationLayerEnabled;
