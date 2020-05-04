@@ -84,6 +84,9 @@ namespace MBRF
 		CreateSyncObjects();
 		CreateCommandPools();
 		AllocateCommandBuffers();
+
+		CreateDepthStencilBuffer();
+
 		CreateTestRenderPass();
 		CreateFramebuffers();
 		CreateShaders();
@@ -111,6 +114,9 @@ namespace MBRF
 		DestroyShaders();
 		DestroyFramebuffers();
 		DestroyTestRenderPass();
+
+		DestroyDepthStencilBuffer();
+
 		DestroyCommandPools();
 		DestroySyncObjects();
 		m_swapchain.Cleanup();
@@ -576,6 +582,11 @@ namespace MBRF
 			dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
 
 			break;
+		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+			dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+			dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+
+			break;
 		default:
 			std::cout << "image transition TO this type layout not implemented yet!" << std::endl;
 			assert(0);
@@ -618,7 +629,7 @@ namespace MBRF
 
 #if 0
 
-			VkClearColorValue clearColorValue = { 1.0, 0.0, 0.0, 1.0 };
+			VkClearColorValue clearColorValues = { 1.0, 0.0, 0.0, 1.0 };
 			
 			// transition the swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 			
@@ -631,7 +642,7 @@ namespace MBRF
 			subresourceRange.baseArrayLayer = 0;
 			subresourceRange.layerCount = 1;
 			
-			vkCmdClearColorImage(commandBuffer, m_swapchain.m_images[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValue, 1, &subresourceRange);
+			vkCmdClearColorImage(commandBuffer, m_swapchain.m_images[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValues, 1, &subresourceRange);
 			
 			// transition the swapchain image to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 			
@@ -648,11 +659,12 @@ namespace MBRF
 			renderPassInfo.renderArea.offset = { 0, 0 };
 			renderPassInfo.renderArea.extent = m_swapchain.m_imageExtent;
 
-			VkClearValue clearColorValue;
-			clearColorValue.color = { 0.3f, 0.3f, 0.3f, 1.0f };
+			VkClearValue clearColorValues[2];
+			clearColorValues[0].color = { 0.3f, 0.3f, 0.3f, 1.0f };
+			clearColorValues[1].depthStencil = { 1.0f, 0 };
 
-			renderPassInfo.clearValueCount = 1;
-			renderPassInfo.pClearValues = &clearColorValue;
+			renderPassInfo.clearValueCount = 2;
+			renderPassInfo.pClearValues = clearColorValues;
 
 			vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -683,7 +695,8 @@ namespace MBRF
 
 	bool RendererVK::CreateTestRenderPass()
 	{
-		VkAttachmentDescription attachmentDescriptions[1];
+		VkAttachmentDescription attachmentDescriptions[2];
+		// Color
 		attachmentDescriptions[0].flags = 0;
 		attachmentDescriptions[0].format = m_swapchain.m_imageFormat;
 		attachmentDescriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
@@ -693,10 +706,24 @@ namespace MBRF
 		attachmentDescriptions[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		attachmentDescriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		attachmentDescriptions[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		// Depth
+		attachmentDescriptions[1].flags = 0;
+		attachmentDescriptions[1].format = m_depthFormat;
+		attachmentDescriptions[1].samples = VK_SAMPLE_COUNT_1_BIT;
+		attachmentDescriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachmentDescriptions[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachmentDescriptions[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachmentDescriptions[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachmentDescriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachmentDescriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-		VkAttachmentReference attatchmentReferences[1];
-		attatchmentReferences[0].attachment = 0;
-		attatchmentReferences[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		VkAttachmentReference colorAttachmentRef;
+		colorAttachmentRef.attachment = 0;
+		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		
+		VkAttachmentReference depthAttachmentRef;
+		depthAttachmentRef.attachment = 1;
+		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		VkSubpassDescription subpassDescriptions[1];
 		subpassDescriptions[0].flags = 0;
@@ -704,9 +731,9 @@ namespace MBRF
 		subpassDescriptions[0].inputAttachmentCount = 0;
 		subpassDescriptions[0].pInputAttachments = nullptr;
 		subpassDescriptions[0].colorAttachmentCount = 1;
-		subpassDescriptions[0].pColorAttachments = attatchmentReferences;
+		subpassDescriptions[0].pColorAttachments = &colorAttachmentRef;
 		subpassDescriptions[0].pResolveAttachments = 0;
-		subpassDescriptions[0].pDepthStencilAttachment = nullptr;
+		subpassDescriptions[0].pDepthStencilAttachment = &depthAttachmentRef;
 		subpassDescriptions[0].preserveAttachmentCount = 0;
 		subpassDescriptions[0].pPreserveAttachments = nullptr;
 
@@ -723,7 +750,7 @@ namespace MBRF
 		VkRenderPassCreateInfo createInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
 		createInfo.pNext = nullptr;
 		createInfo.flags = 0;
-		createInfo.attachmentCount = 1;
+		createInfo.attachmentCount = sizeof(attachmentDescriptions) / sizeof(VkAttachmentDescription);
 		createInfo.pAttachments = attachmentDescriptions;
 		createInfo.subpassCount = 1;
 		createInfo.pSubpasses = subpassDescriptions;
@@ -746,12 +773,14 @@ namespace MBRF
 
 		for (size_t i = 0; i < m_swapchainFramebuffers.size(); ++i)
 		{
+			VkImageView attachments[] = { m_swapchain.m_imageViews[i], m_depthImageView };
+
 			VkFramebufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 			createInfo.pNext = nullptr;
 			createInfo.flags = 0;
 			createInfo.renderPass = m_testRenderPass;
-			createInfo.attachmentCount = 1;
-			createInfo.pAttachments = &m_swapchain.m_imageViews[i];
+			createInfo.attachmentCount = sizeof(attachments) / sizeof(VkImageView);
+			createInfo.pAttachments = attachments;
 			createInfo.width = m_swapchain.m_imageExtent.width;
 			createInfo.height = m_swapchain.m_imageExtent.height;
 			createInfo.layers = 1;
@@ -883,6 +912,19 @@ namespace MBRF
 		rasterizationCreateInfo.depthBiasSlopeFactor = 0.0f;
 		rasterizationCreateInfo.lineWidth = 1.0f;
 
+		VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+		depthStencilStateCreateInfo.pNext = nullptr;
+		depthStencilStateCreateInfo.flags = 0;
+		depthStencilStateCreateInfo.depthTestEnable = VK_TRUE;
+		depthStencilStateCreateInfo.depthWriteEnable = VK_TRUE;
+		depthStencilStateCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+		depthStencilStateCreateInfo.depthBoundsTestEnable = VK_FALSE;
+		depthStencilStateCreateInfo.stencilTestEnable = VK_FALSE;
+		depthStencilStateCreateInfo.front = {};
+		depthStencilStateCreateInfo.back = {};
+		depthStencilStateCreateInfo.minDepthBounds = 0.0f;
+		depthStencilStateCreateInfo.maxDepthBounds = 1.0f;
+
 		VkPipelineMultisampleStateCreateInfo multisampleCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 		multisampleCreateInfo.pNext = nullptr;
 		multisampleCreateInfo.flags = 0;
@@ -941,7 +983,7 @@ namespace MBRF
 		pipelineCreateInfo.pViewportState = &viewportStateCreateInfo;
 		pipelineCreateInfo.pRasterizationState = &rasterizationCreateInfo;
 		pipelineCreateInfo.pMultisampleState = &multisampleCreateInfo;
-		pipelineCreateInfo.pDepthStencilState = nullptr;
+		pipelineCreateInfo.pDepthStencilState = &depthStencilStateCreateInfo;
 		pipelineCreateInfo.pColorBlendState = &colorBlendCreateInfo;
 		pipelineCreateInfo.pDynamicState = nullptr;
 		pipelineCreateInfo.layout = m_testGraphicsPipelineLayout;
@@ -1013,6 +1055,102 @@ namespace MBRF
 	{
 		DestroyBuffer(m_testVertexBuffer);
 		DestroyBuffer(m_testIndexBuffer);
+	}
+
+	bool RendererVK::CreateDepthStencilBuffer()
+	{
+		// TODO: create generic Texture class
+
+		// Image
+
+		m_depthFormat = VK_FORMAT_D24_UNORM_S8_UINT; // TODO: check format support
+
+		VkImageCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+		createInfo.pNext = nullptr;
+		createInfo.flags = 0;
+		createInfo.imageType = VK_IMAGE_TYPE_2D;
+		createInfo.format = m_depthFormat;
+		createInfo.extent.width = m_swapchain.m_imageExtent.width;
+		createInfo.extent.height = m_swapchain.m_imageExtent.height;
+		createInfo.extent.depth = 1;
+		createInfo.mipLevels = 1;
+		createInfo.arrayLayers = 1;
+		createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		createInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		createInfo.queueFamilyIndexCount = 0;
+		createInfo.pQueueFamilyIndices = nullptr;
+		createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		VK_CHECK(vkCreateImage(m_device, &createInfo, nullptr, &m_depthImage));
+
+		VkMemoryRequirements memoryRequirements;
+		vkGetImageMemoryRequirements(m_device, m_depthImage, &memoryRequirements);
+
+		VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
+		vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &deviceMemoryProperties);
+
+		VkMemoryPropertyFlags memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+		uint32_t memoryType = FindMemoryType(memoryProperties, memoryRequirements, deviceMemoryProperties);
+
+		assert(memoryType != 0xFFFF);
+
+		if (memoryType == 0xFFFF)
+			return false;
+
+		VkMemoryAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+		allocateInfo.pNext = nullptr;
+		allocateInfo.allocationSize = memoryRequirements.size;
+		allocateInfo.memoryTypeIndex = memoryType;
+
+		VK_CHECK(vkAllocateMemory(m_device, &allocateInfo, nullptr, &m_depthMemory));
+
+		assert(m_depthMemory != VK_NULL_HANDLE);
+
+		if (!m_depthMemory)
+			return false;
+
+		VK_CHECK(vkBindImageMemory(m_device, m_depthImage, m_depthMemory, 0));
+
+		// Image View
+
+		VkImageViewCreateInfo imageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+		imageViewCreateInfo.pNext = nullptr;
+		imageViewCreateInfo.flags = 0;
+		imageViewCreateInfo.image = m_depthImage;
+		imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		imageViewCreateInfo.format = m_depthFormat;
+		// subresource range
+		imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+		imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+		imageViewCreateInfo.subresourceRange.levelCount = 1;
+		imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+		imageViewCreateInfo.subresourceRange.layerCount = 1;
+
+		VK_CHECK(vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &m_depthImageView));
+
+		// Transition
+
+		VkCommandBuffer commandBuffer = BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+		TransitionImageLayout(commandBuffer, m_depthImage, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
+		SubmitCommandBufferAndWait(commandBuffer);
+
+		vkFreeCommandBuffers(m_device, m_graphicsCommandPool, 1, &commandBuffer);
+
+		return true;
+	}
+
+	void RendererVK::DestroyDepthStencilBuffer()
+	{
+		vkDestroyImageView(m_device, m_depthImageView, nullptr);
+
+		vkFreeMemory(m_device, m_depthMemory, nullptr);
+
+		vkDestroyImage(m_device, m_depthImage, nullptr);
 	}
 
 	bool RendererVK::CreateDescriptors()
@@ -1168,7 +1306,7 @@ namespace MBRF
 		if (!buffer.m_memory)
 			return false;
 
-		vkBindBufferMemory(m_device, buffer.m_buffer, buffer.m_memory, 0);
+		VK_CHECK(vkBindBufferMemory(m_device, buffer.m_buffer, buffer.m_memory, 0));
 
 		if (buffer.m_hasCpuAccess)
 		{

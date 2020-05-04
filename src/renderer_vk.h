@@ -73,6 +73,9 @@ namespace MBRF
 		void CreateTestVertexAndTriangleBuffers();
 		void DestroyTestVertexAndTriangleBuffers();
 
+		bool CreateDepthStencilBuffer();
+		void DestroyDepthStencilBuffer();
+
 		bool CreateDescriptors();
 		void DestroyDescriptors();
 
@@ -126,6 +129,11 @@ namespace MBRF
 
 		VkPipelineLayout m_testGraphicsPipelineLayout;
 		VkPipeline m_testGraphicsPipeline;
+
+		VkImage m_depthImage;
+		VkDeviceMemory m_depthMemory;
+		VkImageView m_depthImageView;
+		VkFormat m_depthFormat;
 
 		struct TestVertex
 		{
