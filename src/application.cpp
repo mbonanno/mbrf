@@ -8,6 +8,8 @@ namespace MBRF
 	void Application::Init()
 	{
 		m_rendererVK.Init(m_window, s_windowWidth, s_windowHeight);
+
+		m_lastFrameTime = std::chrono::steady_clock::now();
 	}
 
 	void Application::Cleanup()
@@ -15,10 +17,17 @@ namespace MBRF
 		m_rendererVK.Cleanup();
 	}
 
+	
 	void Application::Update()
 	{
-		// TODO: add timer to calculate frame timings
-		m_rendererVK.Update(1.0f);
+		using namespace std::chrono;
+
+		// get frame timings
+		auto currentFrameTime = steady_clock::now();
+		double dt = duration<double, seconds::period>(currentFrameTime - m_lastFrameTime).count();
+		m_lastFrameTime = currentFrameTime;
+		
+		m_rendererVK.Update(dt);
 	}
 
 	void Application::Draw()

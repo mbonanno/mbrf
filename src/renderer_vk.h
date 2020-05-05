@@ -31,7 +31,7 @@ namespace MBRF
 		bool Init(GLFWwindow* window, uint32_t width, uint32_t height);
 		void Cleanup();
 
-		void Update(float dt);
+		void Update(double dt);
 		void Draw();
 
 	private:
@@ -137,18 +137,56 @@ namespace MBRF
 
 		struct TestVertex
 		{
-			glm::vec2 pos;
+			glm::vec3 pos;
 			glm::vec4 color;
 		};
 
 		TestVertex m_testTriangleVerts[3] =
 		{
-			{{0.0, -0.5}, {1.0, 0.0, 0.0, 1.0}},
-			{{0.5, 0.5}, {0.0, 1.0, 0.0, 1.0}},
-			{{-0.5, 0.5}, {0.0, 0.0, 1.0, 1.0}}
+			{{0.0, -0.5, 0.0f}, {1.0, 0.0, 0.0, 1.0}},
+			{{0.5, 0.5, 0.0f}, {0.0, 1.0, 0.0, 1.0}},
+			{{-0.5, 0.5, 0.0f}, {0.0, 0.0, 1.0, 1.0}}
 		};
 
 		uint32_t m_testTriangleIndices[3] = { 0, 1, 2 };
+
+		TestVertex m_testCubeVerts[8] =
+		{
+			// front
+			{{-0.5, -0.5,  0.5}, {1.0, 0.0, 0.0, 1.0}},
+			{{ 0.5, -0.5,  0.5}, {0.0, 1.0, 0.0, 1.0}},
+			{{ 0.5,  0.5,  0.5}, {0.0, 0.0, 1.0, 1.0}},
+			{{-0.5,  0.5,  0.5}, {1.0, 1.0, 1.0, 1.0}},
+			// back
+			{{-0.5, -0.5, -0.5}, {1.0, 0.0, 0.0, 1.0}},
+			{{ 0.5, -0.5, -0.5}, {0.0, 1.0, 0.0, 1.0}},
+			{{ 0.5,  0.5, -0.5}, {0.0, 0.0, 1.0, 1.0}},
+			{{-0.5,  0.5, -0.5 }, {1.0, 1.0, 1.0, 1.0}}
+		};
+
+		uint32_t m_testCubeIndices[36] = 
+		{
+			// front
+			0, 1, 2,
+			2, 3, 0,
+			// right
+			1, 5, 6,
+			6, 2, 1,
+			// back
+			7, 6, 5,
+			5, 4, 7,
+			// left
+			4, 0, 3,
+			3, 7, 4,
+			// bottom
+			4, 5, 1,
+			1, 0, 4,
+			// top
+			3, 2, 6,
+			6, 7, 3
+		};
+
+		float m_testCubeRotation = 0;
 
 		BufferVK m_testVertexBuffer;
 		BufferVK m_testIndexBuffer;
@@ -157,10 +195,11 @@ namespace MBRF
 
 		struct UBOTest
 		{
+			glm::mat4 m_mvpTransform;
 			glm::vec4 m_testColor;
 		};
 
-		UBOTest m_uboTest = {{1, 0, 1, 1}};
+		UBOTest m_uboTest = { glm::mat4(), {1, 0, 1, 1} };
 
 		std::vector<BufferVK> m_uboBuffers;
 

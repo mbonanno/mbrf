@@ -2,6 +2,8 @@
 
 #include "renderer_vk.h"
 
+#include <chrono>
+
 namespace MBRF
 {
 	class Application
@@ -18,6 +20,8 @@ namespace MBRF
 		RendererVK m_rendererVK;
 
 		GLFWwindow* m_window;
+
+		std::chrono::steady_clock::time_point m_lastFrameTime;
 	};
 
 }

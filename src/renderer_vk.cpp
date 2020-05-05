@@ -4,6 +4,8 @@
 #include <fstream>
 #include <set>
 
+#include <gtc/matrix_transform.hpp>
+
 namespace MBRF
 {
 	// ------------------------------- Utils -------------------------------
@@ -125,11 +127,25 @@ namespace MBRF
 		DestroyInstance();
 	}
 
-	void RendererVK::Update(float dt)
+	void RendererVK::Update(double dt)
 	{
-		m_uboTest.m_testColor.x += dt * 0.0001f;
+		m_uboTest.m_testColor.x += (float) dt;
 		if (m_uboTest.m_testColor.x > 1.0f)
 			m_uboTest.m_testColor.x = 0.0f;
+
+		m_testCubeRotation += (float) dt;
+
+		glm::mat4 model = glm::rotate(glm::mat4(1.0f), m_testCubeRotation * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 4.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		glm::mat4 proj = glm::perspective(glm::radians(45.0f), m_swapchain.m_imageExtent.width / (float)m_swapchain.m_imageExtent.height, 0.1f, 10.0f);
+
+		// Vulkan clip space has inverted Y and half Z.
+		glm::mat4 clip = glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
+			0.0f, -1.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 0.5f, 0.0f,
+			0.0f, 0.0f, 0.5f, 1.0f);
+
+		m_uboTest.m_mvpTransform = clip * proj * view * model;
 	}
 
 	void RendererVK::Draw()
@@ -680,7 +696,7 @@ namespace MBRF
 
 			vkCmdPushConstants(commandBuffer, m_testGraphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m_pushConstantTestColor), &m_pushConstantTestColor);
 
-			vkCmdDrawIndexed(commandBuffer, sizeof(m_testTriangleIndices) / sizeof(uint32_t), 1, 0, 0, 0);
+			vkCmdDrawIndexed(commandBuffer, sizeof(m_testCubeIndices) / sizeof(uint32_t), 1, 0, 0, 0);
 
 			vkCmdEndRenderPass(commandBuffer);
 
@@ -865,7 +881,7 @@ namespace MBRF
 		// pos
 		attributeDescription[0].location = 0; // shader input location
 		attributeDescription[0].binding = 0; // vertex buffer binding
-		attributeDescription[0].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescription[0].format = VK_FORMAT_R32G32B32_SFLOAT;
 		attributeDescription[0].offset = offsetof(TestVertex, pos);
 		// color
 		attributeDescription[1].location = 1; // shader input location
@@ -905,7 +921,7 @@ namespace MBRF
 		rasterizationCreateInfo.rasterizerDiscardEnable = VK_FALSE;
 		rasterizationCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
 		rasterizationCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-		rasterizationCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+		rasterizationCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 		rasterizationCreateInfo.depthBiasEnable = VK_FALSE;
 		rasterizationCreateInfo.depthBiasConstantFactor = 0.0f;
 		rasterizationCreateInfo.depthBiasClamp = 0.0f;
@@ -1036,19 +1052,19 @@ namespace MBRF
 
 	void RendererVK::CreateTestVertexAndTriangleBuffers()
 	{
-		VkDeviceSize size = sizeof(m_testTriangleVerts);
+		VkDeviceSize size = sizeof(m_testCubeVerts);
 
 		CreateBuffer(m_testVertexBuffer, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-		UpdateBuffer(m_testVertexBuffer, size, m_testTriangleVerts);
+		UpdateBuffer(m_testVertexBuffer, size, m_testCubeVerts);
 
 		// index buffer
 
-		size = sizeof(m_testTriangleIndices);
+		size = sizeof(m_testCubeIndices);
 
 		CreateBuffer(m_testIndexBuffer, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-		UpdateBuffer(m_testIndexBuffer, size, m_testTriangleIndices);
+		UpdateBuffer(m_testIndexBuffer, size, m_testCubeIndices);
 	}
 
 	void RendererVK::DestroyTestVertexAndTriangleBuffers()
