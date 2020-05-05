@@ -724,13 +724,13 @@ namespace MBRF
 		attachmentDescriptions[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 		// Depth
 		attachmentDescriptions[1].flags = 0;
-		attachmentDescriptions[1].format = m_depthFormat;
+		attachmentDescriptions[1].format = m_depthImage.m_format;
 		attachmentDescriptions[1].samples = VK_SAMPLE_COUNT_1_BIT;
 		attachmentDescriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		attachmentDescriptions[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		attachmentDescriptions[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		attachmentDescriptions[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachmentDescriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachmentDescriptions[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		attachmentDescriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		VkAttachmentReference colorAttachmentRef;
@@ -789,7 +789,7 @@ namespace MBRF
 
 		for (size_t i = 0; i < m_swapchainFramebuffers.size(); ++i)
 		{
-			VkImageView attachments[] = { m_swapchain.m_imageViews[i], m_depthImageView };
+			VkImageView attachments[] = { m_swapchain.m_imageViews[i], m_depthTexture.m_imageView };
 
 			VkFramebufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 			createInfo.pNext = nullptr;
@@ -1054,7 +1054,7 @@ namespace MBRF
 	{
 		VkDeviceSize size = sizeof(m_testCubeVerts);
 
-		CreateBuffer(m_testVertexBuffer, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		CreateBuffer(m_testVertexBuffer, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 		UpdateBuffer(m_testVertexBuffer, size, m_testCubeVerts);
 
@@ -1062,7 +1062,7 @@ namespace MBRF
 
 		size = sizeof(m_testCubeIndices);
 
-		CreateBuffer(m_testIndexBuffer, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		CreateBuffer(m_testIndexBuffer, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 		UpdateBuffer(m_testIndexBuffer, size, m_testCubeIndices);
 	}
@@ -1075,98 +1075,22 @@ namespace MBRF
 
 	bool RendererVK::CreateDepthStencilBuffer()
 	{
-		// TODO: create generic Texture class
+		// TODO: check VK_FORMAT_D24_UNORM_S8_UINT format availability!
+		CreateImage(m_depthImage, VK_FORMAT_D24_UNORM_S8_UINT, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, 1, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
-		// Image
+		CreateTexture(m_depthTexture, &m_depthImage, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
 
-		m_depthFormat = VK_FORMAT_D24_UNORM_S8_UINT; // TODO: check format support
+		// Transition (not really needed, we could just set the initial layout to VK_IMAGE_LAYOUT_UNDEFINED in the subpass?)
 
-		VkImageCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-		createInfo.pNext = nullptr;
-		createInfo.flags = 0;
-		createInfo.imageType = VK_IMAGE_TYPE_2D;
-		createInfo.format = m_depthFormat;
-		createInfo.extent.width = m_swapchain.m_imageExtent.width;
-		createInfo.extent.height = m_swapchain.m_imageExtent.height;
-		createInfo.extent.depth = 1;
-		createInfo.mipLevels = 1;
-		createInfo.arrayLayers = 1;
-		createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-		createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		createInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		createInfo.queueFamilyIndexCount = 0;
-		createInfo.pQueueFamilyIndices = nullptr;
-		createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-		VK_CHECK(vkCreateImage(m_device, &createInfo, nullptr, &m_depthImage));
-
-		VkMemoryRequirements memoryRequirements;
-		vkGetImageMemoryRequirements(m_device, m_depthImage, &memoryRequirements);
-
-		VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
-		vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &deviceMemoryProperties);
-
-		VkMemoryPropertyFlags memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
-		uint32_t memoryType = FindMemoryType(memoryProperties, memoryRequirements, deviceMemoryProperties);
-
-		assert(memoryType != 0xFFFF);
-
-		if (memoryType == 0xFFFF)
-			return false;
-
-		VkMemoryAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-		allocateInfo.pNext = nullptr;
-		allocateInfo.allocationSize = memoryRequirements.size;
-		allocateInfo.memoryTypeIndex = memoryType;
-
-		VK_CHECK(vkAllocateMemory(m_device, &allocateInfo, nullptr, &m_depthMemory));
-
-		assert(m_depthMemory != VK_NULL_HANDLE);
-
-		if (!m_depthMemory)
-			return false;
-
-		VK_CHECK(vkBindImageMemory(m_device, m_depthImage, m_depthMemory, 0));
-
-		// Image View
-
-		VkImageViewCreateInfo imageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-		imageViewCreateInfo.pNext = nullptr;
-		imageViewCreateInfo.flags = 0;
-		imageViewCreateInfo.image = m_depthImage;
-		imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		imageViewCreateInfo.format = m_depthFormat;
-		// subresource range
-		imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-		imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-		imageViewCreateInfo.subresourceRange.levelCount = 1;
-		imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-		imageViewCreateInfo.subresourceRange.layerCount = 1;
-
-		VK_CHECK(vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &m_depthImageView));
-
-		// Transition
-
-		VkCommandBuffer commandBuffer = BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-		TransitionImageLayout(commandBuffer, m_depthImage, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-
-		SubmitCommandBufferAndWait(commandBuffer);
-
-		vkFreeCommandBuffers(m_device, m_graphicsCommandPool, 1, &commandBuffer);
+		TransitionImageLayout(m_depthImage, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
 		return true;
 	}
 
 	void RendererVK::DestroyDepthStencilBuffer()
 	{
-		vkDestroyImageView(m_device, m_depthImageView, nullptr);
-
-		vkFreeMemory(m_device, m_depthMemory, nullptr);
-
-		vkDestroyImage(m_device, m_depthImage, nullptr);
+		DestroyTexture(m_depthTexture);
+		DestroyImage(m_depthImage);
 	}
 
 	bool RendererVK::CreateDescriptors()
@@ -1282,10 +1206,6 @@ namespace MBRF
 
 		buffer.m_hasCpuAccess = memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 
-		// if we are not using host memory, we need VK_BUFFER_USAGE_TRANSFER_DST_BIT so we can upload data to the GPU via staging buffers
-		if (!buffer.m_hasCpuAccess)
-			buffer.m_usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-
 		VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 		createInfo.pNext = nullptr;
 		createInfo.flags = 0;
@@ -1395,6 +1315,137 @@ namespace MBRF
 	{
 		vkFreeMemory(m_device, buffer.m_memory, nullptr);
 		vkDestroyBuffer(m_device, buffer.m_buffer, nullptr);
+
+		buffer.m_buffer = VK_NULL_HANDLE;
+		buffer.m_memory = VK_NULL_HANDLE;
+	}
+
+	bool RendererVK::CreateImage(ImageVK& image, VkFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t mips, VkImageUsageFlags usage,
+								 VkImageType type, VkImageLayout initialLayout, VkMemoryPropertyFlags memoryProperty, VkSampleCountFlagBits sampleCount, VkImageTiling tiling)
+	{
+		image.m_imageType = type;
+		image.m_format = format;
+		image.m_width = width;
+		image.m_height = height;
+		image.m_depth = depth;
+		image.m_mips = mips;
+		image.m_sampleCount = sampleCount;
+		image.m_tiling = tiling;
+		image.m_usage = usage;
+		image.m_currentLayout = initialLayout;
+
+		VkImageCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+		createInfo.pNext = nullptr;
+		createInfo.flags = 0;
+		createInfo.imageType = type;
+		createInfo.format = format;
+		createInfo.extent.width = width;
+		createInfo.extent.height = height;
+		createInfo.extent.depth = depth;
+		createInfo.mipLevels = mips;
+		createInfo.arrayLayers = 1;
+		createInfo.samples = sampleCount;
+		createInfo.tiling = tiling;
+		createInfo.usage = usage;
+		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		createInfo.queueFamilyIndexCount = 0;
+		createInfo.pQueueFamilyIndices = nullptr;
+		createInfo.initialLayout = initialLayout;
+
+		VK_CHECK(vkCreateImage(m_device, &createInfo, nullptr, &image.m_image));
+
+		VkMemoryRequirements memoryRequirements;
+		vkGetImageMemoryRequirements(m_device, image.m_image, &memoryRequirements);
+
+		VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
+		vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &deviceMemoryProperties);
+
+		VkMemoryPropertyFlags memoryProperties = memoryProperty;
+
+		uint32_t memoryType = FindMemoryType(memoryProperties, memoryRequirements, deviceMemoryProperties);
+
+		assert(memoryType != 0xFFFF);
+
+		if (memoryType == 0xFFFF)
+			return false;
+
+		VkMemoryAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+		allocateInfo.pNext = nullptr;
+		allocateInfo.allocationSize = memoryRequirements.size;
+		allocateInfo.memoryTypeIndex = memoryType;
+
+		VK_CHECK(vkAllocateMemory(m_device, &allocateInfo, nullptr, &image.m_memory));
+
+		assert(image.m_memory != VK_NULL_HANDLE);
+
+		if (!image.m_memory)
+			return false;
+
+		VK_CHECK(vkBindImageMemory(m_device, image.m_image, image.m_memory, 0));
+
+		return true;
+	}
+
+	void RendererVK::DestroyImage(ImageVK& image)
+	{
+		vkFreeMemory(m_device, image.m_memory, nullptr);
+		vkDestroyImage(m_device, image.m_image, nullptr);
+
+		image.m_image = VK_NULL_HANDLE;
+		image.m_memory = VK_NULL_HANDLE;
+	}
+
+	void RendererVK::TransitionImageLayout(ImageVK& image, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout)
+	{
+		VkCommandBuffer commandBuffer = BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+		TransitionImageLayout(commandBuffer, image.m_image, aspectFlags, oldLayout, newLayout);
+
+		SubmitCommandBufferAndWait(commandBuffer);
+
+		vkFreeCommandBuffers(m_device, m_graphicsCommandPool, 1, &commandBuffer);
+
+		image.m_currentLayout = newLayout;
+	}
+
+	bool RendererVK::CreateTexture(TextureVK& texture, ImageVK* image, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32_t baseMip, uint32_t mipCount)
+	{
+		assert(image);
+
+		texture.m_image = image;
+		texture.m_viewType = viewType;
+		texture.m_aspectMask = aspectMask;
+		texture.m_baseMip = baseMip;
+		texture.m_mipCount = mipCount;
+
+		VkImageViewCreateInfo imageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+		imageViewCreateInfo.pNext = nullptr;
+		imageViewCreateInfo.flags = 0;
+		imageViewCreateInfo.image = image->m_image;
+		imageViewCreateInfo.viewType = viewType;
+		imageViewCreateInfo.format = image->m_format;
+		imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+		imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+		imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+		imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+		// subresource range
+		imageViewCreateInfo.subresourceRange.aspectMask = aspectMask;
+		imageViewCreateInfo.subresourceRange.baseMipLevel = baseMip;
+		imageViewCreateInfo.subresourceRange.levelCount = mipCount;
+		imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+		imageViewCreateInfo.subresourceRange.layerCount = 1;
+
+		VK_CHECK(vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &texture.m_imageView));
+
+		return true;
+	}
+
+	void RendererVK::DestroyTexture(TextureVK& texture)
+	{
+		vkDestroyImageView(m_device, texture.m_imageView, nullptr);
+
+		texture.m_imageView = VK_NULL_HANDLE;
+		texture.m_image = nullptr;
 	}
 
 	VkCommandBuffer RendererVK::BeginNewCommandBuffer(VkCommandBufferUsageFlags usage)
