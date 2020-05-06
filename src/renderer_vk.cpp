@@ -6,6 +6,9 @@
 
 #include <gtc/matrix_transform.hpp>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 namespace MBRF
 {
 	// ------------------------------- Utils -------------------------------
@@ -88,6 +91,7 @@ namespace MBRF
 		AllocateCommandBuffers();
 
 		CreateDepthStencilBuffer();
+		CreateTexturesAndSamplers();
 
 		CreateTestRenderPass();
 		CreateFramebuffers();
@@ -117,6 +121,7 @@ namespace MBRF
 		DestroyFramebuffers();
 		DestroyTestRenderPass();
 
+		DestroyTexturesAndSamplers();
 		DestroyDepthStencilBuffer();
 
 		DestroyCommandPools();
@@ -603,6 +608,11 @@ namespace MBRF
 			dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 
 			break;
+		case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+			dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
+			break;
 		default:
 			std::cout << "image transition TO this type layout not implemented yet!" << std::endl;
 			assert(0);
@@ -877,7 +887,7 @@ namespace MBRF
 		bindingDescription[0].stride = sizeof(TestVertex);
 		bindingDescription[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-		VkVertexInputAttributeDescription attributeDescription[2];
+		VkVertexInputAttributeDescription attributeDescription[3];
 		// pos
 		attributeDescription[0].location = 0; // shader input location
 		attributeDescription[0].binding = 0; // vertex buffer binding
@@ -888,13 +898,18 @@ namespace MBRF
 		attributeDescription[1].binding = 0; // vertex buffer binding
 		attributeDescription[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
 		attributeDescription[1].offset = offsetof(TestVertex, color);
+		// texcoord
+		attributeDescription[2].location = 2; // shader input location
+		attributeDescription[2].binding = 0; // vertex buffer binding
+		attributeDescription[2].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescription[2].offset = offsetof(TestVertex, texcoord);
 
 		VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 		vertexInputCreateInfo.pNext = nullptr;
 		vertexInputCreateInfo.flags = 0;
 		vertexInputCreateInfo.vertexBindingDescriptionCount = 1;
 		vertexInputCreateInfo.pVertexBindingDescriptions = bindingDescription;
-		vertexInputCreateInfo.vertexAttributeDescriptionCount = 2;
+		vertexInputCreateInfo.vertexAttributeDescriptionCount = sizeof(attributeDescription) / sizeof(VkVertexInputAttributeDescription);
 		vertexInputCreateInfo.pVertexAttributeDescriptions = attributeDescription;
 
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
@@ -1107,9 +1122,13 @@ namespace MBRF
 		
 
 		// Create Descriptor Pool
-		VkDescriptorPoolSize poolSizes[1];
+		VkDescriptorPoolSize poolSizes[2];
+		// UBOs
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		poolSizes[0].descriptorCount = m_swapchain.m_imageCount;
+		// Texture + Samplers TODO: create separate samplers!
+		poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		poolSizes[1].descriptorCount = m_swapchain.m_imageCount;
 
 		VkDescriptorPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 		createInfo.pNext = nullptr;
@@ -1122,17 +1141,24 @@ namespace MBRF
 
 		// Create Descriptor Set Layouts
 
-		VkDescriptorSetLayoutBinding bindings[1];
+		VkDescriptorSetLayoutBinding bindings[2];
+		// UBOs
 		bindings[0].binding = 0;
 		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		bindings[0].descriptorCount = 1;
 		bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 		bindings[0].pImmutableSamplers = nullptr;
+		// Texture + Samplers TODO: create separate samplers!
+		bindings[1].binding = 1;
+		bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		bindings[1].descriptorCount = 1;
+		bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		bindings[1].pImmutableSamplers = nullptr;
 
 		VkDescriptorSetLayoutCreateInfo layoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
 		layoutCreateInfo.pNext = nullptr;
 		layoutCreateInfo.flags = 0;
-		layoutCreateInfo.bindingCount = 1;
+		layoutCreateInfo.bindingCount = sizeof(bindings) / sizeof(VkDescriptorSetLayoutBinding);
 		layoutCreateInfo.pBindings = bindings;
 
 		VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutCreateInfo, nullptr, &m_descriptorSetLayout));
@@ -1158,7 +1184,13 @@ namespace MBRF
 			bufferInfo.offset = 0;
 			bufferInfo.range = sizeof(UBOTest);
 
-			VkWriteDescriptorSet descriptorWrites[1];
+			VkDescriptorImageInfo imageInfo;
+			imageInfo.sampler = m_testSampler;
+			imageInfo.imageView = m_testTexture.m_imageView;
+			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+			VkWriteDescriptorSet descriptorWrites[2];
+			// UBOs
 			descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			descriptorWrites[0].pNext = nullptr;
 			descriptorWrites[0].dstSet = m_descriptorSets[i];
@@ -1169,6 +1201,17 @@ namespace MBRF
 			descriptorWrites[0].pImageInfo = nullptr;
 			descriptorWrites[0].pBufferInfo = &bufferInfo;
 			descriptorWrites[0].pTexelBufferView = nullptr;
+			// Texture + Samplers
+			descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrites[1].pNext = nullptr;
+			descriptorWrites[1].dstSet = m_descriptorSets[i];
+			descriptorWrites[1].dstBinding = 1;
+			descriptorWrites[1].dstArrayElement = 0;
+			descriptorWrites[1].descriptorCount = 1;
+			descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			descriptorWrites[1].pImageInfo = &imageInfo;
+			descriptorWrites[1].pBufferInfo = nullptr;
+			descriptorWrites[1].pTexelBufferView = nullptr;
 
 			vkUpdateDescriptorSets(m_device, sizeof(descriptorWrites) / sizeof(VkWriteDescriptorSet), descriptorWrites, 0, nullptr);
 		}
@@ -1482,4 +1525,81 @@ namespace MBRF
 		VK_CHECK(vkQueueWaitIdle(m_graphicsQueue));
 	}
 
+	void RendererVK::LoadTextureFromFile(TextureVK& texture, ImageVK& image, const char* fileName)
+	{
+		int texWidth, texHeight, texChannels;
+		//stbi_uc* pixels = stbi_load("textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+		stbi_uc* pixels = stbi_load(fileName, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+
+		VkDeviceSize imageSize = texWidth * texHeight * 4;
+
+		CreateImage(image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, 1, 1, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+		CreateTexture(texture, &image, VK_IMAGE_ASPECT_COLOR_BIT);
+
+		TransitionImageLayout(m_testImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+		// upload image pixels to the GPU
+
+		BufferVK stagingBuffer;
+		CreateBuffer(stagingBuffer, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+		std::memcpy(stagingBuffer.m_data, pixels, imageSize);
+
+		VkCommandBuffer commandBuffer = BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+		VkBufferImageCopy region;
+		region.bufferOffset = 0;
+		region.bufferRowLength = 0;
+		region.bufferImageHeight = 0;
+		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.imageSubresource.mipLevel = 0;
+		region.imageSubresource.baseArrayLayer = 0;
+		region.imageSubresource.layerCount = 1;
+		region.imageOffset = { 0, 0, 0 };
+		region.imageExtent = { (uint32_t) texWidth, (uint32_t) texHeight, 1 };
+
+		vkCmdCopyBufferToImage(commandBuffer, stagingBuffer.m_buffer, image.m_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+		SubmitCommandBufferAndWait(commandBuffer);
+		vkFreeCommandBuffers(m_device, m_graphicsCommandPool, 1, &commandBuffer);
+
+		DestroyBuffer(stagingBuffer);
+		stbi_image_free(pixels);
+
+		TransitionImageLayout(m_testImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	}
+
+	void RendererVK::CreateTexturesAndSamplers()
+	{
+		LoadTextureFromFile(m_testTexture, m_testImage, "data/textures/test.jpg");
+
+		// create sampler
+
+		VkSamplerCreateInfo samplerInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO  };
+		samplerInfo.magFilter = VK_FILTER_LINEAR;
+		samplerInfo.minFilter = VK_FILTER_LINEAR;
+		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		samplerInfo.anisotropyEnable = VK_FALSE;
+		samplerInfo.maxAnisotropy = 1;
+		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE;
+		samplerInfo.unnormalizedCoordinates = VK_FALSE;
+		samplerInfo.compareEnable = VK_FALSE;
+		samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+		// mipmapping
+		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		samplerInfo.mipLodBias = 0.0f;
+		samplerInfo.minLod = 0.0f;
+		samplerInfo.maxLod = 1.0f;
+
+		VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_testSampler));
+	}
+
+	void RendererVK::DestroyTexturesAndSamplers()
+	{
+		DestroyTexture(m_testTexture);
+		DestroyImage(m_testImage);
+
+		vkDestroySampler(m_device, m_testSampler, nullptr);
+	}
 }

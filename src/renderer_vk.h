@@ -137,6 +137,10 @@ namespace MBRF
 		VkCommandBuffer BeginNewCommandBuffer(VkCommandBufferUsageFlags usage);
 		void SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer);
 
+		void LoadTextureFromFile(TextureVK& texture, ImageVK& image, const char* fileName);
+		void CreateTexturesAndSamplers();
+		void DestroyTexturesAndSamplers();
+
 	private:
 		bool m_validationLayerEnabled;
 
@@ -177,49 +181,50 @@ namespace MBRF
 		{
 			glm::vec3 pos;
 			glm::vec4 color;
+			glm::vec2 texcoord;
 		};
 
 		TestVertex m_testTriangleVerts[3] =
 		{
-			{{0.0, -0.5, 0.0f}, {1.0, 0.0, 0.0, 1.0}},
-			{{0.5, 0.5, 0.0f}, {0.0, 1.0, 0.0, 1.0}},
-			{{-0.5, 0.5, 0.0f}, {0.0, 0.0, 1.0, 1.0}}
+			{{0.0, -0.5, 0.0f}, {1.0, 0.0, 0.0, 1.0}, {0, 1}},
+			{{0.5, 0.5, 0.0f}, {0.0, 1.0, 0.0, 1.0}, {1, 0}},
+			{{-0.5, 0.5, 0.0f}, {0.0, 0.0, 1.0, 1.0}, {0, 0}}
 		};
 
 		uint32_t m_testTriangleIndices[3] = { 0, 1, 2 };
 
 		TestVertex m_testCubeVerts[8] =
 		{
-			// front
-			{{-0.5, -0.5,  0.5}, {1.0, 0.0, 0.0, 1.0}},
-			{{ 0.5, -0.5,  0.5}, {0.0, 1.0, 0.0, 1.0}},
-			{{ 0.5,  0.5,  0.5}, {0.0, 0.0, 1.0, 1.0}},
-			{{-0.5,  0.5,  0.5}, {1.0, 1.0, 1.0, 1.0}},
-			// back
-			{{-0.5, -0.5, -0.5}, {1.0, 0.0, 0.0, 1.0}},
-			{{ 0.5, -0.5, -0.5}, {0.0, 1.0, 0.0, 1.0}},
-			{{ 0.5,  0.5, -0.5}, {0.0, 0.0, 1.0, 1.0}},
-			{{-0.5,  0.5, -0.5 }, {1.0, 1.0, 1.0, 1.0}}
+			// top
+			{{-0.5, -0.5,  0.5}, {1.0, 0.0, 0.0, 1.0}, {0, 1}},
+			{{ 0.5, -0.5,  0.5}, {0.0, 1.0, 0.0, 1.0}, {1, 1}},
+			{{ 0.5,  0.5,  0.5}, {0.0, 0.0, 1.0, 1.0}, {1, 0}},
+			{{-0.5,  0.5,  0.5}, {1.0, 1.0, 1.0, 1.0}, {0, 0}},
+			// bottom
+			{{-0.5, -0.5, -0.5}, {1.0, 0.0, 0.0, 1.0}, {0, 1}},
+			{{ 0.5, -0.5, -0.5}, {0.0, 1.0, 0.0, 1.0}, {1, 1}},
+			{{ 0.5,  0.5, -0.5}, {0.0, 0.0, 1.0, 1.0}, {1, 0}},
+			{{-0.5,  0.5, -0.5 }, {1.0, 1.0, 1.0, 1.0}, {0, 0}}
 		};
 
 		uint32_t m_testCubeIndices[36] = 
 		{
-			// front
+			// top
 			0, 1, 2,
 			2, 3, 0,
 			// right
 			1, 5, 6,
 			6, 2, 1,
-			// back
+			// bottom
 			7, 6, 5,
 			5, 4, 7,
 			// left
 			4, 0, 3,
 			3, 7, 4,
-			// bottom
+			// back
 			4, 5, 1,
 			1, 0, 4,
-			// top
+			// front
 			3, 2, 6,
 			6, 7, 3
 		};
@@ -231,6 +236,7 @@ namespace MBRF
 
 		glm::vec4 m_pushConstantTestColor = glm::vec4(0, 1, 0, 1);
 
+		// TODO: make sure of alignment requirements
 		struct UBOTest
 		{
 			glm::mat4 m_mvpTransform;
@@ -240,6 +246,10 @@ namespace MBRF
 		UBOTest m_uboTest = { glm::mat4(), {1, 0, 1, 1} };
 
 		std::vector<BufferVK> m_uboBuffers;
+
+		ImageVK m_testImage;
+		TextureVK m_testTexture;
+		VkSampler m_testSampler;
 
 		// TODO: move all the frame dependent objects in a frame data structure, and just use a frame data array?
 
