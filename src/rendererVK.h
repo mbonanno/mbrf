@@ -25,10 +25,22 @@ namespace MBRF
 		bool m_hasCpuAccess = false;
 	};
 
-	struct ImageVK
+	struct TextureViewVK
+	{
+		VkImageView m_imageView = VK_NULL_HANDLE;
+
+		VkImageViewType m_viewType;
+		VkImageAspectFlags m_aspectMask;
+		uint32_t m_baseMip;
+		uint32_t m_mipCount;
+	};
+
+	struct TextureVK
 	{
 		VkImage m_image = VK_NULL_HANDLE;
 		VkDeviceMemory m_memory = VK_NULL_HANDLE;
+
+		TextureViewVK m_view;
 
 		VkImageType m_imageType;
 		VkFormat m_format;
@@ -41,17 +53,6 @@ namespace MBRF
 		VkImageTiling m_tiling;
 		VkImageUsageFlags m_usage;
 		VkImageLayout m_currentLayout;
-	};
-
-	struct TextureVK
-	{
-		VkImageView m_imageView = VK_NULL_HANDLE;
-		ImageVK* m_image = nullptr;
-
-		VkImageViewType m_viewType;
-		VkImageAspectFlags m_aspectMask;
-		uint32_t m_baseMip;
-		uint32_t m_mipCount;
 	};
 
 	class RendererVK
@@ -123,21 +124,21 @@ namespace MBRF
 
 		bool UpdateBuffer(BufferVK& buffer, VkDeviceSize size, void* data);
 
-		bool CreateImage(ImageVK& image, VkFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t mips = 1, VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+		bool CreateTexture(TextureVK& texture, VkFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t mips = 1, VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 						 VkImageType type = VK_IMAGE_TYPE_2D, VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED, VkMemoryPropertyFlags memoryProperty = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 						 VkSampleCountFlagBits sampleCount = VK_SAMPLE_COUNT_1_BIT, VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL);
-		void DestroyImage(ImageVK& image);
-
-		void TransitionImageLayout(ImageVK& image, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout);
-
-		bool CreateTexture(TextureVK& texture, ImageVK* image, VkImageAspectFlags aspectMask, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t baseMip = 0, uint32_t mipCount = 1);
 		void DestroyTexture(TextureVK& texture);
+
+		void TransitionImageLayout(TextureVK& texture, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout);
+
+		bool CreateTextureView(TextureViewVK& textureView, const TextureVK& texture, VkImageAspectFlags aspectMask, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t baseMip = 0, uint32_t mipCount = 1);
+		void DestroyTextureView(TextureViewVK& textureView);
 
 
 		VkCommandBuffer BeginNewCommandBuffer(VkCommandBufferUsageFlags usage);
 		void SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer);
 
-		void LoadTextureFromFile(TextureVK& texture, ImageVK& image, const char* fileName);
+		void LoadTextureFromFile(TextureVK& texture, const char* fileName);
 		void CreateTexturesAndSamplers();
 		void DestroyTexturesAndSamplers();
 
@@ -174,8 +175,7 @@ namespace MBRF
 		VkPipelineLayout m_testGraphicsPipelineLayout;
 		VkPipeline m_testGraphicsPipeline;
 
-		ImageVK m_depthImage;
-		TextureVK m_depthTexture;
+		TextureVK m_depthImage;
 
 		struct TestVertex
 		{
@@ -247,8 +247,7 @@ namespace MBRF
 
 		std::vector<BufferVK> m_uboBuffers;
 
-		ImageVK m_testImage;
-		TextureVK m_testTexture;
+		TextureVK m_testImage;
 		VkSampler m_testSampler;
 
 		// TODO: move all the frame dependent objects in a frame data structure, and just use a frame data array?
