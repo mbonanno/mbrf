@@ -1184,7 +1184,7 @@ namespace MBRF
 
 			VkDescriptorImageInfo imageInfo;
 			imageInfo.sampler = m_testSampler;
-			imageInfo.imageView = m_testImage.m_view.m_imageView;
+			imageInfo.imageView = m_testTexture.m_view.m_imageView;
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 			VkWriteDescriptorSet descriptorWrites[2];
@@ -1537,13 +1537,31 @@ namespace MBRF
 
 		CreateTexture(texture, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, 1, 1, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
-		TransitionImageLayout(m_testImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
 		// upload image pixels to the GPU
 
+		UpdateTexture(texture, texWidth, texHeight, 1, 4, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, pixels);
+
+		stbi_image_free(pixels);
+	}
+
+	// NOTE: this only updates mip0. TODO: handle subresources properly!
+	bool RendererVK::UpdateTexture(TextureVK& texture, uint32_t width, uint32_t height, uint32_t depth, uint32_t bpp, VkImageLayout newLayout, void* data)
+	{
+		// TODO: check that the size we are trying to copy is less than the texture size?
+
+		if (!(texture.m_usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT))
+		{
+			assert(!"Cannot upload data to device local memory via staging buffer. Usage needs to be VK_BUFFER_USAGE_TRANSFER_DST_BIT.");
+			return false;
+		}
+
+		VkDeviceSize size = width * height * depth * bpp;
+
+		TransitionImageLayout(texture, texture.m_view.m_aspectMask, texture.m_currentLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
 		BufferVK stagingBuffer;
-		CreateBuffer(stagingBuffer, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-		std::memcpy(stagingBuffer.m_data, pixels, imageSize);
+		CreateBuffer(stagingBuffer, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+		std::memcpy(stagingBuffer.m_data, data, size);
 
 		VkCommandBuffer commandBuffer = BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -1551,27 +1569,28 @@ namespace MBRF
 		region.bufferOffset = 0;
 		region.bufferRowLength = 0;
 		region.bufferImageHeight = 0;
-		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.imageSubresource.aspectMask = texture.m_view.m_aspectMask;
 		region.imageSubresource.mipLevel = 0;
 		region.imageSubresource.baseArrayLayer = 0;
 		region.imageSubresource.layerCount = 1;
 		region.imageOffset = { 0, 0, 0 };
-		region.imageExtent = { (uint32_t) texWidth, (uint32_t) texHeight, 1 };
+		region.imageExtent = { width, height, depth };
 
 		vkCmdCopyBufferToImage(commandBuffer, stagingBuffer.m_buffer, texture.m_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
 		SubmitCommandBufferAndWait(commandBuffer);
 		vkFreeCommandBuffers(m_device, m_graphicsCommandPool, 1, &commandBuffer);
 
-		DestroyBuffer(stagingBuffer);
-		stbi_image_free(pixels);
+		TransitionImageLayout(m_testTexture, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, newLayout);
 
-		TransitionImageLayout(m_testImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		DestroyBuffer(stagingBuffer);
+
+		return true;
 	}
 
 	void RendererVK::CreateTexturesAndSamplers()
 	{
-		LoadTextureFromFile(m_testImage, "data/textures/test.jpg");
+		LoadTextureFromFile(m_testTexture, "data/textures/test.jpg");
 
 		// create sampler
 
@@ -1598,8 +1617,8 @@ namespace MBRF
 
 	void RendererVK::DestroyTexturesAndSamplers()
 	{
-		DestroyTextureView(m_testImage.m_view);
-		DestroyTexture(m_testImage);
+		DestroyTextureView(m_testTexture.m_view);
+		DestroyTexture(m_testTexture);
 
 		vkDestroySampler(m_device, m_testSampler, nullptr);
 	}

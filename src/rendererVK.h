@@ -129,6 +129,8 @@ namespace MBRF
 						 VkSampleCountFlagBits sampleCount = VK_SAMPLE_COUNT_1_BIT, VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL);
 		void DestroyTexture(TextureVK& texture);
 
+		bool UpdateTexture(TextureVK& texture, uint32_t width, uint32_t height, uint32_t depth, uint32_t bpp, VkImageLayout newLayout, void* data);
+
 		void TransitionImageLayout(TextureVK& texture, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout);
 
 		bool CreateTextureView(TextureViewVK& textureView, const TextureVK& texture, VkImageAspectFlags aspectMask, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t baseMip = 0, uint32_t mipCount = 1);
@@ -247,7 +249,7 @@ namespace MBRF
 
 		std::vector<BufferVK> m_uboBuffers;
 
-		TextureVK m_testImage;
+		TextureVK m_testTexture;
 		VkSampler m_testSampler;
 
 		// TODO: move all the frame dependent objects in a frame data structure, and just use a frame data array?
