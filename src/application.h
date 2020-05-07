@@ -1,6 +1,6 @@
 #pragma once
 
-#include "renderer_vk.h"
+#include "deviceVK.h"
 
 #include <chrono>
 
@@ -17,7 +17,7 @@ namespace MBRF
 		void Draw();
 
 	private:
-		RendererVK m_rendererVK;
+		DeviceVK m_rendererVK;
 
 		GLFWwindow* m_window;
 

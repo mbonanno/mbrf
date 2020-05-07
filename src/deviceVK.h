@@ -4,7 +4,7 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // use the Vulkan range of 0.0 to 1.0, instead of the -1 to 1.0 OpenGL range
 #include "glm.hpp"
 
-#include "swapchain_vk.h"
+#include "swapchainVK.h"
 
 namespace MBRF
 {
@@ -54,7 +54,7 @@ namespace MBRF
 		uint32_t m_mipCount;
 	};
 
-	class RendererVK
+	class DeviceVK
 	{
 	public:
 		bool Init(GLFWwindow* window, uint32_t width, uint32_t height);

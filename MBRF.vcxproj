@@ -21,13 +21,13 @@
   <ItemGroup>
     <ClCompile Include="src\application.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\renderer_vk.cpp" />
-    <ClCompile Include="src\swapchain_vk.cpp" />
+    <ClCompile Include="src\deviceVK.cpp" />
+    <ClCompile Include="src\swapchainVK.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\application.h" />
-    <ClInclude Include="src\renderer_vk.h" />
-    <ClInclude Include="src\swapchain_vk.h" />
+    <ClInclude Include="src\deviceVK.h" />
+    <ClInclude Include="src\swapchainVK.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="data\shaders\test.frag">
