@@ -1,4 +1,4 @@
-#include "deviceVK.h"
+#include "rendererVK.h"
 
 #include <iostream>
 #include <fstream>
@@ -67,12 +67,12 @@ namespace MBRF
 		return VK_FALSE;
 	}
 
-	// ------------------------------- DeviceVK -------------------------------
+	// ------------------------------- RendererVK -------------------------------
 
 	const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
 	const std::vector<const char*> requiredExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
-	bool DeviceVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
+	bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
 	{
 		m_currentFrame = 0;
 
@@ -108,7 +108,7 @@ namespace MBRF
 		return true;
 	}
 
-	void DeviceVK::Cleanup()
+	void RendererVK::Cleanup()
 	{
 		WaitForDevice();
 
@@ -132,7 +132,7 @@ namespace MBRF
 		DestroyInstance();
 	}
 
-	void DeviceVK::Update(double dt)
+	void RendererVK::Update(double dt)
 	{
 		m_uboTest.m_testColor.x += (float) dt;
 		if (m_uboTest.m_testColor.x > 1.0f)
@@ -153,7 +153,7 @@ namespace MBRF
 		m_uboTest.m_mvpTransform = clip * proj * view * model;
 	}
 
-	void DeviceVK::Draw()
+	void RendererVK::Draw()
 	{
 		uint32_t imageIndex = m_swapchain.AcquireNextImage(m_acquireSemaphores[m_currentFrame]);
 
@@ -171,7 +171,7 @@ namespace MBRF
 		m_currentFrame = (m_currentFrame + 1) % s_maxFramesInFlight;
 	}
 
-	bool DeviceVK::CheckExtensionsSupport(const std::vector<const char*>& requiredExtensions, const std::vector<VkExtensionProperties>& availableExtensions)
+	bool RendererVK::CheckExtensionsSupport(const std::vector<const char*>& requiredExtensions, const std::vector<VkExtensionProperties>& availableExtensions)
 	{
 		for (const char* extensionName : requiredExtensions)
 		{
@@ -197,7 +197,7 @@ namespace MBRF
 		return true;
 	}
 
-	bool DeviceVK::CheckLayersSupport(const std::vector<const char*>& requiredLayers, const std::vector<VkLayerProperties>& availableLayers)
+	bool RendererVK::CheckLayersSupport(const std::vector<const char*>& requiredLayers, const std::vector<VkLayerProperties>& availableLayers)
 	{
 		for (const char* layerName : validationLayers)
 		{
@@ -223,7 +223,7 @@ namespace MBRF
 		return true;
 	}
 
-	bool DeviceVK::CreateInstance(bool enableValidation)
+	bool RendererVK::CreateInstance(bool enableValidation)
 	{
 		m_validationLayerEnabled = enableValidation;
 
@@ -300,7 +300,7 @@ namespace MBRF
 		return true;
 	}
 
-	void DeviceVK::DestroyInstance()
+	void RendererVK::DestroyInstance()
 	{
 		if (m_validationLayerEnabled)
 			DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
@@ -308,7 +308,7 @@ namespace MBRF
 		vkDestroyInstance(m_instance, nullptr);
 	}
 
-	uint32_t DeviceVK::FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFlags desiredCapabilities, bool queryPresentationSupport)
+	uint32_t RendererVK::FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFlags desiredCapabilities, bool queryPresentationSupport)
 	{
 		uint32_t queueFamilyCount;
 		vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
@@ -344,7 +344,7 @@ namespace MBRF
 		return queueFamilyIndex;
 	}
 
-	uint32_t DeviceVK::FindDevicePresentationQueueFamilyIndex(VkPhysicalDevice device)
+	uint32_t RendererVK::FindDevicePresentationQueueFamilyIndex(VkPhysicalDevice device)
 	{
 		uint32_t queueFamilyCount;
 		vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
@@ -373,7 +373,7 @@ namespace MBRF
 		return queueFamilyIndex;
 	}
 
-	bool DeviceVK::CreateDevice()
+	bool RendererVK::CreateDevice()
 	{
 		// Physical Device
 
@@ -483,12 +483,12 @@ namespace MBRF
 		return true;
 	}
 
-	void DeviceVK::DestroyDevice()
+	void RendererVK::DestroyDevice()
 	{
 		vkDestroyDevice(m_device, nullptr);
 	}
 
-	bool DeviceVK::CreateSyncObjects()
+	bool RendererVK::CreateSyncObjects()
 	{
 		m_acquireSemaphores.resize(s_maxFramesInFlight);
 		m_renderSemaphores.resize(s_maxFramesInFlight);
@@ -514,7 +514,7 @@ namespace MBRF
 		return true;
 	}
 
-	void DeviceVK::DestroySyncObjects()
+	void RendererVK::DestroySyncObjects()
 	{
 		for (int i = 0; i < m_acquireSemaphores.size(); ++i)
 		{
@@ -526,7 +526,7 @@ namespace MBRF
 			vkDestroyFence(m_device, m_fences[i], nullptr);
 	}
 
-	bool DeviceVK::CreateCommandPools()
+	bool RendererVK::CreateCommandPools()
 	{
 		VkCommandPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
 		createInfo.pNext = nullptr;
@@ -538,12 +538,12 @@ namespace MBRF
 		return true;
 	}
 
-	void DeviceVK::DestroyCommandPools()
+	void RendererVK::DestroyCommandPools()
 	{
 		vkDestroyCommandPool(m_device, m_graphicsCommandPool, nullptr);
 	}
 
-	bool DeviceVK::AllocateCommandBuffers()
+	bool RendererVK::AllocateCommandBuffers()
 	{
 		m_graphicsCommandBuffers.resize(m_swapchain.m_imageCount);
 
@@ -558,7 +558,7 @@ namespace MBRF
 		return true;
 	}
 
-	void DeviceVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout)
+	void RendererVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout)
 	{
 		VkAccessFlags srcAccessMask = 0;
 		VkAccessFlags dstAccessMask = 0;
@@ -639,7 +639,7 @@ namespace MBRF
 		vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 	}
 
-	void DeviceVK::RecordTestGraphicsCommands()
+	void RendererVK::RecordTestGraphicsCommands()
 	{
 		// test recording
 
@@ -719,7 +719,7 @@ namespace MBRF
 		}
 	}
 
-	bool DeviceVK::CreateTestRenderPass()
+	bool RendererVK::CreateTestRenderPass()
 	{
 		VkAttachmentDescription attachmentDescriptions[2];
 		// Color
@@ -788,12 +788,12 @@ namespace MBRF
 		return true;
 	}
 
-	void DeviceVK::DestroyTestRenderPass()
+	void RendererVK::DestroyTestRenderPass()
 	{
 		vkDestroyRenderPass(m_device, m_testRenderPass, nullptr);
 	}
 
-	bool DeviceVK::CreateFramebuffers()
+	bool RendererVK::CreateFramebuffers()
 	{
 		m_swapchainFramebuffers.resize(m_swapchain.m_imageCount);
 
@@ -817,7 +817,7 @@ namespace MBRF
 		return true;
 	}
 
-	void DeviceVK::DestroyFramebuffers()
+	void RendererVK::DestroyFramebuffers()
 	{
 		for (size_t i = 0; i < m_swapchainFramebuffers.size(); ++i)
 		{
@@ -825,7 +825,7 @@ namespace MBRF
 		}
 	}
 
-	bool DeviceVK::CreateShaderModuleFromFile(const char* fileName, VkShaderModule &shaderModule)
+	bool RendererVK::CreateShaderModuleFromFile(const char* fileName, VkShaderModule &shaderModule)
 	{
 		std::vector<char> shaderCode;
 		
@@ -843,7 +843,7 @@ namespace MBRF
 		return true;
 	}
 
-	bool DeviceVK::CreateShaders()
+	bool RendererVK::CreateShaders()
 	{
 		bool result = true;
 
@@ -856,13 +856,13 @@ namespace MBRF
 		return result;
 	}
 
-	void DeviceVK::DestroyShaders()
+	void RendererVK::DestroyShaders()
 	{
 		vkDestroyShaderModule(m_device, m_testVertexShader, nullptr);
 		vkDestroyShaderModule(m_device, m_testFragmentShader, nullptr);
 	}
 
-	bool DeviceVK::CreateGraphicsPipelines()
+	bool RendererVK::CreateGraphicsPipelines()
 	{
 		VkPipelineShaderStageCreateInfo shaderStageCreateInfos[2];
 		// vertex
@@ -1030,20 +1030,20 @@ namespace MBRF
 		return true;
 	}
 
-	void DeviceVK::DestroyGraphicsPipelines()
+	void RendererVK::DestroyGraphicsPipelines()
 	{
 		vkDestroyPipelineLayout(m_device, m_testGraphicsPipelineLayout, nullptr);
 		vkDestroyPipeline(m_device, m_testGraphicsPipeline, nullptr);
 	}
 
-	bool DeviceVK::WaitForDevice()
+	bool RendererVK::WaitForDevice()
 	{
 		VK_CHECK(vkDeviceWaitIdle(m_device));
 
 		return true;
 	}
 
-	void DeviceVK::SubmitGraphicsQueue(uint32_t imageIndex, int currentFrame)
+	void RendererVK::SubmitGraphicsQueue(uint32_t imageIndex, int currentFrame)
 	{
 		VK_CHECK(vkWaitForFences(m_device, 1, &m_fences[imageIndex], VK_TRUE, UINT64_MAX));
 		VK_CHECK(vkResetFences(m_device, 1, &m_fences[imageIndex]));
@@ -1065,7 +1065,7 @@ namespace MBRF
 		VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_fences[imageIndex]));
 	}
 
-	void DeviceVK::CreateTestVertexAndTriangleBuffers()
+	void RendererVK::CreateTestVertexAndTriangleBuffers()
 	{
 		VkDeviceSize size = sizeof(m_testCubeVerts);
 
@@ -1082,13 +1082,13 @@ namespace MBRF
 		UpdateBuffer(m_testIndexBuffer, size, m_testCubeIndices);
 	}
 
-	void DeviceVK::DestroyTestVertexAndTriangleBuffers()
+	void RendererVK::DestroyTestVertexAndTriangleBuffers()
 	{
 		DestroyBuffer(m_testVertexBuffer);
 		DestroyBuffer(m_testIndexBuffer);
 	}
 
-	bool DeviceVK::CreateDepthStencilBuffer()
+	bool RendererVK::CreateDepthStencilBuffer()
 	{
 		// TODO: check VK_FORMAT_D24_UNORM_S8_UINT format availability!
 		CreateImage(m_depthImage, VK_FORMAT_D24_UNORM_S8_UINT, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, 1, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
@@ -1102,13 +1102,13 @@ namespace MBRF
 		return true;
 	}
 
-	void DeviceVK::DestroyDepthStencilBuffer()
+	void RendererVK::DestroyDepthStencilBuffer()
 	{
 		DestroyTexture(m_depthTexture);
 		DestroyImage(m_depthImage);
 	}
 
-	bool DeviceVK::CreateDescriptors()
+	bool RendererVK::CreateDescriptors()
 	{
 		// Create UBO
 
@@ -1219,7 +1219,7 @@ namespace MBRF
 		return true;
 	}
 
-	void DeviceVK::DestroyDescriptors()
+	void RendererVK::DestroyDescriptors()
 	{
 		for (size_t i = 0; i < m_uboBuffers.size(); ++i)
 			DestroyBuffer(m_uboBuffers[i]);
@@ -1229,7 +1229,7 @@ namespace MBRF
 		vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
 	}
 
-	uint32_t DeviceVK::FindMemoryType(VkMemoryPropertyFlags requiredProperties, VkMemoryRequirements memoryRequirements, VkPhysicalDeviceMemoryProperties deviceMemoryProperties)
+	uint32_t RendererVK::FindMemoryType(VkMemoryPropertyFlags requiredProperties, VkMemoryRequirements memoryRequirements, VkPhysicalDeviceMemoryProperties deviceMemoryProperties)
 	{
 		for (uint32_t type = 0; type < deviceMemoryProperties.memoryTypeCount; ++type)
 		{
@@ -1240,7 +1240,7 @@ namespace MBRF
 		return 0xFFFF;
 	}
 
-	bool DeviceVK::CreateBuffer(BufferVK& buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryProperties)
+	bool RendererVK::CreateBuffer(BufferVK& buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryProperties)
 	{
 		assert(buffer.m_buffer == VK_NULL_HANDLE);
 
@@ -1310,7 +1310,7 @@ namespace MBRF
 		return true;
 	}
 
-	bool DeviceVK::UpdateBuffer(BufferVK& buffer, VkDeviceSize size, void* data)
+	bool RendererVK::UpdateBuffer(BufferVK& buffer, VkDeviceSize size, void* data)
 	{
 		assert(size <= buffer.m_size);
 
@@ -1354,7 +1354,7 @@ namespace MBRF
 		return true;
 	}
 
-	void DeviceVK::DestroyBuffer(BufferVK& buffer)
+	void RendererVK::DestroyBuffer(BufferVK& buffer)
 	{
 		vkFreeMemory(m_device, buffer.m_memory, nullptr);
 		vkDestroyBuffer(m_device, buffer.m_buffer, nullptr);
@@ -1363,7 +1363,7 @@ namespace MBRF
 		buffer.m_memory = VK_NULL_HANDLE;
 	}
 
-	bool DeviceVK::CreateImage(ImageVK& image, VkFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t mips, VkImageUsageFlags usage,
+	bool RendererVK::CreateImage(ImageVK& image, VkFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t mips, VkImageUsageFlags usage,
 								 VkImageType type, VkImageLayout initialLayout, VkMemoryPropertyFlags memoryProperty, VkSampleCountFlagBits sampleCount, VkImageTiling tiling)
 	{
 		image.m_imageType = type;
@@ -1429,7 +1429,7 @@ namespace MBRF
 		return true;
 	}
 
-	void DeviceVK::DestroyImage(ImageVK& image)
+	void RendererVK::DestroyImage(ImageVK& image)
 	{
 		vkFreeMemory(m_device, image.m_memory, nullptr);
 		vkDestroyImage(m_device, image.m_image, nullptr);
@@ -1438,7 +1438,7 @@ namespace MBRF
 		image.m_memory = VK_NULL_HANDLE;
 	}
 
-	void DeviceVK::TransitionImageLayout(ImageVK& image, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout)
+	void RendererVK::TransitionImageLayout(ImageVK& image, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout)
 	{
 		VkCommandBuffer commandBuffer = BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -1451,7 +1451,7 @@ namespace MBRF
 		image.m_currentLayout = newLayout;
 	}
 
-	bool DeviceVK::CreateTexture(TextureVK& texture, ImageVK* image, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32_t baseMip, uint32_t mipCount)
+	bool RendererVK::CreateTexture(TextureVK& texture, ImageVK* image, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32_t baseMip, uint32_t mipCount)
 	{
 		assert(image);
 
@@ -1483,7 +1483,7 @@ namespace MBRF
 		return true;
 	}
 
-	void DeviceVK::DestroyTexture(TextureVK& texture)
+	void RendererVK::DestroyTexture(TextureVK& texture)
 	{
 		vkDestroyImageView(m_device, texture.m_imageView, nullptr);
 
@@ -1491,7 +1491,7 @@ namespace MBRF
 		texture.m_image = nullptr;
 	}
 
-	VkCommandBuffer DeviceVK::BeginNewCommandBuffer(VkCommandBufferUsageFlags usage)
+	VkCommandBuffer RendererVK::BeginNewCommandBuffer(VkCommandBufferUsageFlags usage)
 	{
 		VkCommandBufferAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
 		allocInfo.pNext = nullptr;
@@ -1511,7 +1511,7 @@ namespace MBRF
 		return commandBuffer;
 	}
 
-	void DeviceVK::SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer)
+	void RendererVK::SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer)
 	{
 		VK_CHECK(vkEndCommandBuffer(commandBuffer));
 
@@ -1525,7 +1525,7 @@ namespace MBRF
 		VK_CHECK(vkQueueWaitIdle(m_graphicsQueue));
 	}
 
-	void DeviceVK::LoadTextureFromFile(TextureVK& texture, ImageVK& image, const char* fileName)
+	void RendererVK::LoadTextureFromFile(TextureVK& texture, ImageVK& image, const char* fileName)
 	{
 		int texWidth, texHeight, texChannels;
 		//stbi_uc* pixels = stbi_load("textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
@@ -1568,7 +1568,7 @@ namespace MBRF
 		TransitionImageLayout(m_testImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	}
 
-	void DeviceVK::CreateTexturesAndSamplers()
+	void RendererVK::CreateTexturesAndSamplers()
 	{
 		LoadTextureFromFile(m_testTexture, m_testImage, "data/textures/test.jpg");
 
@@ -1595,7 +1595,7 @@ namespace MBRF
 		VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_testSampler));
 	}
 
-	void DeviceVK::DestroyTexturesAndSamplers()
+	void RendererVK::DestroyTexturesAndSamplers()
 	{
 		DestroyTexture(m_testTexture);
 		DestroyImage(m_testImage);

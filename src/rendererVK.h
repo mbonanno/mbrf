@@ -54,7 +54,7 @@ namespace MBRF
 		uint32_t m_mipCount;
 	};
 
-	class DeviceVK
+	class RendererVK
 	{
 	public:
 		bool Init(GLFWwindow* window, uint32_t width, uint32_t height);

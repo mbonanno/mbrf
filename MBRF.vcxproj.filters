@@ -24,10 +24,10 @@
     <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\deviceVK.cpp">
+    <ClCompile Include="src\swapchainVK.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\swapchainVK.cpp">
+    <ClCompile Include="src\rendererVK.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -35,10 +35,10 @@
     <ClInclude Include="src\application.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\deviceVK.h">
+    <ClInclude Include="src\swapchainVK.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\swapchainVK.h">
+    <ClInclude Include="src\rendererVK.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
