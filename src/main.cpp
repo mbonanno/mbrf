@@ -2,11 +2,9 @@
 
 #include <iostream>
 
-using namespace MBRF;
-
 int main()
 {
-	Application app;
+	MBRF::Application app;
 
 	app.Run();
 

@@ -5,57 +5,58 @@ const uint32_t s_windowHeight = 600;
 
 namespace MBRF
 {
-	void Application::Init()
-	{
-		m_rendererVK.Init(m_window, s_windowWidth, s_windowHeight);
 
-		m_lastFrameTime = std::chrono::steady_clock::now();
-	}
+void Application::Init()
+{
+	m_rendererVK.Init(m_window, s_windowWidth, s_windowHeight);
 
-	void Application::Cleanup()
-	{
-		m_rendererVK.Cleanup();
-	}
+	m_lastFrameTime = std::chrono::steady_clock::now();
+}
+
+void Application::Cleanup()
+{
+	m_rendererVK.Cleanup();
+}
 
 	
-	void Application::Update()
-	{
-		using namespace std::chrono;
+void Application::Update()
+{
+	using namespace std::chrono;
 
-		// get frame timings
-		auto currentFrameTime = steady_clock::now();
-		double dt = duration<double, seconds::period>(currentFrameTime - m_lastFrameTime).count();
-		m_lastFrameTime = currentFrameTime;
+	// get frame timings
+	auto currentFrameTime = steady_clock::now();
+	double dt = duration<double, seconds::period>(currentFrameTime - m_lastFrameTime).count();
+	m_lastFrameTime = currentFrameTime;
 		
-		m_rendererVK.Update(dt);
-	}
+	m_rendererVK.Update(dt);
+}
 
-	void Application::Draw()
-	{
-		m_rendererVK.Draw();
-	}
+void Application::Draw()
+{
+	m_rendererVK.Draw();
+}
 
-	void Application::Run()
-	{
-		glfwInit();
+void Application::Run()
+{
+	glfwInit();
 
-		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		m_window = glfwCreateWindow(s_windowWidth, s_windowHeight, "MBRF", nullptr, nullptr);
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	m_window = glfwCreateWindow(s_windowWidth, s_windowHeight, "MBRF", nullptr, nullptr);
 		
-		Init();
+	Init();
 
-		while (!glfwWindowShouldClose(m_window))
-		{
-			glfwPollEvents();
+	while (!glfwWindowShouldClose(m_window))
+	{
+		glfwPollEvents();
 
-			Update();
-			Draw();
-		}
-
-		Cleanup();
-
-		glfwDestroyWindow(m_window);
-		glfwTerminate();
+		Update();
+		Draw();
 	}
+
+	Cleanup();
+
+	glfwDestroyWindow(m_window);
+	glfwTerminate();
+}
 	
 }

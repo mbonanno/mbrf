@@ -6,23 +6,24 @@
 
 namespace MBRF
 {
-	class Application
-	{
-	public:
-		void Run();
 
-		void Init();
-		void Cleanup();
-		void Update();
-		void Draw();
+class Application
+{
+public:
+	void Run();
 
-	private:
-		RendererVK m_rendererVK;
+	void Init();
+	void Cleanup();
+	void Update();
+	void Draw();
 
-		GLFWwindow* m_window;
+private:
+	RendererVK m_rendererVK;
 
-		std::chrono::steady_clock::time_point m_lastFrameTime;
-	};
+	GLFWwindow* m_window;
+
+	std::chrono::steady_clock::time_point m_lastFrameTime;
+};
 
 }
 
