@@ -147,7 +147,7 @@
       <AdditionalOptions>/NODEFAULTLIB:MSVCRT %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <CustomBuild>
-      <Command>glslc.exe -o %(Identity).spv %(Identity)</Command>
+      <Command>$(ProjectDir)data\shaders\glslc.exe -o %(Identity).spv %(Identity)</Command>
     </CustomBuild>
     <CustomBuild>
       <Message>Building shader: %(Identity)</Message>
