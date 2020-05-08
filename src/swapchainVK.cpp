@@ -1,27 +1,23 @@
 #include "swapchainVK.h"
 
+#include "deviceVK.h"
+
 #include <algorithm>
 
 namespace MBRF
 {
 
-void SwapchainVK::SetInstance(VkInstance instance)
+void SwapchainVK::Init(DeviceVK* deviceRef)
 {
-	m_instance = instance;
-}
-
-void SwapchainVK::SetDevices(VkPhysicalDevice physicalDevice, VkDevice device)
-{
-	m_physicalDevice = physicalDevice;
-	m_device = device;
+	m_deviceRef = deviceRef;
 }
 
 bool SwapchainVK::CreatePresentationSurface(GLFWwindow* window)
 {
-	assert(m_instance);
+	assert(m_deviceRef->GetInstance());
 
 	m_presentationSurface = VK_NULL_HANDLE;
-	VK_CHECK(glfwCreateWindowSurface(m_instance, window, nullptr, &m_presentationSurface));
+	VK_CHECK(glfwCreateWindowSurface(m_deviceRef->GetInstance(), window, nullptr, &m_presentationSurface));
 
 	assert(m_presentationSurface != VK_NULL_HANDLE);
 
@@ -30,12 +26,15 @@ bool SwapchainVK::CreatePresentationSurface(GLFWwindow* window)
 
 void SwapchainVK::DestroyPresentationSurface()
 {
-	vkDestroySurfaceKHR(m_instance, m_presentationSurface, nullptr);
+	vkDestroySurfaceKHR(m_deviceRef->GetInstance(), m_presentationSurface, nullptr);
 }
 
 bool SwapchainVK::Create(uint32_t width, uint32_t height)
 {
-	assert(m_physicalDevice && m_device);
+	VkPhysicalDevice physicalDevice = m_deviceRef->GetPhysicalDevice();
+	VkDevice device = m_deviceRef->GetDevice();
+
+	assert(physicalDevice && device);
 
 	// set presentation mode
 
@@ -43,7 +42,7 @@ bool SwapchainVK::Create(uint32_t width, uint32_t height)
 	VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;  // always supported
 
 	uint32_t presentModesCount;
-	VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_presentationSurface, &presentModesCount, nullptr));
+	VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, m_presentationSurface, &presentModesCount, nullptr));
 
 	assert(presentModesCount > 0);
 
@@ -52,7 +51,7 @@ bool SwapchainVK::Create(uint32_t width, uint32_t height)
 
 	std::vector<VkPresentModeKHR> supportedPresentModes;
 	supportedPresentModes.resize(presentModesCount);
-	VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(m_physicalDevice, m_presentationSurface, &presentModesCount, supportedPresentModes.data()));
+	VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, m_presentationSurface, &presentModesCount, supportedPresentModes.data()));
 
 	for (auto currentPresentMode : supportedPresentModes)
 	{
@@ -68,7 +67,7 @@ bool SwapchainVK::Create(uint32_t width, uint32_t height)
 	// set number of images
 
 	VkSurfaceCapabilitiesKHR surfaceCapabilities;
-	VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_presentationSurface, &surfaceCapabilities));
+	VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, m_presentationSurface, &surfaceCapabilities));
 
 	uint32_t imageCount = surfaceCapabilities.minImageCount + 1;
 	if (surfaceCapabilities.maxImageCount > 0)
@@ -117,7 +116,7 @@ bool SwapchainVK::Create(uint32_t width, uint32_t height)
 	VkColorSpaceKHR imageColorSpace;
 
 	uint32_t formatsCount;
-	VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, m_presentationSurface, &formatsCount, nullptr));
+	VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, m_presentationSurface, &formatsCount, nullptr));
 
 	assert(formatsCount > 0);
 
@@ -126,7 +125,7 @@ bool SwapchainVK::Create(uint32_t width, uint32_t height)
 
 	std::vector<VkSurfaceFormatKHR> supportedFormats;
 	supportedFormats.resize(formatsCount);
-	VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, m_presentationSurface, &formatsCount, supportedFormats.data()));
+	VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, m_presentationSurface, &formatsCount, supportedFormats.data()));
 
 	// if the only element has VK_FORMAT_UNDEFINED then we are free to choose whatever format and colorspace we want
 	if (formatsCount == 1 && supportedFormats[0].format == VK_FORMAT_UNDEFINED)
@@ -194,15 +193,15 @@ bool SwapchainVK::Create(uint32_t width, uint32_t height)
 	swapchainCreateInfo.clipped = VK_TRUE;
 	swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
 
-	VK_CHECK(vkCreateSwapchainKHR(m_device, &swapchainCreateInfo, nullptr, &m_swapchain));
+	VK_CHECK(vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &m_swapchain));
 
 	// Get handles of swapchain images
 
 	// query imageCount again, as we only required the min number of images. The driver might have created more
-	VK_CHECK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_imageCount, nullptr));
+	VK_CHECK(vkGetSwapchainImagesKHR(device, m_swapchain, &m_imageCount, nullptr));
 
 	m_images.resize(m_imageCount);
-	VK_CHECK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_imageCount, m_images.data()));
+	VK_CHECK(vkGetSwapchainImagesKHR(device, m_swapchain, &m_imageCount, m_images.data()));
 
 	return CreateImageViews();
 }
@@ -211,7 +210,7 @@ void SwapchainVK::Cleanup()
 {
 	DestroyImageViews();
 
-	vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+	vkDestroySwapchainKHR(m_deviceRef->GetDevice(), m_swapchain, nullptr);
 }
 
 bool SwapchainVK::CreateImageViews()
@@ -235,7 +234,7 @@ bool SwapchainVK::CreateImageViews()
 		imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
 		imageViewCreateInfo.subresourceRange.layerCount = 1;
 
-		VK_CHECK(vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &m_imageViews[i]));
+		VK_CHECK(vkCreateImageView(m_deviceRef->GetDevice(), &imageViewCreateInfo, nullptr, &m_imageViews[i]));
 	}
 
 	return true;
@@ -245,14 +244,14 @@ void SwapchainVK::DestroyImageViews()
 {
 	for (size_t i = 0; i < m_imageViews.size(); ++i)
 	{
-		vkDestroyImageView(m_device, m_imageViews[i], nullptr);
+		vkDestroyImageView(m_deviceRef->GetDevice(), m_imageViews[i], nullptr);
 	}
 }
 
 uint32_t SwapchainVK::AcquireNextImage(VkSemaphore semaphore)
 {
 	uint32_t imageIndex;
-	VkResult result = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, semaphore, nullptr, &imageIndex);
+	VkResult result = vkAcquireNextImageKHR(m_deviceRef->GetDevice(), m_swapchain, UINT64_MAX, semaphore, nullptr, &imageIndex);
 
 	assert(result == VK_SUCCESS);
 

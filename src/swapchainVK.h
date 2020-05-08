@@ -4,16 +4,15 @@
 
 #include "glfw/glfw3.h"
 
-#define VK_CHECK(func) { VkResult res = func; assert(res == VK_SUCCESS); }
-
 namespace MBRF
 {
+
+class DeviceVK;
 
 class SwapchainVK
 {
 public:
-	void SetInstance(VkInstance instance);
-	void SetDevices(VkPhysicalDevice physicalDevice, VkDevice device);
+	void Init(DeviceVK* deviceRef);
 
 	bool CreatePresentationSurface(GLFWwindow* window);
 	void DestroyPresentationSurface();
@@ -25,15 +24,12 @@ public:
 	bool PresentQueue(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore);
 
 private:
-
 	bool CreateImageViews();
 	void DestroyImageViews();
 
 	VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
 
-	VkInstance m_instance;
-	VkPhysicalDevice m_physicalDevice;
-	VkDevice m_device;
+	DeviceVK* m_deviceRef;
 
 public:
 	VkSurfaceKHR m_presentationSurface;
