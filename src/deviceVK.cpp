@@ -8,8 +8,6 @@
 
 #include "glfw/glfw3.h"
 #include <gtc/matrix_transform.hpp>
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
 
 namespace MBRF
 {
@@ -529,11 +527,11 @@ void DeviceVK::RecordTestGraphicsCommands()
 
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipeline);
 
-		VkBuffer vbs[] = { m_testVertexBuffer.m_buffer };
+		VkBuffer vbs[] = { m_testVertexBuffer.GetBuffer() };
 		VkDeviceSize offsets[] = { 0 };
 
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vbs, offsets);
-		vkCmdBindIndexBuffer(commandBuffer, m_testIndexBuffer.m_buffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindIndexBuffer(commandBuffer, m_testIndexBuffer.GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipelineLayout, 0, 1, &m_descriptorSets[i], 0, nullptr);
 
@@ -924,7 +922,7 @@ void DeviceVK::DestroyTestVertexAndTriangleBuffers()
 bool DeviceVK::CreateDepthStencilBuffer()
 {
 	// TODO: check VK_FORMAT_D24_UNORM_S8_UINT format availability!
-	CreateTexture(m_depthTexture, VK_FORMAT_D24_UNORM_S8_UINT, m_swapchain->m_imageExtent.width, m_swapchain->m_imageExtent.height, 1, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+	m_depthTexture.Create(this, VK_FORMAT_D24_UNORM_S8_UINT, m_swapchain->m_imageExtent.width, m_swapchain->m_imageExtent.height, 1, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
 	// Transition (not really needed, we could just set the initial layout to VK_IMAGE_LAYOUT_UNDEFINED in the subpass?)
 
@@ -935,7 +933,7 @@ bool DeviceVK::CreateDepthStencilBuffer()
 
 void DeviceVK::DestroyDepthStencilBuffer()
 {
-	DestroyTexture(m_depthTexture);
+	m_depthTexture.Destroy(this);
 }
 
 bool DeviceVK::CreateDescriptors()
@@ -1010,7 +1008,7 @@ bool DeviceVK::CreateDescriptors()
 	for (size_t i = 0; i < m_descriptorSets.size(); ++i)
 	{
 		VkDescriptorBufferInfo bufferInfo;
-		bufferInfo.buffer = m_uboBuffers[i].m_buffer;
+		bufferInfo.buffer = m_uboBuffers[i].GetBuffer();
 		bufferInfo.offset = 0;
 		bufferInfo.range = sizeof(UBOTest);
 
@@ -1059,91 +1057,6 @@ void DeviceVK::DestroyDescriptors()
 	vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
 }
 
-bool DeviceVK::CreateTexture(TextureVK& texture, VkFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t mips, VkImageUsageFlags usage,
-	VkImageType type, VkImageLayout initialLayout, VkMemoryPropertyFlags memoryProperty, VkSampleCountFlagBits sampleCount, VkImageTiling tiling)
-{
-	texture.m_imageType = type;
-	texture.m_format = format;
-	texture.m_width = width;
-	texture.m_height = height;
-	texture.m_depth = depth;
-	texture.m_mips = mips;
-	texture.m_sampleCount = sampleCount;
-	texture.m_tiling = tiling;
-	texture.m_usage = usage;
-	texture.m_currentLayout = initialLayout;
-
-	VkImageCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-	createInfo.pNext = nullptr;
-	createInfo.flags = 0;
-	createInfo.imageType = type;
-	createInfo.format = format;
-	createInfo.extent.width = width;
-	createInfo.extent.height = height;
-	createInfo.extent.depth = depth;
-	createInfo.mipLevels = mips;
-	createInfo.arrayLayers = 1;
-	createInfo.samples = sampleCount;
-	createInfo.tiling = tiling;
-	createInfo.usage = usage;
-	createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	createInfo.queueFamilyIndexCount = 0;
-	createInfo.pQueueFamilyIndices = nullptr;
-	createInfo.initialLayout = initialLayout;
-
-	VK_CHECK(vkCreateImage(m_device, &createInfo, nullptr, &texture.m_image));
-
-	VkMemoryRequirements memoryRequirements;
-	vkGetImageMemoryRequirements(m_device, texture.m_image, &memoryRequirements);
-
-	VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
-	vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &deviceMemoryProperties);
-
-	VkMemoryPropertyFlags memoryProperties = memoryProperty;
-
-	uint32_t memoryType = UtilsVK::FindMemoryType(memoryProperties, memoryRequirements, deviceMemoryProperties);
-
-	assert(memoryType != 0xFFFF);
-
-	if (memoryType == 0xFFFF)
-		return false;
-
-	VkMemoryAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-	allocateInfo.pNext = nullptr;
-	allocateInfo.allocationSize = memoryRequirements.size;
-	allocateInfo.memoryTypeIndex = memoryType;
-
-	VK_CHECK(vkAllocateMemory(m_device, &allocateInfo, nullptr, &texture.m_memory));
-
-	assert(texture.m_memory != VK_NULL_HANDLE);
-
-	if (!texture.m_memory)
-		return false;
-
-	VK_CHECK(vkBindImageMemory(m_device, texture.m_image, texture.m_memory, 0));
-
-	VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-
-	if (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
-		aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-
-
-	CreateTextureView(texture.m_view, texture, aspectMask);
-
-	return true;
-}
-
-void DeviceVK::DestroyTexture(TextureVK& texture)
-{
-	DestroyTextureView(texture.m_view);
-
-	vkFreeMemory(m_device, texture.m_memory, nullptr);
-	vkDestroyImage(m_device, texture.m_image, nullptr);
-
-	texture.m_image = VK_NULL_HANDLE;
-	texture.m_memory = VK_NULL_HANDLE;
-}
-
 void DeviceVK::TransitionImageLayout(TextureVK& texture, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout)
 {
 	VkCommandBuffer commandBuffer = BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -1153,42 +1066,6 @@ void DeviceVK::TransitionImageLayout(TextureVK& texture, VkImageAspectFlags aspe
 	SubmitCommandBufferAndWait(commandBuffer, true);
 
 	texture.m_currentLayout = newLayout;
-}
-
-bool DeviceVK::CreateTextureView(TextureViewVK& textureView, const TextureVK& texture, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32_t baseMip, uint32_t mipCount)
-{
-	textureView.m_viewType = viewType;
-	textureView.m_aspectMask = aspectMask;
-	textureView.m_baseMip = baseMip;
-	textureView.m_mipCount = mipCount;
-
-	VkImageViewCreateInfo imageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-	imageViewCreateInfo.pNext = nullptr;
-	imageViewCreateInfo.flags = 0;
-	imageViewCreateInfo.image = texture.m_image;
-	imageViewCreateInfo.viewType = viewType;
-	imageViewCreateInfo.format = texture.m_format;
-	imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-	imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-	imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-	imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-	// subresource range
-	imageViewCreateInfo.subresourceRange.aspectMask = aspectMask;
-	imageViewCreateInfo.subresourceRange.baseMipLevel = baseMip;
-	imageViewCreateInfo.subresourceRange.levelCount = mipCount;
-	imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-	imageViewCreateInfo.subresourceRange.layerCount = 1;
-
-	VK_CHECK(vkCreateImageView(m_device, &imageViewCreateInfo, nullptr, &textureView.m_imageView));
-
-	return true;
-}
-
-void DeviceVK::DestroyTextureView(TextureViewVK& textureView)
-{
-	vkDestroyImageView(m_device, textureView.m_imageView, nullptr);
-
-	textureView.m_imageView = VK_NULL_HANDLE;
 }
 
 VkCommandBuffer DeviceVK::BeginNewCommandBuffer(VkCommandBufferUsageFlags usage)
@@ -1228,69 +1105,11 @@ void DeviceVK::SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer, bool fr
 		vkFreeCommandBuffers(m_device, m_graphicsCommandPool, 1, &commandBuffer);
 }
 
-void DeviceVK::LoadTextureFromFile(TextureVK& texture, const char* fileName)
-{
-	int texWidth, texHeight, texChannels;
-	//stbi_uc* pixels = stbi_load("textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-	stbi_uc* pixels = stbi_load(fileName, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 
-	VkDeviceSize imageSize = texWidth * texHeight * 4;
-
-	CreateTexture(texture, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, 1, 1, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-
-	// upload image pixels to the GPU
-
-	UpdateTexture(texture, texWidth, texHeight, 1, 4, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, pixels);
-
-	stbi_image_free(pixels);
-}
-
-// NOTE: this only updates mip0. TODO: handle subresources properly!
-bool DeviceVK::UpdateTexture(TextureVK& texture, uint32_t width, uint32_t height, uint32_t depth, uint32_t bpp, VkImageLayout newLayout, void* data)
-{
-	// TODO: check that the size we are trying to copy is less than the texture size?
-
-	if (!(texture.m_usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT))
-	{
-		assert(!"Cannot upload data to device local memory via staging buffer. Usage needs to be VK_BUFFER_USAGE_TRANSFER_DST_BIT.");
-		return false;
-	}
-
-	VkDeviceSize size = width * height * depth * bpp;
-
-	TransitionImageLayout(texture, texture.m_view.m_aspectMask, texture.m_currentLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-	BufferVK stagingBuffer;
-	stagingBuffer.Create(this, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-	std::memcpy(stagingBuffer.m_data, data, size);
-
-	VkCommandBuffer commandBuffer = BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-	VkBufferImageCopy region;
-	region.bufferOffset = 0;
-	region.bufferRowLength = 0;
-	region.bufferImageHeight = 0;
-	region.imageSubresource.aspectMask = texture.m_view.m_aspectMask;
-	region.imageSubresource.mipLevel = 0;
-	region.imageSubresource.baseArrayLayer = 0;
-	region.imageSubresource.layerCount = 1;
-	region.imageOffset = { 0, 0, 0 };
-	region.imageExtent = { width, height, depth };
-
-	vkCmdCopyBufferToImage(commandBuffer, stagingBuffer.m_buffer, texture.m_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-	SubmitCommandBufferAndWait(commandBuffer, true);
-
-	TransitionImageLayout(m_testTexture, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, newLayout);
-
-	stagingBuffer.Destroy(this);
-
-	return true;
-}
 
 void DeviceVK::CreateTexturesAndSamplers()
 {
-	LoadTextureFromFile(m_testTexture, "data/textures/test.jpg");
+	m_testTexture.LoadFromFile(this, "data/textures/test.jpg");
 
 	// create sampler
 
@@ -1317,7 +1136,7 @@ void DeviceVK::CreateTexturesAndSamplers()
 
 void DeviceVK::DestroyTexturesAndSamplers()
 {
-	DestroyTexture(m_testTexture);
+	m_testTexture.Destroy(this);
 
 	vkDestroySampler(m_device, m_testSampler, nullptr);
 }

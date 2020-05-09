@@ -1,7 +1,8 @@
 #pragma once
 
-#include "commonVK.h"
 #include "bufferVK.h"
+#include "commonVK.h"
+#include "textureVK.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // use the Vulkan range of 0.0 to 1.0, instead of the -1 to 1.0 OpenGL range
@@ -12,39 +13,8 @@ namespace MBRF
 
 class SwapchainVK;
 
-// TODO: move BufferVK, TextureVK and TextureViewVK + resource related functionality in their own files
 // TODO: move command buffer recording (and submission?) related functionality in a new ContextVK class
 // TODO: remove any scene specific data, resources etc + any Update, Draw functionality from here
-
-struct TextureViewVK
-{
-	VkImageView m_imageView = VK_NULL_HANDLE;
-
-	VkImageViewType m_viewType;
-	VkImageAspectFlags m_aspectMask;
-	uint32_t m_baseMip;
-	uint32_t m_mipCount;
-};
-
-struct TextureVK
-{
-	VkImage m_image = VK_NULL_HANDLE;
-	VkDeviceMemory m_memory = VK_NULL_HANDLE;
-
-	TextureViewVK m_view;
-
-	VkImageType m_imageType;
-	VkFormat m_format;
-	uint32_t m_width = 0;
-	uint32_t m_height = 0;
-	uint32_t m_depth = 0;
-	uint32_t m_mips = 1;
-
-	VkSampleCountFlagBits m_sampleCount;
-	VkImageTiling m_tiling;
-	VkImageUsageFlags m_usage;
-	VkImageLayout m_currentLayout;
-};
 
 class DeviceVK
 {
@@ -100,32 +70,21 @@ public:
 	bool CreateDescriptors();
 	void DestroyDescriptors();
 
-	VkInstance GetInstance() { return m_instance; };
-	VkPhysicalDevice GetPhysicalDevice() { return m_physicalDevice; };
-	VkDevice GetDevice() { return m_device; };
+	VkInstance& GetInstance() { return m_instance; };
+	VkPhysicalDevice& GetPhysicalDevice() { return m_physicalDevice; };
+	VkDevice& GetDevice() { return m_device; };
 
 //private:
 
 	uint32_t FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFlags desiredCapabilities, bool queryPresentationSupport);
 	uint32_t FindDevicePresentationQueueFamilyIndex(VkPhysicalDevice device);
 
-	bool CreateTexture(TextureVK& texture, VkFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t mips = 1, VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-		VkImageType type = VK_IMAGE_TYPE_2D, VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED, VkMemoryPropertyFlags memoryProperty = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		VkSampleCountFlagBits sampleCount = VK_SAMPLE_COUNT_1_BIT, VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL);
-	void DestroyTexture(TextureVK& texture);
-
-	bool UpdateTexture(TextureVK& texture, uint32_t width, uint32_t height, uint32_t depth, uint32_t bpp, VkImageLayout newLayout, void* data);
-
 	void TransitionImageLayout(TextureVK& texture, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout);
-
-	bool CreateTextureView(TextureViewVK& textureView, const TextureVK& texture, VkImageAspectFlags aspectMask, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t baseMip = 0, uint32_t mipCount = 1);
-	void DestroyTextureView(TextureViewVK& textureView);
 
 
 	VkCommandBuffer BeginNewCommandBuffer(VkCommandBufferUsageFlags usage);
 	void SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer, bool freeCommandBuffer);
 
-	void LoadTextureFromFile(TextureVK& texture, const char* fileName);
 	void CreateTexturesAndSamplers();
 	void DestroyTexturesAndSamplers();
 
