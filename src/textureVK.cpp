@@ -9,7 +9,7 @@
 namespace MBRF
 {
 
-bool TextureViewVK::Create(DeviceVK* device, const TextureVK* texture, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32_t baseMip, uint32_t mipCount)
+bool TextureViewVK::Create(DeviceVK* device, TextureVK* texture, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32_t baseMip, uint32_t mipCount)
 {
 	assert(m_imageView == VK_NULL_HANDLE);
 
@@ -23,9 +23,9 @@ bool TextureViewVK::Create(DeviceVK* device, const TextureVK* texture, VkImageAs
 	VkImageViewCreateInfo imageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 	imageViewCreateInfo.pNext = nullptr;
 	imageViewCreateInfo.flags = 0;
-	imageViewCreateInfo.image = texture->m_image;
+	imageViewCreateInfo.image = texture->GetImage();
 	imageViewCreateInfo.viewType = viewType;
-	imageViewCreateInfo.format = texture->m_format;
+	imageViewCreateInfo.format = texture->GetFormat();
 	imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
 	imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
 	imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -141,7 +141,7 @@ bool TextureVK::Update(DeviceVK* device, uint32_t width, uint32_t height, uint32
 
 	VkDeviceSize size = width * height * depth * bpp;
 
-	device->TransitionImageLayout(*this, m_view.m_aspectMask, m_currentLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	TransitionImageLayoutAndSubmit(device, m_view.GetAspectMask(), m_currentLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	BufferVK stagingBuffer;
 	stagingBuffer.Create(device, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
@@ -153,7 +153,7 @@ bool TextureVK::Update(DeviceVK* device, uint32_t width, uint32_t height, uint32
 	region.bufferOffset = 0;
 	region.bufferRowLength = 0;
 	region.bufferImageHeight = 0;
-	region.imageSubresource.aspectMask = m_view.m_aspectMask;
+	region.imageSubresource.aspectMask = m_view.GetAspectMask();
 	region.imageSubresource.mipLevel = 0;
 	region.imageSubresource.baseArrayLayer = 0;
 	region.imageSubresource.layerCount = 1;
@@ -164,7 +164,7 @@ bool TextureVK::Update(DeviceVK* device, uint32_t width, uint32_t height, uint32
 
 	device->SubmitCommandBufferAndWait(commandBuffer, true);
 
-	device->TransitionImageLayout(*this, m_view.m_aspectMask, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, newLayout);
+	TransitionImageLayoutAndSubmit(device, m_view.GetAspectMask(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, newLayout);
 
 	stagingBuffer.Destroy(device);
 
@@ -199,6 +199,17 @@ void TextureVK::LoadFromFile(DeviceVK* device, const char* fileName)
 	Update(device, texWidth, texHeight, 1, 4, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, pixels);
 
 	stbi_image_free(pixels);
+}
+
+void TextureVK::TransitionImageLayoutAndSubmit(DeviceVK* device, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout)
+{
+	VkCommandBuffer commandBuffer = device->BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+	device->TransitionImageLayout(commandBuffer, m_image, aspectFlags, oldLayout, newLayout);
+
+	device->SubmitCommandBufferAndWait(commandBuffer, true);
+
+	SetCurrentLayout(newLayout);
 }
 
 }

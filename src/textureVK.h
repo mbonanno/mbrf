@@ -11,9 +11,15 @@ class TextureVK;
 class TextureViewVK
 {
 public:
-	bool Create(DeviceVK* device, const TextureVK* texture, VkImageAspectFlags aspectMask, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t baseMip = 0, uint32_t mipCount = 1);
+	bool Create(DeviceVK* device, TextureVK* texture, VkImageAspectFlags aspectMask, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t baseMip = 0, uint32_t mipCount = 1);
 	void Destroy(DeviceVK* device);
 
+	const VkImageView& GetImageView() const { return m_imageView; };
+	VkImageAspectFlags GetAspectMask() const { return m_aspectMask; };
+	uint32_t GetBaseMip() const { return m_baseMip; };
+	uint32_t GetMipCount() const { return m_mipCount; };
+
+private:
 	VkImageView m_imageView = VK_NULL_HANDLE;
 
 	VkImageViewType m_viewType;
@@ -35,6 +41,17 @@ public:
 
 	void LoadFromFile(DeviceVK* device, const char* fileName);
 
+	const VkImage& GetImage() const { return m_image; };
+	const TextureViewVK& GetView() const { return m_view; };
+	VkFormat GetFormat() const { return m_format; };
+	VkImageUsageFlags GetUsage() { return m_usage; };
+
+	void SetCurrentLayout(VkImageLayout layout) { m_currentLayout = layout; };
+	VkImageLayout GetCurrentLayout() { return m_currentLayout; };
+
+	void TransitionImageLayoutAndSubmit(DeviceVK* device, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout);
+
+private:
 	VkImage m_image = VK_NULL_HANDLE;
 	VkDeviceMemory m_memory = VK_NULL_HANDLE;
 

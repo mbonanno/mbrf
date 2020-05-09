@@ -79,8 +79,6 @@ public:
 	uint32_t FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFlags desiredCapabilities, bool queryPresentationSupport);
 	uint32_t FindDevicePresentationQueueFamilyIndex(VkPhysicalDevice device);
 
-	void TransitionImageLayout(TextureVK& texture, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout);
-
 
 	VkCommandBuffer BeginNewCommandBuffer(VkCommandBufferUsageFlags usage);
 	void SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer, bool freeCommandBuffer);

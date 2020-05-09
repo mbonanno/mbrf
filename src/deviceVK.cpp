@@ -565,7 +565,7 @@ bool DeviceVK::CreateTestRenderPass()
 	attachmentDescriptions[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	// Depth
 	attachmentDescriptions[1].flags = 0;
-	attachmentDescriptions[1].format = m_depthTexture.m_format;
+	attachmentDescriptions[1].format = m_depthTexture.GetFormat();
 	attachmentDescriptions[1].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachmentDescriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachmentDescriptions[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -630,7 +630,7 @@ bool DeviceVK::CreateFramebuffers()
 
 	for (size_t i = 0; i < m_swapchainFramebuffers.size(); ++i)
 	{
-		VkImageView attachments[] = { m_swapchain->m_imageViews[i], m_depthTexture.m_view.m_imageView };
+		VkImageView attachments[] = { m_swapchain->m_imageViews[i], m_depthTexture.GetView().GetImageView() };
 
 		VkFramebufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 		createInfo.pNext = nullptr;
@@ -926,7 +926,7 @@ bool DeviceVK::CreateDepthStencilBuffer()
 
 	// Transition (not really needed, we could just set the initial layout to VK_IMAGE_LAYOUT_UNDEFINED in the subpass?)
 
-	TransitionImageLayout(m_depthTexture, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+	m_depthTexture.TransitionImageLayoutAndSubmit(this, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
 	return true;
 }
@@ -1014,7 +1014,7 @@ bool DeviceVK::CreateDescriptors()
 
 		VkDescriptorImageInfo imageInfo;
 		imageInfo.sampler = m_testSampler;
-		imageInfo.imageView = m_testTexture.m_view.m_imageView;
+		imageInfo.imageView = m_testTexture.GetView().GetImageView();
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 		VkWriteDescriptorSet descriptorWrites[2];
@@ -1055,17 +1055,6 @@ void DeviceVK::DestroyDescriptors()
 	vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
 
 	vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
-}
-
-void DeviceVK::TransitionImageLayout(TextureVK& texture, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout)
-{
-	VkCommandBuffer commandBuffer = BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-	TransitionImageLayout(commandBuffer, texture.m_image, aspectFlags, oldLayout, newLayout);
-
-	SubmitCommandBufferAndWait(commandBuffer, true);
-
-	texture.m_currentLayout = newLayout;
 }
 
 VkCommandBuffer DeviceVK::BeginNewCommandBuffer(VkCommandBufferUsageFlags usage)
