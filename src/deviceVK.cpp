@@ -50,9 +50,9 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
 const std::vector<const char*> requiredExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
-void DeviceVK::Init(SwapchainVK* swapchainRef, int numFrames)
+void DeviceVK::Init(SwapchainVK* swapchain, int numFrames)
 {
-	m_swapchainRef = swapchainRef;
+	m_swapchain = swapchain;
 	m_numFrames = numFrames;
 }
 
@@ -163,7 +163,7 @@ uint32_t DeviceVK::FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFl
 			if (queryPresentationSupport)
 			{
 				VkBool32 presentationSupported = VK_FALSE;
-				VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(device, index, m_swapchainRef->m_presentationSurface, &presentationSupported);
+				VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(device, index, m_swapchain->m_presentationSurface, &presentationSupported);
 
 				if (!presentationSupported)
 					continue;
@@ -195,7 +195,7 @@ uint32_t DeviceVK::FindDevicePresentationQueueFamilyIndex(VkPhysicalDevice devic
 		VkQueueFamilyProperties queueFamily = queueFamilies[index];
 
 		VkBool32 presentationSupported = VK_FALSE;
-		VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(device, index, m_swapchainRef->m_presentationSurface, &presentationSupported);
+		VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(device, index, m_swapchain->m_presentationSurface, &presentationSupported);
 
 		if (presentationSupported)
 		{
@@ -326,7 +326,7 @@ bool DeviceVK::CreateSyncObjects()
 {
 	m_acquireSemaphores.resize(m_numFrames);
 	m_renderSemaphores.resize(m_numFrames);
-	m_fences.resize(m_swapchainRef->m_imageCount);
+	m_fences.resize(m_swapchain->m_imageCount);
 
 	VkSemaphoreCreateInfo semaphoreCreateInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 	semaphoreCreateInfo.pNext = nullptr;
@@ -379,7 +379,7 @@ void DeviceVK::DestroyCommandPools()
 
 bool DeviceVK::AllocateCommandBuffers()
 {
-	m_graphicsCommandBuffers.resize(m_swapchainRef->m_imageCount);
+	m_graphicsCommandBuffers.resize(m_swapchain->m_imageCount);
 
 	VkCommandBufferAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
 	allocateInfo.pNext = nullptr;
@@ -493,7 +493,7 @@ void DeviceVK::RecordTestGraphicsCommands()
 
 		// transition the swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 
-		TransitionImageLayout(commandBuffer, m_swapchainRef->m_images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		TransitionImageLayout(commandBuffer, m_swapchain->m_images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 		VkImageSubresourceRange subresourceRange;
 		subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -502,11 +502,11 @@ void DeviceVK::RecordTestGraphicsCommands()
 		subresourceRange.baseArrayLayer = 0;
 		subresourceRange.layerCount = 1;
 
-		vkCmdClearColorImage(commandBuffer, m_swapchainRef->m_images[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValues, 1, &subresourceRange);
+		vkCmdClearColorImage(commandBuffer, m_swapchain->m_images[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValues, 1, &subresourceRange);
 
 		// transition the swapchain image to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 
-		TransitionImageLayout(commandBuffer, m_swapchainRef->m_images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+		TransitionImageLayout(commandBuffer, m_swapchain->m_images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
 #else
 
@@ -517,7 +517,7 @@ void DeviceVK::RecordTestGraphicsCommands()
 		renderPassInfo.framebuffer = m_swapchainFramebuffers[i];
 
 		renderPassInfo.renderArea.offset = { 0, 0 };
-		renderPassInfo.renderArea.extent = m_swapchainRef->m_imageExtent;
+		renderPassInfo.renderArea.extent = m_swapchain->m_imageExtent;
 
 		VkClearValue clearColorValues[2];
 		clearColorValues[0].color = { 0.3f, 0.3f, 0.3f, 1.0f };
@@ -558,7 +558,7 @@ bool DeviceVK::CreateTestRenderPass()
 	VkAttachmentDescription attachmentDescriptions[2];
 	// Color
 	attachmentDescriptions[0].flags = 0;
-	attachmentDescriptions[0].format = m_swapchainRef->m_imageFormat;
+	attachmentDescriptions[0].format = m_swapchain->m_imageFormat;
 	attachmentDescriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachmentDescriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachmentDescriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -629,11 +629,11 @@ void DeviceVK::DestroyTestRenderPass()
 
 bool DeviceVK::CreateFramebuffers()
 {
-	m_swapchainFramebuffers.resize(m_swapchainRef->m_imageCount);
+	m_swapchainFramebuffers.resize(m_swapchain->m_imageCount);
 
 	for (size_t i = 0; i < m_swapchainFramebuffers.size(); ++i)
 	{
-		VkImageView attachments[] = { m_swapchainRef->m_imageViews[i], m_depthTexture.m_view.m_imageView };
+		VkImageView attachments[] = { m_swapchain->m_imageViews[i], m_depthTexture.m_view.m_imageView };
 
 		VkFramebufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 		createInfo.pNext = nullptr;
@@ -641,8 +641,8 @@ bool DeviceVK::CreateFramebuffers()
 		createInfo.renderPass = m_testRenderPass;
 		createInfo.attachmentCount = sizeof(attachments) / sizeof(VkImageView);
 		createInfo.pAttachments = attachments;
-		createInfo.width = m_swapchainRef->m_imageExtent.width;
-		createInfo.height = m_swapchainRef->m_imageExtent.height;
+		createInfo.width = m_swapchain->m_imageExtent.width;
+		createInfo.height = m_swapchain->m_imageExtent.height;
 		createInfo.layers = 1;
 
 		VK_CHECK(vkCreateFramebuffer(m_device, &createInfo, nullptr, &m_swapchainFramebuffers[i]));
@@ -752,8 +752,8 @@ bool DeviceVK::CreateGraphicsPipelines()
 	inputAssemblyCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	inputAssemblyCreateInfo.primitiveRestartEnable = VK_FALSE;
 
-	VkViewport viewport = { 0, 0, (float)m_swapchainRef->m_imageExtent.width, (float)m_swapchainRef->m_imageExtent.height, 0.0f, 1.0f };
-	VkRect2D scissor = { 0, 0, m_swapchainRef->m_imageExtent };
+	VkViewport viewport = { 0, 0, (float)m_swapchain->m_imageExtent.width, (float)m_swapchain->m_imageExtent.height, 0.0f, 1.0f };
+	VkRect2D scissor = { 0, 0, m_swapchain->m_imageExtent };
 
 	VkPipelineViewportStateCreateInfo viewportStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
 	viewportStateCreateInfo.pNext = nullptr;
@@ -925,7 +925,7 @@ void DeviceVK::DestroyTestVertexAndTriangleBuffers()
 bool DeviceVK::CreateDepthStencilBuffer()
 {
 	// TODO: check VK_FORMAT_D24_UNORM_S8_UINT format availability!
-	CreateTexture(m_depthTexture, VK_FORMAT_D24_UNORM_S8_UINT, m_swapchainRef->m_imageExtent.width, m_swapchainRef->m_imageExtent.height, 1, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+	CreateTexture(m_depthTexture, VK_FORMAT_D24_UNORM_S8_UINT, m_swapchain->m_imageExtent.width, m_swapchain->m_imageExtent.height, 1, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
 	// Transition (not really needed, we could just set the initial layout to VK_IMAGE_LAYOUT_UNDEFINED in the subpass?)
 
@@ -943,7 +943,7 @@ bool DeviceVK::CreateDescriptors()
 {
 	// Create UBO
 
-	m_uboBuffers.resize(m_swapchainRef->m_imageCount);
+	m_uboBuffers.resize(m_swapchain->m_imageCount);
 
 	for (size_t i = 0; i < m_uboBuffers.size(); ++i)
 	{
@@ -956,15 +956,15 @@ bool DeviceVK::CreateDescriptors()
 	VkDescriptorPoolSize poolSizes[2];
 	// UBOs
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSizes[0].descriptorCount = m_swapchainRef->m_imageCount;
+	poolSizes[0].descriptorCount = m_swapchain->m_imageCount;
 	// Texture + Samplers TODO: create separate samplers!
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	poolSizes[1].descriptorCount = m_swapchainRef->m_imageCount;
+	poolSizes[1].descriptorCount = m_swapchain->m_imageCount;
 
 	VkDescriptorPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 	createInfo.pNext = nullptr;
 	createInfo.flags = 0;
-	createInfo.maxSets = m_swapchainRef->m_imageCount;
+	createInfo.maxSets = m_swapchain->m_imageCount;
 	createInfo.poolSizeCount = sizeof(poolSizes) / sizeof(VkDescriptorPoolSize);
 	createInfo.pPoolSizes = poolSizes;
 
@@ -996,7 +996,7 @@ bool DeviceVK::CreateDescriptors()
 
 	// Create Descriptor Sets
 
-	std::vector<VkDescriptorSetLayout> layouts(m_swapchainRef->m_imageCount, m_descriptorSetLayout);
+	std::vector<VkDescriptorSetLayout> layouts(m_swapchain->m_imageCount, m_descriptorSetLayout);
 
 	VkDescriptorSetAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 	allocInfo.pNext = nullptr;
@@ -1004,7 +1004,7 @@ bool DeviceVK::CreateDescriptors()
 	allocInfo.descriptorSetCount = (uint32_t)layouts.size();
 	allocInfo.pSetLayouts = layouts.data();
 
-	m_descriptorSets.resize(m_swapchainRef->m_imageCount);
+	m_descriptorSets.resize(m_swapchain->m_imageCount);
 
 	VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, m_descriptorSets.data()));
 
@@ -1457,6 +1457,22 @@ void DeviceVK::DestroyTexturesAndSamplers()
 	vkDestroySampler(m_device, m_testSampler, nullptr);
 }
 
+bool DeviceVK::Present(uint32_t imageIndex, uint32_t currentFrame)
+{
+	VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+	presentInfo.pNext = nullptr;
+	presentInfo.waitSemaphoreCount = 1;
+	presentInfo.pWaitSemaphores = &m_renderSemaphores[currentFrame];
+	presentInfo.swapchainCount = 1;
+	presentInfo.pSwapchains = &m_swapchain->m_swapchain;
+	presentInfo.pImageIndices = &imageIndex;
+	presentInfo.pResults = nullptr;
+
+	VK_CHECK(vkQueuePresentKHR(m_graphicsQueue, &presentInfo));
+
+	return true;
+}
+
 void DeviceVK::Update(double dt)
 {
 	m_uboTest.m_testColor.x += (float)dt;
@@ -1467,7 +1483,7 @@ void DeviceVK::Update(double dt)
 
 	glm::mat4 model = glm::rotate(glm::mat4(1.0f), m_testCubeRotation * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 4.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	glm::mat4 proj = glm::perspective(glm::radians(45.0f), m_swapchainRef->m_imageExtent.width / (float)m_swapchainRef->m_imageExtent.height, 0.1f, 10.0f);
+	glm::mat4 proj = glm::perspective(glm::radians(45.0f), m_swapchain->m_imageExtent.width / (float)m_swapchain->m_imageExtent.height, 0.1f, 10.0f);
 
 	// Vulkan clip space has inverted Y and half Z.
 	glm::mat4 clip = glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
@@ -1480,7 +1496,7 @@ void DeviceVK::Update(double dt)
 
 void DeviceVK::Draw(uint32_t currentFrame)
 {
-	uint32_t imageIndex = m_swapchainRef->AcquireNextImage(m_acquireSemaphores[currentFrame]);
+	uint32_t imageIndex = m_swapchain->AcquireNextImage(m_acquireSemaphores[currentFrame]);
 
 
 	// update uniform buffer
@@ -1491,7 +1507,7 @@ void DeviceVK::Draw(uint32_t currentFrame)
 
 	SubmitGraphicsQueue(imageIndex, currentFrame);
 
-	m_swapchainRef->PresentQueue(m_graphicsQueue, imageIndex, m_renderSemaphores[currentFrame]);
+	Present(imageIndex, currentFrame);
 }
 
 }

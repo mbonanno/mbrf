@@ -7,17 +7,17 @@
 namespace MBRF
 {
 
-void SwapchainVK::Init(DeviceVK* deviceRef)
+void SwapchainVK::Init(DeviceVK* device)
 {
-	m_deviceRef = deviceRef;
+	m_device = device;
 }
 
 bool SwapchainVK::CreatePresentationSurface(GLFWwindow* window)
 {
-	assert(m_deviceRef->GetInstance());
+	assert(m_device->GetInstance());
 
 	m_presentationSurface = VK_NULL_HANDLE;
-	VK_CHECK(glfwCreateWindowSurface(m_deviceRef->GetInstance(), window, nullptr, &m_presentationSurface));
+	VK_CHECK(glfwCreateWindowSurface(m_device->GetInstance(), window, nullptr, &m_presentationSurface));
 
 	assert(m_presentationSurface != VK_NULL_HANDLE);
 
@@ -26,13 +26,13 @@ bool SwapchainVK::CreatePresentationSurface(GLFWwindow* window)
 
 void SwapchainVK::DestroyPresentationSurface()
 {
-	vkDestroySurfaceKHR(m_deviceRef->GetInstance(), m_presentationSurface, nullptr);
+	vkDestroySurfaceKHR(m_device->GetInstance(), m_presentationSurface, nullptr);
 }
 
 bool SwapchainVK::Create(uint32_t width, uint32_t height)
 {
-	VkPhysicalDevice physicalDevice = m_deviceRef->GetPhysicalDevice();
-	VkDevice device = m_deviceRef->GetDevice();
+	VkPhysicalDevice physicalDevice = m_device->GetPhysicalDevice();
+	VkDevice device = m_device->GetDevice();
 
 	assert(physicalDevice && device);
 
@@ -210,7 +210,7 @@ void SwapchainVK::Cleanup()
 {
 	DestroyImageViews();
 
-	vkDestroySwapchainKHR(m_deviceRef->GetDevice(), m_swapchain, nullptr);
+	vkDestroySwapchainKHR(m_device->GetDevice(), m_swapchain, nullptr);
 }
 
 bool SwapchainVK::CreateImageViews()
@@ -234,7 +234,7 @@ bool SwapchainVK::CreateImageViews()
 		imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
 		imageViewCreateInfo.subresourceRange.layerCount = 1;
 
-		VK_CHECK(vkCreateImageView(m_deviceRef->GetDevice(), &imageViewCreateInfo, nullptr, &m_imageViews[i]));
+		VK_CHECK(vkCreateImageView(m_device->GetDevice(), &imageViewCreateInfo, nullptr, &m_imageViews[i]));
 	}
 
 	return true;
@@ -244,14 +244,14 @@ void SwapchainVK::DestroyImageViews()
 {
 	for (size_t i = 0; i < m_imageViews.size(); ++i)
 	{
-		vkDestroyImageView(m_deviceRef->GetDevice(), m_imageViews[i], nullptr);
+		vkDestroyImageView(m_device->GetDevice(), m_imageViews[i], nullptr);
 	}
 }
 
 uint32_t SwapchainVK::AcquireNextImage(VkSemaphore semaphore)
 {
 	uint32_t imageIndex;
-	VkResult result = vkAcquireNextImageKHR(m_deviceRef->GetDevice(), m_swapchain, UINT64_MAX, semaphore, nullptr, &imageIndex);
+	VkResult result = vkAcquireNextImageKHR(m_device->GetDevice(), m_swapchain, UINT64_MAX, semaphore, nullptr, &imageIndex);
 
 	assert(result == VK_SUCCESS);
 
@@ -263,22 +263,6 @@ uint32_t SwapchainVK::AcquireNextImage(VkSemaphore semaphore)
 	default:
 		return UINT32_MAX;
 	}
-}
-
-bool SwapchainVK::PresentQueue(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore)
-{
-	VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
-	presentInfo.pNext = nullptr;
-	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pWaitSemaphores = &waitSemaphore;
-	presentInfo.swapchainCount = 1;
-	presentInfo.pSwapchains = &m_swapchain;
-	presentInfo.pImageIndices = &imageIndex;
-	presentInfo.pResults = nullptr;
-
-	VK_CHECK(vkQueuePresentKHR(queue, &presentInfo));
-
-	return true;
 }
 
 }

@@ -12,6 +12,8 @@ bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
 {
 	m_currentFrame = 0;
 
+	// Init Vulkan
+
 	m_device.Init(&m_swapchain, s_maxFramesInFlight);
 	m_swapchain.Init(&m_device);
 
@@ -25,24 +27,28 @@ bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
 
 	m_swapchain.Create(width, height);
 
+	// Init Renderer
+
 	m_device.CreateSyncObjects();
 	m_device.CreateCommandPools();
+	// Init contexts
 	m_device.AllocateCommandBuffers();
 
-	m_device.CreateDepthStencilBuffer();
-	m_device.CreateTexturesAndSamplers();
+	// Init Scene/Application
+	m_device.CreateDepthStencilBuffer();  
+	m_device.CreateTexturesAndSamplers();  // Scene specific
 
-	m_device.CreateTestRenderPass();
+	m_device.CreateTestRenderPass();  // Scene specific
 	m_device.CreateFramebuffers();
-	m_device.CreateShaders();
+	m_device.CreateShaders();  // Scene specific
 
-	m_device.CreateDescriptors();
+	m_device.CreateDescriptors();  // should be scene specific. Currently it is also submitting the descriptors...
 
-	m_device.CreateGraphicsPipelines();
+	m_device.CreateGraphicsPipelines();  // Scene sprcific
 
-	m_device.CreateTestVertexAndTriangleBuffers();
+	m_device.CreateTestVertexAndTriangleBuffers();  // Scene sprcific
 
-	m_device.RecordTestGraphicsCommands();
+	m_device.RecordTestGraphicsCommands();  // Scene specific/should be handled by the GraphicsContext. Shouldn't be pre-recorded, but dynamic per frame
 
 	return true;
 }

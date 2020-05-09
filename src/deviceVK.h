@@ -60,7 +60,7 @@ class DeviceVK
 {
 public:
 	// TODO: create a device init info struct parameter?
-	void Init(SwapchainVK* swapchainRef, int numFrames);
+	void Init(SwapchainVK* swapchain, int numFrames);
 
 	// TODO: nothing to do with the device...move this stuff out ASAP
 	void Update(double dt);
@@ -147,10 +147,12 @@ public:
 	void CreateTexturesAndSamplers();
 	void DestroyTexturesAndSamplers();
 
+	bool Present(uint32_t imageIndex, uint32_t currentFrame);
+
 private:
 	bool m_validationLayerEnabled;
 
-	SwapchainVK* m_swapchainRef;
+	SwapchainVK* m_swapchain;
 	int m_numFrames;
 
 	// vulkan (TODO: move in a wrapper)
