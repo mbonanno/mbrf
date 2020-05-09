@@ -82,4 +82,15 @@ bool UtilsVK::CheckLayersSupport(const std::vector<const char*>& requiredLayers,
 	return true;
 }
 
+uint32_t UtilsVK::FindMemoryType(VkMemoryPropertyFlags requiredProperties, VkMemoryRequirements memoryRequirements, VkPhysicalDeviceMemoryProperties deviceMemoryProperties)
+{
+	for (uint32_t type = 0; type < deviceMemoryProperties.memoryTypeCount; ++type)
+	{
+		if ((memoryRequirements.memoryTypeBits & (1 << type)) && ((deviceMemoryProperties.memoryTypes[type].propertyFlags & requiredProperties) == requiredProperties))
+			return type;
+	}
+
+	return 0xFFFF;
+}
+
 }

@@ -7,32 +7,27 @@
 namespace MBRF
 {
 
-void SwapchainVK::Init(DeviceVK* device)
+bool SwapchainVK::CreatePresentationSurface(DeviceVK* device, GLFWwindow* window)
 {
-	m_device = device;
-}
-
-bool SwapchainVK::CreatePresentationSurface(GLFWwindow* window)
-{
-	assert(m_device->GetInstance());
+	assert(device->GetInstance());
 
 	m_presentationSurface = VK_NULL_HANDLE;
-	VK_CHECK(glfwCreateWindowSurface(m_device->GetInstance(), window, nullptr, &m_presentationSurface));
+	VK_CHECK(glfwCreateWindowSurface(device->GetInstance(), window, nullptr, &m_presentationSurface));
 
 	assert(m_presentationSurface != VK_NULL_HANDLE);
 
 	return m_presentationSurface != VK_NULL_HANDLE;
 }
 
-void SwapchainVK::DestroyPresentationSurface()
+void SwapchainVK::DestroyPresentationSurface(DeviceVK* device)
 {
-	vkDestroySurfaceKHR(m_device->GetInstance(), m_presentationSurface, nullptr);
+	vkDestroySurfaceKHR(device->GetInstance(), m_presentationSurface, nullptr);
 }
 
-bool SwapchainVK::Create(uint32_t width, uint32_t height)
+bool SwapchainVK::Create(DeviceVK* device, uint32_t width, uint32_t height)
 {
-	VkPhysicalDevice physicalDevice = m_device->GetPhysicalDevice();
-	VkDevice device = m_device->GetDevice();
+	VkPhysicalDevice physicalDevice = device->GetPhysicalDevice();
+	VkDevice logicDevice = device->GetDevice();
 
 	assert(physicalDevice && device);
 
@@ -193,27 +188,27 @@ bool SwapchainVK::Create(uint32_t width, uint32_t height)
 	swapchainCreateInfo.clipped = VK_TRUE;
 	swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
 
-	VK_CHECK(vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &m_swapchain));
+	VK_CHECK(vkCreateSwapchainKHR(logicDevice, &swapchainCreateInfo, nullptr, &m_swapchain));
 
 	// Get handles of swapchain images
 
 	// query imageCount again, as we only required the min number of images. The driver might have created more
-	VK_CHECK(vkGetSwapchainImagesKHR(device, m_swapchain, &m_imageCount, nullptr));
+	VK_CHECK(vkGetSwapchainImagesKHR(logicDevice, m_swapchain, &m_imageCount, nullptr));
 
 	m_images.resize(m_imageCount);
-	VK_CHECK(vkGetSwapchainImagesKHR(device, m_swapchain, &m_imageCount, m_images.data()));
+	VK_CHECK(vkGetSwapchainImagesKHR(logicDevice, m_swapchain, &m_imageCount, m_images.data()));
 
-	return CreateImageViews();
+	return CreateImageViews(device);
 }
 
-void SwapchainVK::Cleanup()
+void SwapchainVK::Cleanup(DeviceVK* device)
 {
-	DestroyImageViews();
+	DestroyImageViews(device);
 
-	vkDestroySwapchainKHR(m_device->GetDevice(), m_swapchain, nullptr);
+	vkDestroySwapchainKHR(device->GetDevice(), m_swapchain, nullptr);
 }
 
-bool SwapchainVK::CreateImageViews()
+bool SwapchainVK::CreateImageViews(DeviceVK* device)
 {
 	size_t imageCount = m_images.size();
 
@@ -234,24 +229,24 @@ bool SwapchainVK::CreateImageViews()
 		imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
 		imageViewCreateInfo.subresourceRange.layerCount = 1;
 
-		VK_CHECK(vkCreateImageView(m_device->GetDevice(), &imageViewCreateInfo, nullptr, &m_imageViews[i]));
+		VK_CHECK(vkCreateImageView(device->GetDevice(), &imageViewCreateInfo, nullptr, &m_imageViews[i]));
 	}
 
 	return true;
 }
 
-void SwapchainVK::DestroyImageViews()
+void SwapchainVK::DestroyImageViews(DeviceVK* device)
 {
 	for (size_t i = 0; i < m_imageViews.size(); ++i)
 	{
-		vkDestroyImageView(m_device->GetDevice(), m_imageViews[i], nullptr);
+		vkDestroyImageView(device->GetDevice(), m_imageViews[i], nullptr);
 	}
 }
 
-uint32_t SwapchainVK::AcquireNextImage(VkSemaphore semaphore)
+uint32_t SwapchainVK::AcquireNextImage(DeviceVK* device, VkSemaphore semaphore)
 {
 	uint32_t imageIndex;
-	VkResult result = vkAcquireNextImageKHR(m_device->GetDevice(), m_swapchain, UINT64_MAX, semaphore, nullptr, &imageIndex);
+	VkResult result = vkAcquireNextImageKHR(device->GetDevice(), m_swapchain, UINT64_MAX, semaphore, nullptr, &imageIndex);
 
 	assert(result == VK_SUCCESS);
 

@@ -12,21 +12,17 @@ class DeviceVK;
 class SwapchainVK
 {
 public:
-	void Init(DeviceVK* device);
+	bool CreatePresentationSurface(DeviceVK* device, GLFWwindow* window);
+	void DestroyPresentationSurface(DeviceVK* device);
 
-	bool CreatePresentationSurface(GLFWwindow* window);
-	void DestroyPresentationSurface();
+	bool Create(DeviceVK* device, uint32_t width, uint32_t height);
+	void Cleanup(DeviceVK* device);
 
-	bool Create(uint32_t width, uint32_t height);
-	void Cleanup();
-
-	uint32_t AcquireNextImage(VkSemaphore semaphore);
+	uint32_t AcquireNextImage(DeviceVK* device, VkSemaphore semaphore);
 
 private:
-	bool CreateImageViews();
-	void DestroyImageViews();
-
-	DeviceVK* m_device;
+	bool CreateImageViews(DeviceVK* device);
+	void DestroyImageViews(DeviceVK* device);
 
 public:
 	VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;

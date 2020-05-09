@@ -14,22 +14,21 @@ bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
 
 	// Init Vulkan
 
-	m_device.Init(&m_swapchain, s_maxFramesInFlight);
-	m_swapchain.Init(&m_device);
+	m_device.Init(&m_swapchain);
 
 	// TODO: Init should initialize instance, device, specific textures to our scene
 
 	m_device.CreateInstance(true);
 
-	m_swapchain.CreatePresentationSurface(window);
+	m_swapchain.CreatePresentationSurface(&m_device, window);
 
 	m_device.CreateDevice();
 
-	m_swapchain.Create(width, height);
+	m_swapchain.Create(&m_device, width, height);
 
 	// Init Renderer
 
-	m_device.CreateSyncObjects();
+	m_device.CreateSyncObjects(s_maxFramesInFlight);
 	m_device.CreateCommandPools();
 	// Init contexts
 	m_device.AllocateCommandBuffers();
@@ -73,9 +72,9 @@ void RendererVK::Cleanup()
 
 	m_device.DestroyCommandPools();
 	m_device.DestroySyncObjects();
-	m_swapchain.Cleanup();
+	m_swapchain.Cleanup(&m_device);
 	m_device.DestroyDevice();
-	m_swapchain.DestroyPresentationSurface();
+	m_swapchain.DestroyPresentationSurface(&m_device);
 	m_device.DestroyInstance();
 }
 

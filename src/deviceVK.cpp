@@ -1,7 +1,7 @@
 #include "deviceVK.h"
 
-#include "utilsVK.h"
 #include "swapchainVK.h"
+#include "utilsVK.h"
 
 #include <iostream>
 #include <set>
@@ -50,10 +50,9 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
 const std::vector<const char*> requiredExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
-void DeviceVK::Init(SwapchainVK* swapchain, int numFrames)
+void DeviceVK::Init(SwapchainVK* swapchain)
 {
 	m_swapchain = swapchain;
-	m_numFrames = numFrames;
 }
 
 bool DeviceVK::CreateInstance(bool enableValidation)
@@ -322,17 +321,17 @@ void DeviceVK::DestroyDevice()
 }
 
 	
-bool DeviceVK::CreateSyncObjects()
+bool DeviceVK::CreateSyncObjects(int numFrames)
 {
-	m_acquireSemaphores.resize(m_numFrames);
-	m_renderSemaphores.resize(m_numFrames);
+	m_acquireSemaphores.resize(numFrames);
+	m_renderSemaphores.resize(numFrames);
 	m_fences.resize(m_swapchain->m_imageCount);
 
 	VkSemaphoreCreateInfo semaphoreCreateInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 	semaphoreCreateInfo.pNext = nullptr;
 	semaphoreCreateInfo.flags = 0;
 
-	for (int i = 0; i < m_numFrames; ++i)
+	for (int i = 0; i < numFrames; ++i)
 	{
 		VK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_acquireSemaphores[i]));
 		VK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_renderSemaphores[i]));
@@ -903,23 +902,23 @@ void DeviceVK::CreateTestVertexAndTriangleBuffers()
 {
 	VkDeviceSize size = sizeof(m_testCubeVerts);
 
-	CreateBuffer(m_testVertexBuffer, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	m_testVertexBuffer.Create(this, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-	UpdateBuffer(m_testVertexBuffer, size, m_testCubeVerts);
+	m_testVertexBuffer.Update(this, size, m_testCubeVerts);
 
 	// index buffer
 
 	size = sizeof(m_testCubeIndices);
 
-	CreateBuffer(m_testIndexBuffer, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	m_testIndexBuffer.Create(this, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-	UpdateBuffer(m_testIndexBuffer, size, m_testCubeIndices);
+	m_testIndexBuffer.Update(this, size, m_testCubeIndices);
 }
 
 void DeviceVK::DestroyTestVertexAndTriangleBuffers()
 {
-	DestroyBuffer(m_testVertexBuffer);
-	DestroyBuffer(m_testIndexBuffer);
+	m_testVertexBuffer.Destroy(this);
+	m_testIndexBuffer.Destroy(this);
 }
 
 bool DeviceVK::CreateDepthStencilBuffer()
@@ -947,8 +946,8 @@ bool DeviceVK::CreateDescriptors()
 
 	for (size_t i = 0; i < m_uboBuffers.size(); ++i)
 	{
-		CreateBuffer(m_uboBuffers[i], sizeof(UBOTest), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		UpdateBuffer(m_uboBuffers[i], sizeof(UBOTest), &m_uboTest);
+		m_uboBuffers[i].Create(this, sizeof(UBOTest), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		m_uboBuffers[i].Update(this, sizeof(UBOTest), &m_uboTest);
 	}
 
 
@@ -1053,145 +1052,11 @@ bool DeviceVK::CreateDescriptors()
 void DeviceVK::DestroyDescriptors()
 {
 	for (size_t i = 0; i < m_uboBuffers.size(); ++i)
-		DestroyBuffer(m_uboBuffers[i]);
+		m_uboBuffers[i].Destroy(this);
 
 	vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
 
 	vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
-}
-
-uint32_t DeviceVK::FindMemoryType(VkMemoryPropertyFlags requiredProperties, VkMemoryRequirements memoryRequirements, VkPhysicalDeviceMemoryProperties deviceMemoryProperties)
-{
-	for (uint32_t type = 0; type < deviceMemoryProperties.memoryTypeCount; ++type)
-	{
-		if ((memoryRequirements.memoryTypeBits & (1 << type)) && ((deviceMemoryProperties.memoryTypes[type].propertyFlags & requiredProperties) == requiredProperties))
-			return type;
-	}
-
-	return 0xFFFF;
-}
-
-bool DeviceVK::CreateBuffer(BufferVK& buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryProperties)
-{
-	assert(buffer.m_buffer == VK_NULL_HANDLE);
-
-	buffer.m_size = size;
-	buffer.m_usage = usage;
-
-	buffer.m_hasCpuAccess = memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-
-	VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-	createInfo.pNext = nullptr;
-	createInfo.flags = 0;
-	createInfo.size = buffer.m_size;
-	createInfo.usage = buffer.m_usage;
-	createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	createInfo.queueFamilyIndexCount = 0;
-	createInfo.pQueueFamilyIndices = nullptr;
-
-	VK_CHECK(vkCreateBuffer(m_device, &createInfo, nullptr, &buffer.m_buffer));
-
-	VkMemoryRequirements memoryRequirements;
-	vkGetBufferMemoryRequirements(m_device, buffer.m_buffer, &memoryRequirements);
-
-	VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
-	vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &deviceMemoryProperties);
-
-	uint32_t memoryType = FindMemoryType(memoryProperties, memoryRequirements, deviceMemoryProperties);
-
-	assert(memoryType != 0xFFFF);
-
-	if (memoryType == 0xFFFF)
-		return false;
-
-	VkMemoryAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
-	allocateInfo.pNext = nullptr;
-	allocateInfo.allocationSize = memoryRequirements.size;
-	allocateInfo.memoryTypeIndex = memoryType;
-
-	VK_CHECK(vkAllocateMemory(m_device, &allocateInfo, nullptr, &buffer.m_memory));
-
-	assert(buffer.m_memory != VK_NULL_HANDLE);
-
-	if (!buffer.m_memory)
-		return false;
-
-	VK_CHECK(vkBindBufferMemory(m_device, buffer.m_buffer, buffer.m_memory, 0));
-
-	if (buffer.m_hasCpuAccess)
-	{
-		// leave it permanently mapped until destruction
-		VK_CHECK(vkMapMemory(m_device, buffer.m_memory, 0, buffer.m_size, 0, &buffer.m_data));
-
-		assert(buffer.m_data);
-
-		if (!(memoryProperties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
-		{
-			VkMappedMemoryRange memoryRanges[1];
-			memoryRanges[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-			memoryRanges[0].pNext = nullptr;
-			memoryRanges[0].memory = buffer.m_memory;
-			memoryRanges[0].offset = 0;
-			memoryRanges[0].size = VK_WHOLE_SIZE;
-
-			VK_CHECK(vkFlushMappedMemoryRanges(m_device, 1, memoryRanges));
-		}
-	}
-
-	return true;
-}
-
-bool DeviceVK::UpdateBuffer(BufferVK& buffer, VkDeviceSize size, void* data)
-{
-	assert(size <= buffer.m_size);
-
-	if (buffer.m_hasCpuAccess)
-	{
-		std::memcpy(buffer.m_data, data, size);
-
-		return true;
-	}
-
-	// if we have no CPU access, we need to create a staging buffer and upload it to GPU
-
-	if (!(buffer.m_usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT))
-	{
-		assert(!"Cannot upload data to device local memory via staging buffer. Usage needs to be VK_BUFFER_USAGE_TRANSFER_DST_BIT.");
-		return false;
-	}
-
-	BufferVK stagingBuffer;
-	CreateBuffer(stagingBuffer, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-
-	std::memcpy(stagingBuffer.m_data, data, size);
-
-	// Copy staging buffer to device local memory
-
-	VkCommandBuffer commandBuffer = BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-	VkBufferCopy region;
-	region.srcOffset = 0;
-	region.dstOffset = 0;
-	region.size = size;
-
-	vkCmdCopyBuffer(commandBuffer, stagingBuffer.m_buffer, buffer.m_buffer, 1, &region);
-
-	SubmitCommandBufferAndWait(commandBuffer);
-
-	vkFreeCommandBuffers(m_device, m_graphicsCommandPool, 1, &commandBuffer);
-
-	DestroyBuffer(stagingBuffer);
-
-	return true;
-}
-
-void DeviceVK::DestroyBuffer(BufferVK& buffer)
-{
-	vkFreeMemory(m_device, buffer.m_memory, nullptr);
-	vkDestroyBuffer(m_device, buffer.m_buffer, nullptr);
-
-	buffer.m_buffer = VK_NULL_HANDLE;
-	buffer.m_memory = VK_NULL_HANDLE;
 }
 
 bool DeviceVK::CreateTexture(TextureVK& texture, VkFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t mips, VkImageUsageFlags usage,
@@ -1236,7 +1101,7 @@ bool DeviceVK::CreateTexture(TextureVK& texture, VkFormat format, uint32_t width
 
 	VkMemoryPropertyFlags memoryProperties = memoryProperty;
 
-	uint32_t memoryType = FindMemoryType(memoryProperties, memoryRequirements, deviceMemoryProperties);
+	uint32_t memoryType = UtilsVK::FindMemoryType(memoryProperties, memoryRequirements, deviceMemoryProperties);
 
 	assert(memoryType != 0xFFFF);
 
@@ -1285,9 +1150,7 @@ void DeviceVK::TransitionImageLayout(TextureVK& texture, VkImageAspectFlags aspe
 
 	TransitionImageLayout(commandBuffer, texture.m_image, aspectFlags, oldLayout, newLayout);
 
-	SubmitCommandBufferAndWait(commandBuffer);
-
-	vkFreeCommandBuffers(m_device, m_graphicsCommandPool, 1, &commandBuffer);
+	SubmitCommandBufferAndWait(commandBuffer, true);
 
 	texture.m_currentLayout = newLayout;
 }
@@ -1348,7 +1211,7 @@ VkCommandBuffer DeviceVK::BeginNewCommandBuffer(VkCommandBufferUsageFlags usage)
 	return commandBuffer;
 }
 
-void DeviceVK::SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer)
+void DeviceVK::SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer, bool freeCommandBuffer)
 {
 	VK_CHECK(vkEndCommandBuffer(commandBuffer));
 
@@ -1360,6 +1223,9 @@ void DeviceVK::SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer)
 	VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, nullptr));
 
 	VK_CHECK(vkQueueWaitIdle(m_graphicsQueue));
+
+	if (freeCommandBuffer)
+		vkFreeCommandBuffers(m_device, m_graphicsCommandPool, 1, &commandBuffer);
 }
 
 void DeviceVK::LoadTextureFromFile(TextureVK& texture, const char* fileName)
@@ -1395,7 +1261,7 @@ bool DeviceVK::UpdateTexture(TextureVK& texture, uint32_t width, uint32_t height
 	TransitionImageLayout(texture, texture.m_view.m_aspectMask, texture.m_currentLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	BufferVK stagingBuffer;
-	CreateBuffer(stagingBuffer, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+	stagingBuffer.Create(this, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 	std::memcpy(stagingBuffer.m_data, data, size);
 
 	VkCommandBuffer commandBuffer = BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -1413,12 +1279,11 @@ bool DeviceVK::UpdateTexture(TextureVK& texture, uint32_t width, uint32_t height
 
 	vkCmdCopyBufferToImage(commandBuffer, stagingBuffer.m_buffer, texture.m_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-	SubmitCommandBufferAndWait(commandBuffer);
-	vkFreeCommandBuffers(m_device, m_graphicsCommandPool, 1, &commandBuffer);
+	SubmitCommandBufferAndWait(commandBuffer, true);
 
 	TransitionImageLayout(m_testTexture, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, newLayout);
 
-	DestroyBuffer(stagingBuffer);
+	stagingBuffer.Destroy(this);
 
 	return true;
 }
@@ -1496,11 +1361,11 @@ void DeviceVK::Update(double dt)
 
 void DeviceVK::Draw(uint32_t currentFrame)
 {
-	uint32_t imageIndex = m_swapchain->AcquireNextImage(m_acquireSemaphores[currentFrame]);
+	uint32_t imageIndex = m_swapchain->AcquireNextImage(this, m_acquireSemaphores[currentFrame]);
 
 
 	// update uniform buffer
-	UpdateBuffer(m_uboBuffers[imageIndex], sizeof(UBOTest), &m_uboTest);
+	m_uboBuffers[imageIndex].Update(this, sizeof(UBOTest), &m_uboTest);
 
 
 	assert(imageIndex != UINT32_MAX);

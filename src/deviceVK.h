@@ -1,6 +1,7 @@
 #pragma once
 
 #include "commonVK.h"
+#include "bufferVK.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // use the Vulkan range of 0.0 to 1.0, instead of the -1 to 1.0 OpenGL range
@@ -14,17 +15,6 @@ class SwapchainVK;
 // TODO: move BufferVK, TextureVK and TextureViewVK + resource related functionality in their own files
 // TODO: move command buffer recording (and submission?) related functionality in a new ContextVK class
 // TODO: remove any scene specific data, resources etc + any Update, Draw functionality from here
-
-struct BufferVK
-{
-	VkBuffer m_buffer = VK_NULL_HANDLE;
-	VkDeviceMemory m_memory = VK_NULL_HANDLE;
-	VkDeviceSize m_size = 0;
-	VkBufferUsageFlags m_usage;
-	void* m_data = nullptr;
-
-	bool m_hasCpuAccess = false;
-};
 
 struct TextureViewVK
 {
@@ -59,8 +49,8 @@ struct TextureVK
 class DeviceVK
 {
 public:
-	// TODO: create a device init info struct parameter?
-	void Init(SwapchainVK* swapchain, int numFrames);
+	// TODO: create a device init info struct parameter? Also, remove swapchain dependencies in DeviceVK
+	void Init(SwapchainVK* swapchain);
 
 	// TODO: nothing to do with the device...move this stuff out ASAP
 	void Update(double dt);
@@ -72,7 +62,7 @@ public:
 	bool CreateDevice();
 	void DestroyDevice();
 
-	bool CreateSyncObjects();
+	bool CreateSyncObjects(int numFrames);
 	void DestroySyncObjects();
 
 	bool CreateCommandPools();
@@ -119,14 +109,6 @@ public:
 	uint32_t FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFlags desiredCapabilities, bool queryPresentationSupport);
 	uint32_t FindDevicePresentationQueueFamilyIndex(VkPhysicalDevice device);
 
-	uint32_t FindMemoryType(VkMemoryPropertyFlags requiredProperties, VkMemoryRequirements memoryRequirements, VkPhysicalDeviceMemoryProperties deviceMemoryProperties);
-
-	// TODO: move back all the buffer creation stuff in a separate BufferVK class
-	bool CreateBuffer(BufferVK& buffer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryProperties);
-	void DestroyBuffer(BufferVK& buffer);
-
-	bool UpdateBuffer(BufferVK& buffer, VkDeviceSize size, void* data);
-
 	bool CreateTexture(TextureVK& texture, VkFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t mips = 1, VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 		VkImageType type = VK_IMAGE_TYPE_2D, VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED, VkMemoryPropertyFlags memoryProperty = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		VkSampleCountFlagBits sampleCount = VK_SAMPLE_COUNT_1_BIT, VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL);
@@ -141,7 +123,7 @@ public:
 
 
 	VkCommandBuffer BeginNewCommandBuffer(VkCommandBufferUsageFlags usage);
-	void SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer);
+	void SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer, bool freeCommandBuffer);
 
 	void LoadTextureFromFile(TextureVK& texture, const char* fileName);
 	void CreateTexturesAndSamplers();
@@ -153,7 +135,6 @@ private:
 	bool m_validationLayerEnabled;
 
 	SwapchainVK* m_swapchain;
-	int m_numFrames;
 
 	// vulkan (TODO: move in a wrapper)
 	VkInstance m_instance;

@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\application.cpp" />
+    <ClCompile Include="src\bufferVK.cpp" />
     <ClCompile Include="src\deviceVK.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\rendererVK.cpp" />
@@ -28,6 +29,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\application.h" />
+    <ClInclude Include="src\bufferVK.h" />
     <ClInclude Include="src\commonVK.h" />
     <ClInclude Include="src\deviceVK.h" />
     <ClInclude Include="src\rendererVK.h" />
