@@ -9,6 +9,36 @@
 namespace MBRF
 {
 
+bool SamplerVK::Create(DeviceVK* device, VkFilter filter, float minLod, float maxLod)
+{
+	VkSamplerCreateInfo samplerInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+	samplerInfo.magFilter = filter;
+	samplerInfo.minFilter = filter;
+	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.anisotropyEnable = VK_FALSE;
+	samplerInfo.maxAnisotropy = 1;
+	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE;
+	samplerInfo.unnormalizedCoordinates = VK_FALSE;
+	samplerInfo.compareEnable = VK_FALSE;
+	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	// mipmapping
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	samplerInfo.mipLodBias = 0.0f;
+	samplerInfo.minLod = minLod;
+	samplerInfo.maxLod = maxLod;
+
+	VK_CHECK(vkCreateSampler(device->GetDevice(), &samplerInfo, nullptr, &m_sampler));
+
+	return true;
+}
+
+void SamplerVK::Destroy(DeviceVK* device)
+{
+	vkDestroySampler(device->GetDevice(), m_sampler, nullptr);
+}
+
 bool TextureViewVK::Create(DeviceVK* device, TextureVK* texture, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32_t baseMip, uint32_t mipCount)
 {
 	assert(m_imageView == VK_NULL_HANDLE);
@@ -125,6 +155,10 @@ bool TextureVK::Create(DeviceVK* device, VkFormat format, uint32_t width, uint32
 
 	m_view.Create(device, this, aspectMask);
 
+	m_sampler.Create(device, VK_FILTER_LINEAR, 0.0f, float(mips));
+
+	UpdateDescriptor();
+
 	return true;
 }
 
@@ -175,6 +209,7 @@ void TextureVK::Destroy(DeviceVK* device)
 {
 	VkDevice logicDevice = device->GetDevice();
 
+	m_sampler.Destroy(device);
 	m_view.Destroy(device);
 
 	vkFreeMemory(logicDevice, m_memory, nullptr);
@@ -209,7 +244,16 @@ void TextureVK::TransitionImageLayoutAndSubmit(DeviceVK* device, VkImageAspectFl
 
 	device->SubmitCommandBufferAndWait(commandBuffer, true);
 
-	SetCurrentLayout(newLayout);
+	m_currentLayout = newLayout;
+
+	UpdateDescriptor();
+}
+
+void TextureVK::UpdateDescriptor()
+{
+	m_descriptor.sampler = m_sampler.GetSampler();
+	m_descriptor.imageView = m_view.GetImageView();
+	m_descriptor.imageLayout = m_currentLayout;
 }
 
 }

@@ -17,6 +17,7 @@ bool BufferVK::Create(DeviceVK* device, VkDeviceSize size, VkBufferUsageFlags us
 	m_usage = usage;
 
 	m_hasCpuAccess = memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+	m_hasCoherentMemory = memoryProperties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
 	VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 	createInfo.pNext = nullptr;
@@ -62,19 +63,11 @@ bool BufferVK::Create(DeviceVK* device, VkDeviceSize size, VkBufferUsageFlags us
 		VK_CHECK(vkMapMemory(logicDevice, m_memory, 0, m_size, 0, &m_data));
 
 		assert(m_data);
-
-		if (!(memoryProperties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
-		{
-			VkMappedMemoryRange memoryRanges[1];
-			memoryRanges[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-			memoryRanges[0].pNext = nullptr;
-			memoryRanges[0].memory = m_memory;
-			memoryRanges[0].offset = 0;
-			memoryRanges[0].size = VK_WHOLE_SIZE;
-
-			VK_CHECK(vkFlushMappedMemoryRanges(logicDevice, 1, memoryRanges));
-		}
 	}
+
+	m_descriptor.buffer = m_buffer;
+	m_descriptor.offset = 0;
+	m_descriptor.range = size;
 
 	return true;
 }
@@ -86,6 +79,18 @@ bool BufferVK::Update(DeviceVK* device, VkDeviceSize size, void* data)
 	if (m_hasCpuAccess)
 	{
 		std::memcpy(m_data, data, size);
+
+		if (!m_hasCoherentMemory)
+		{
+			VkMappedMemoryRange memoryRanges[1];
+			memoryRanges[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+			memoryRanges[0].pNext = nullptr;
+			memoryRanges[0].memory = m_memory;
+			memoryRanges[0].offset = 0;
+			memoryRanges[0].size = VK_WHOLE_SIZE;
+
+			VK_CHECK(vkFlushMappedMemoryRanges(device->GetDevice(), 1, memoryRanges));
+		}
 
 		return true;
 	}

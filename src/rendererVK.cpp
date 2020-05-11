@@ -35,7 +35,7 @@ bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
 
 	// Init Scene/Application
 	m_device.CreateDepthStencilBuffer();  
-	m_device.CreateTexturesAndSamplers();  // Scene specific
+	m_device.CreateTextures();  // Scene specific
 
 	m_device.CreateTestRenderPass();  // Scene specific
 	m_device.CreateFramebuffers();
@@ -67,7 +67,7 @@ void RendererVK::Cleanup()
 	m_device.DestroyFramebuffers();
 	m_device.DestroyTestRenderPass();
 
-	m_device.DestroyTexturesAndSamplers();
+	m_device.DestroyTextures();
 	m_device.DestroyDepthStencilBuffer();
 
 	m_device.DestroyCommandPools();

@@ -83,8 +83,8 @@ public:
 	VkCommandBuffer BeginNewCommandBuffer(VkCommandBufferUsageFlags usage);
 	void SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer, bool freeCommandBuffer);
 
-	void CreateTexturesAndSamplers();
-	void DestroyTexturesAndSamplers();
+	void CreateTextures();
+	void DestroyTextures();
 
 	bool Present(uint32_t imageIndex, uint32_t currentFrame);
 
@@ -191,7 +191,6 @@ private:
 	std::vector<BufferVK> m_uboBuffers;
 
 	TextureVK m_testTexture;
-	VkSampler m_testSampler;
 
 	// TODO: move all the frame dependent objects in a frame data structure, and just use a frame data array?
 

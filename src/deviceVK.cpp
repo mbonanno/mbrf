@@ -954,7 +954,7 @@ bool DeviceVK::CreateDescriptors()
 	// UBOs
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = m_swapchain->m_imageCount;
-	// Texture + Samplers TODO: create separate samplers!
+	// Texture + Samplers TODO: create separate samplers?
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	poolSizes[1].descriptorCount = m_swapchain->m_imageCount;
 
@@ -976,7 +976,7 @@ bool DeviceVK::CreateDescriptors()
 	bindings[0].descriptorCount = 1;
 	bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 	bindings[0].pImmutableSamplers = nullptr;
-	// Texture + Samplers TODO: create separate samplers!
+	// Texture + Samplers TODO: create separate samplers?
 	bindings[1].binding = 1;
 	bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	bindings[1].descriptorCount = 1;
@@ -1007,15 +1007,9 @@ bool DeviceVK::CreateDescriptors()
 
 	for (size_t i = 0; i < m_descriptorSets.size(); ++i)
 	{
-		VkDescriptorBufferInfo bufferInfo;
-		bufferInfo.buffer = m_uboBuffers[i].GetBuffer();
-		bufferInfo.offset = 0;
-		bufferInfo.range = sizeof(UBOTest);
+		VkDescriptorBufferInfo bufferInfo = m_uboBuffers[i].GetDescriptor();
 
-		VkDescriptorImageInfo imageInfo;
-		imageInfo.sampler = m_testSampler;
-		imageInfo.imageView = m_testTexture.GetView().GetImageView();
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		VkDescriptorImageInfo imageInfo = m_testTexture.GetDescriptor();
 
 		VkWriteDescriptorSet descriptorWrites[2];
 		// UBOs
@@ -1096,38 +1090,14 @@ void DeviceVK::SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer, bool fr
 
 
 
-void DeviceVK::CreateTexturesAndSamplers()
+void DeviceVK::CreateTextures()
 {
 	m_testTexture.LoadFromFile(this, "data/textures/test.jpg");
-
-	// create sampler
-
-	VkSamplerCreateInfo samplerInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-	samplerInfo.magFilter = VK_FILTER_LINEAR;
-	samplerInfo.minFilter = VK_FILTER_LINEAR;
-	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.anisotropyEnable = VK_FALSE;
-	samplerInfo.maxAnisotropy = 1;
-	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE;
-	samplerInfo.unnormalizedCoordinates = VK_FALSE;
-	samplerInfo.compareEnable = VK_FALSE;
-	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-	// mipmapping
-	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	samplerInfo.mipLodBias = 0.0f;
-	samplerInfo.minLod = 0.0f;
-	samplerInfo.maxLod = 1.0f;
-
-	VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_testSampler));
 }
 
-void DeviceVK::DestroyTexturesAndSamplers()
+void DeviceVK::DestroyTextures()
 {
 	m_testTexture.Destroy(this);
-
-	vkDestroySampler(m_device, m_testSampler, nullptr);
 }
 
 bool DeviceVK::Present(uint32_t imageIndex, uint32_t currentFrame)

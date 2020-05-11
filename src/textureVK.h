@@ -8,6 +8,18 @@ namespace MBRF
 class DeviceVK;
 class TextureVK;
 
+class SamplerVK
+{
+public:
+	bool Create(DeviceVK* device, VkFilter filter, float minLod, float maxLod);
+	void Destroy(DeviceVK* device);
+
+	const VkSampler& GetSampler() const { return m_sampler; };
+
+private:
+	VkSampler m_sampler;
+};
+
 class TextureViewVK
 {
 public:
@@ -46,16 +58,24 @@ public:
 	VkFormat GetFormat() const { return m_format; };
 	VkImageUsageFlags GetUsage() { return m_usage; };
 
-	void SetCurrentLayout(VkImageLayout layout) { m_currentLayout = layout; };
 	VkImageLayout GetCurrentLayout() { return m_currentLayout; };
 
+	const VkDescriptorImageInfo& GetDescriptor() const { return m_descriptor; };
+
 	void TransitionImageLayoutAndSubmit(DeviceVK* device, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout);
+
+private:
+	void UpdateDescriptor();
 
 private:
 	VkImage m_image = VK_NULL_HANDLE;
 	VkDeviceMemory m_memory = VK_NULL_HANDLE;
 
+	VkDescriptorImageInfo m_descriptor;
+
 	TextureViewVK m_view;
+	// TODO: decouple from the sampler? Could just have some global samplers
+	SamplerVK m_sampler;
 
 	VkImageType m_imageType;
 	VkFormat m_format;
