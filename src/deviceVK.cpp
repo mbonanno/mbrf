@@ -511,7 +511,7 @@ void DeviceVK::RecordTestGraphicsCommands()
 		VkRenderPassBeginInfo renderPassInfo = {};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		renderPassInfo.renderPass = m_testRenderPass;
-		renderPassInfo.framebuffer = m_swapchainFramebuffers[i];
+		renderPassInfo.framebuffer = m_swapchainFramebuffers[i].GetFrameBuffer();
 
 		renderPassInfo.renderArea.offset = { 0, 0 };
 		renderPassInfo.renderArea.extent = m_swapchain->m_imageExtent;
@@ -630,19 +630,9 @@ bool DeviceVK::CreateFramebuffers()
 
 	for (size_t i = 0; i < m_swapchainFramebuffers.size(); ++i)
 	{
-		VkImageView attachments[] = { m_swapchain->m_imageViews[i], m_depthTexture.GetView().GetImageView() };
+		std::vector<VkImageView> attachments = { m_swapchain->m_imageViews[i], m_depthTexture.GetView().GetImageView() };
 
-		VkFramebufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-		createInfo.pNext = nullptr;
-		createInfo.flags = 0;
-		createInfo.renderPass = m_testRenderPass;
-		createInfo.attachmentCount = sizeof(attachments) / sizeof(VkImageView);
-		createInfo.pAttachments = attachments;
-		createInfo.width = m_swapchain->m_imageExtent.width;
-		createInfo.height = m_swapchain->m_imageExtent.height;
-		createInfo.layers = 1;
-
-		VK_CHECK(vkCreateFramebuffer(m_device, &createInfo, nullptr, &m_swapchainFramebuffers[i]));
+		m_swapchainFramebuffers[i].Create(this, m_swapchain->m_imageExtent.width, m_swapchain->m_imageExtent.height, attachments, m_testRenderPass);
 	}
 
 	return true;
@@ -651,9 +641,7 @@ bool DeviceVK::CreateFramebuffers()
 void DeviceVK::DestroyFramebuffers()
 {
 	for (size_t i = 0; i < m_swapchainFramebuffers.size(); ++i)
-	{
-		vkDestroyFramebuffer(m_device, m_swapchainFramebuffers[i], nullptr);
-	}
+		m_swapchainFramebuffers[i].Destroy(this);
 }
 
 bool DeviceVK::CreateShaderModuleFromFile(const char* fileName, VkShaderModule &shaderModule)

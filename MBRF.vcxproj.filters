@@ -42,6 +42,9 @@
     <ClCompile Include="src\textureVK.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\frameBufferVK.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\application.h">
@@ -66,6 +69,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\textureVK.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\frameBufferVK.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

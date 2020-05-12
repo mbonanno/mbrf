@@ -72,7 +72,7 @@ void RendererVK::Cleanup()
 
 	m_device.DestroyCommandPools();
 	m_device.DestroySyncObjects();
-	m_swapchain.Cleanup(&m_device);
+	m_swapchain.Destroy(&m_device);
 	m_device.DestroyDevice();
 	m_swapchain.DestroyPresentationSurface(&m_device);
 	m_device.DestroyInstance();

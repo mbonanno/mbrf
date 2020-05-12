@@ -2,6 +2,7 @@
 
 #include "bufferVK.h"
 #include "commonVK.h"
+#include "frameBufferVK.h"
 #include "textureVK.h"
 
 #define GLM_FORCE_RADIANS
@@ -110,7 +111,7 @@ private:
 	VkCommandPool m_graphicsCommandPool;
 
 	VkRenderPass m_testRenderPass;
-	std::vector<VkFramebuffer> m_swapchainFramebuffers;
+	std::vector<FrameBufferVK> m_swapchainFramebuffers;
 
 	VkShaderModule m_testVertexShader;
 	VkShaderModule m_testFragmentShader;

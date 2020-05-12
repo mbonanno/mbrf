@@ -201,7 +201,7 @@ bool SwapchainVK::Create(DeviceVK* device, uint32_t width, uint32_t height)
 	return CreateImageViews(device);
 }
 
-void SwapchainVK::Cleanup(DeviceVK* device)
+void SwapchainVK::Destroy(DeviceVK* device)
 {
 	DestroyImageViews(device);
 

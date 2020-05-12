@@ -16,7 +16,7 @@ public:
 	void DestroyPresentationSurface(DeviceVK* device);
 
 	bool Create(DeviceVK* device, uint32_t width, uint32_t height);
-	void Cleanup(DeviceVK* device);
+	void Destroy(DeviceVK* device);
 
 	uint32_t AcquireNextImage(DeviceVK* device, VkSemaphore semaphore);
 

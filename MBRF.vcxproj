@@ -22,6 +22,7 @@
     <ClCompile Include="src\application.cpp" />
     <ClCompile Include="src\bufferVK.cpp" />
     <ClCompile Include="src\deviceVK.cpp" />
+    <ClCompile Include="src\frameBufferVK.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\rendererVK.cpp" />
     <ClCompile Include="src\swapchainVK.cpp" />
@@ -33,6 +34,7 @@
     <ClInclude Include="src\bufferVK.h" />
     <ClInclude Include="src\commonVK.h" />
     <ClInclude Include="src\deviceVK.h" />
+    <ClInclude Include="src\frameBufferVK.h" />
     <ClInclude Include="src\rendererVK.h" />
     <ClInclude Include="src\swapchainVK.h" />
     <ClInclude Include="src\textureVK.h" />
