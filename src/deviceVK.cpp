@@ -480,7 +480,7 @@ void DeviceVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
 	vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
-void DeviceVK::ClearFramebufferAttachments(VkCommandBuffer commandBuffer, const FrameBufferVK& frameBuffer, uint32_t x, uint32_t y, uint32_t width, uint32_t height)
+void DeviceVK::ClearFramebufferAttachments(VkCommandBuffer commandBuffer, const FrameBufferVK& frameBuffer, uint32_t x, uint32_t y, uint32_t width, uint32_t height, VkClearValue clearValues[2])
 {
 	VkClearRect clearRect;
 	clearRect.rect = { {0, 0}, m_swapchain->m_imageExtent };
@@ -500,9 +500,9 @@ void DeviceVK::ClearFramebufferAttachments(VkCommandBuffer commandBuffer, const 
 		clearAttachments[i].colorAttachment = uint32_t(i);
 
 		if (aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
-			clearAttachments[i].clearValue.color = { 0.3f, 0.3f, 0.3f, 1.0f };
+			clearAttachments[i].clearValue.color = clearValues[0].color;
 		else if ((aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) || aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)
-			clearAttachments[i].clearValue.depthStencil = { 1.0f, 0 };
+			clearAttachments[i].clearValue.depthStencil = clearValues[1].depthStencil;
 	}
 
 	vkCmdClearAttachments(commandBuffer, uint32_t(clearAttachments.size()), clearAttachments.data(), 1, &clearRect);
@@ -560,7 +560,11 @@ void DeviceVK::RecordTestGraphicsCommands()
 
 		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		ClearFramebufferAttachments(commandBuffer, m_swapchainFramebuffers[i], 0, 0, m_swapchain->m_imageExtent.width/2, m_swapchain->m_imageExtent.height/2);
+		VkClearValue clearValues[2];
+		clearValues[0].color = { 0.3f, 0.3f, 0.3f, 1.0f };
+		clearValues[1].depthStencil = { 1.0f, 0 };
+
+		ClearFramebufferAttachments(commandBuffer, m_swapchainFramebuffers[i], 0, 0, m_swapchain->m_imageExtent.width, m_swapchain->m_imageExtent.height, clearValues);
 
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipeline);
 

@@ -86,7 +86,8 @@ public:
 
 	bool Present(uint32_t imageIndex, uint32_t currentFrame);
 
-	void ClearFramebufferAttachments(VkCommandBuffer commandBuffer, const FrameBufferVK& frameBuffer, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+	// clearColors[0] = color, clearColors[1] = depth+stencil
+	void ClearFramebufferAttachments(VkCommandBuffer commandBuffer, const FrameBufferVK& frameBuffer, uint32_t x, uint32_t y, uint32_t width, uint32_t height, VkClearValue clearValues[2]);
 
 private:
 	bool m_validationLayerEnabled;
