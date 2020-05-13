@@ -480,10 +480,10 @@ void DeviceVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
 	vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
-void DeviceVK::ClearFramebufferAttachments(VkCommandBuffer commandBuffer, const FrameBufferVK& frameBuffer, uint32_t x, uint32_t y, uint32_t width, uint32_t height, VkClearValue clearValues[2])
+void DeviceVK::ClearFramebufferAttachments(VkCommandBuffer commandBuffer, const FrameBufferVK& frameBuffer, int32_t x, int32_t y, uint32_t width, uint32_t height, VkClearValue clearValues[2])
 {
 	VkClearRect clearRect;
-	clearRect.rect = { {0, 0}, m_swapchain->m_imageExtent };
+	clearRect.rect = { {x, y}, {width, height} };
 	clearRect.baseArrayLayer = 0;
 	clearRect.layerCount = 1;
 
