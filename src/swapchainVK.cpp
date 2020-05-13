@@ -212,35 +212,18 @@ bool SwapchainVK::CreateImageViews(DeviceVK* device)
 {
 	size_t imageCount = m_images.size();
 
-	m_imageViews.resize(imageCount);
+	m_textureViews.resize(imageCount);
 
 	for (size_t i = 0; i < imageCount; ++i)
-	{
-		VkImageViewCreateInfo imageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-		imageViewCreateInfo.pNext = nullptr;
-		imageViewCreateInfo.flags = 0;
-		imageViewCreateInfo.image = m_images[i];
-		imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		imageViewCreateInfo.format = m_imageFormat;
-		// subresource range
-		imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-		imageViewCreateInfo.subresourceRange.levelCount = 1;
-		imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-		imageViewCreateInfo.subresourceRange.layerCount = 1;
-
-		VK_CHECK(vkCreateImageView(device->GetDevice(), &imageViewCreateInfo, nullptr, &m_imageViews[i]));
-	}
+		m_textureViews[i].Create(device, m_images[i], m_imageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	return true;
 }
 
 void SwapchainVK::DestroyImageViews(DeviceVK* device)
 {
-	for (size_t i = 0; i < m_imageViews.size(); ++i)
-	{
-		vkDestroyImageView(device->GetDevice(), m_imageViews[i], nullptr);
-	}
+	for (size_t i = 0; i < m_textureViews.size(); ++i)
+		m_textureViews[i].Destroy(device);
 }
 
 uint32_t SwapchainVK::AcquireNextImage(DeviceVK* device, VkSemaphore semaphore)

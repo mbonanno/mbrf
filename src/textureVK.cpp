@@ -39,7 +39,7 @@ void SamplerVK::Destroy(DeviceVK* device)
 	vkDestroySampler(device->GetDevice(), m_sampler, nullptr);
 }
 
-bool TextureViewVK::Create(DeviceVK* device, TextureVK* texture, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32_t baseMip, uint32_t mipCount)
+bool TextureViewVK::Create(DeviceVK* device, VkImage image, VkFormat format, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32_t baseMip, uint32_t mipCount)
 {
 	assert(m_imageView == VK_NULL_HANDLE);
 
@@ -49,13 +49,14 @@ bool TextureViewVK::Create(DeviceVK* device, TextureVK* texture, VkImageAspectFl
 	m_aspectMask = aspectMask;
 	m_baseMip = baseMip;
 	m_mipCount = mipCount;
+	m_format = format;
 
 	VkImageViewCreateInfo imageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 	imageViewCreateInfo.pNext = nullptr;
 	imageViewCreateInfo.flags = 0;
-	imageViewCreateInfo.image = texture->GetImage();
+	imageViewCreateInfo.image = image;
 	imageViewCreateInfo.viewType = viewType;
-	imageViewCreateInfo.format = texture->GetFormat();
+	imageViewCreateInfo.format = m_format;
 	imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
 	imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
 	imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -70,6 +71,11 @@ bool TextureViewVK::Create(DeviceVK* device, TextureVK* texture, VkImageAspectFl
 	VK_CHECK(vkCreateImageView(logicDevice, &imageViewCreateInfo, nullptr, &m_imageView));
 
 	return true;
+}
+
+bool TextureViewVK::Create(DeviceVK* device, TextureVK* texture, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32_t baseMip, uint32_t mipCount)
+{
+	return Create(device, texture->GetImage(), texture->GetFormat(), aspectMask, viewType, baseMip, mipCount);
 }
 
 void TextureViewVK::Destroy(DeviceVK* device)

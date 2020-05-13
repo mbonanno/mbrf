@@ -23,10 +23,12 @@ private:
 class TextureViewVK
 {
 public:
+	bool Create(DeviceVK* device, VkImage image, VkFormat format, VkImageAspectFlags aspectMask, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t baseMip = 0, uint32_t mipCount = 1);
 	bool Create(DeviceVK* device, TextureVK* texture, VkImageAspectFlags aspectMask, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t baseMip = 0, uint32_t mipCount = 1);
 	void Destroy(DeviceVK* device);
 
 	const VkImageView& GetImageView() const { return m_imageView; };
+	VkFormat GetFormat() const { return m_format; };
 	VkImageAspectFlags GetAspectMask() const { return m_aspectMask; };
 	uint32_t GetBaseMip() const { return m_baseMip; };
 	uint32_t GetMipCount() const { return m_mipCount; };
@@ -34,6 +36,7 @@ public:
 private:
 	VkImageView m_imageView = VK_NULL_HANDLE;
 
+	VkFormat m_format;
 	VkImageViewType m_viewType;
 	VkImageAspectFlags m_aspectMask;
 	uint32_t m_baseMip;

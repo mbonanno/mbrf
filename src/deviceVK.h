@@ -45,9 +45,6 @@ public:
 
 	void RecordTestGraphicsCommands();
 
-	bool CreateTestRenderPass();
-	void DestroyTestRenderPass();
-
 	bool CreateFramebuffers();
 	void DestroyFramebuffers();
 
@@ -89,6 +86,8 @@ public:
 
 	bool Present(uint32_t imageIndex, uint32_t currentFrame);
 
+	void ClearFramebufferAttachments(VkCommandBuffer commandBuffer, const FrameBufferVK& frameBuffer, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+
 private:
 	bool m_validationLayerEnabled;
 
@@ -110,7 +109,6 @@ private:
 
 	VkCommandPool m_graphicsCommandPool;
 
-	VkRenderPass m_testRenderPass;
 	std::vector<FrameBufferVK> m_swapchainFramebuffers;
 
 	VkShaderModule m_testVertexShader;

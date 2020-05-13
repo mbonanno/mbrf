@@ -408,9 +408,14 @@ void DeviceVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
 		srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
 		break;
-
 	case VK_IMAGE_LAYOUT_GENERAL:
 		srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+		break;
+	case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+		srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
 		break;
 	default:
 		std::cout << "image transition FROM this type layout not implemented yet!" << std::endl;
@@ -444,6 +449,11 @@ void DeviceVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
 		dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 
 		break;
+	case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+		dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+		break;
 	default:
 		std::cout << "image transition TO this type layout not implemented yet!" << std::endl;
 		assert(0);
@@ -468,6 +478,34 @@ void DeviceVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
 	barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 
 	vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+}
+
+void DeviceVK::ClearFramebufferAttachments(VkCommandBuffer commandBuffer, const FrameBufferVK& frameBuffer, uint32_t x, uint32_t y, uint32_t width, uint32_t height)
+{
+	VkClearRect clearRect;
+	clearRect.rect = { {0, 0}, m_swapchain->m_imageExtent };
+	clearRect.baseArrayLayer = 0;
+	clearRect.layerCount = 1;
+
+	std::vector<TextureViewVK> attachments = frameBuffer.GetAttachments();
+
+	std::vector<VkClearAttachment> clearAttachments;
+	clearAttachments.resize(attachments.size());
+
+	for (size_t i = 0; i < attachments.size(); ++i)
+	{
+		VkImageAspectFlags aspectMask = attachments[i].GetAspectMask();
+
+		clearAttachments[i].aspectMask = aspectMask;
+		clearAttachments[i].colorAttachment = uint32_t(i);
+
+		if (aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
+			clearAttachments[i].clearValue.color = { 0.3f, 0.3f, 0.3f, 1.0f };
+		else if ((aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) || aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)
+			clearAttachments[i].clearValue.depthStencil = { 1.0f, 0 };
+	}
+
+	vkCmdClearAttachments(commandBuffer, uint32_t(clearAttachments.size()), clearAttachments.data(), 1, &clearRect);
 }
 
 void DeviceVK::RecordTestGraphicsCommands()
@@ -506,24 +544,23 @@ void DeviceVK::RecordTestGraphicsCommands()
 		TransitionImageLayout(commandBuffer, m_swapchain->m_images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
 #else
-
+		
+		TransitionImageLayout(commandBuffer, m_swapchain->m_images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 		VkRenderPassBeginInfo renderPassInfo = {};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = m_testRenderPass;
+		renderPassInfo.renderPass = m_swapchainFramebuffers[i].GetRenderPass();
 		renderPassInfo.framebuffer = m_swapchainFramebuffers[i].GetFrameBuffer();
 
 		renderPassInfo.renderArea.offset = { 0, 0 };
 		renderPassInfo.renderArea.extent = m_swapchain->m_imageExtent;
 
-		VkClearValue clearColorValues[2];
-		clearColorValues[0].color = { 0.3f, 0.3f, 0.3f, 1.0f };
-		clearColorValues[1].depthStencil = { 1.0f, 0 };
-
-		renderPassInfo.clearValueCount = 2;
-		renderPassInfo.pClearValues = clearColorValues;
+		renderPassInfo.clearValueCount = 0;
+		renderPassInfo.pClearValues = nullptr;
 
 		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+		ClearFramebufferAttachments(commandBuffer, m_swapchainFramebuffers[i], 0, 0, m_swapchain->m_imageExtent.width/2, m_swapchain->m_imageExtent.height/2);
 
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipeline);
 
@@ -541,87 +578,12 @@ void DeviceVK::RecordTestGraphicsCommands()
 
 		vkCmdEndRenderPass(commandBuffer);
 
+		TransitionImageLayout(commandBuffer, m_swapchain->m_images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
 #endif
-
-
-
 
 		VK_CHECK(vkEndCommandBuffer(commandBuffer));
 	}
-}
-
-bool DeviceVK::CreateTestRenderPass()
-{
-	VkAttachmentDescription attachmentDescriptions[2];
-	// Color
-	attachmentDescriptions[0].flags = 0;
-	attachmentDescriptions[0].format = m_swapchain->m_imageFormat;
-	attachmentDescriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
-	attachmentDescriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	attachmentDescriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	attachmentDescriptions[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	attachmentDescriptions[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	attachmentDescriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachmentDescriptions[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	// Depth
-	attachmentDescriptions[1].flags = 0;
-	attachmentDescriptions[1].format = m_depthTexture.GetFormat();
-	attachmentDescriptions[1].samples = VK_SAMPLE_COUNT_1_BIT;
-	attachmentDescriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	attachmentDescriptions[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	attachmentDescriptions[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	attachmentDescriptions[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	attachmentDescriptions[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-	attachmentDescriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-	VkAttachmentReference colorAttachmentRef;
-	colorAttachmentRef.attachment = 0;
-	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	VkAttachmentReference depthAttachmentRef;
-	depthAttachmentRef.attachment = 1;
-	depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-	VkSubpassDescription subpassDescriptions[1];
-	subpassDescriptions[0].flags = 0;
-	subpassDescriptions[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpassDescriptions[0].inputAttachmentCount = 0;
-	subpassDescriptions[0].pInputAttachments = nullptr;
-	subpassDescriptions[0].colorAttachmentCount = 1;
-	subpassDescriptions[0].pColorAttachments = &colorAttachmentRef;
-	subpassDescriptions[0].pResolveAttachments = 0;
-	subpassDescriptions[0].pDepthStencilAttachment = &depthAttachmentRef;
-	subpassDescriptions[0].preserveAttachmentCount = 0;
-	subpassDescriptions[0].pPreserveAttachments = nullptr;
-
-	VkSubpassDependency dependency;
-	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	dependency.dstSubpass = 0;
-	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.srcAccessMask = 0;
-	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	dependency.dependencyFlags = 0;
-
-
-	VkRenderPassCreateInfo createInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-	createInfo.pNext = nullptr;
-	createInfo.flags = 0;
-	createInfo.attachmentCount = sizeof(attachmentDescriptions) / sizeof(VkAttachmentDescription);
-	createInfo.pAttachments = attachmentDescriptions;
-	createInfo.subpassCount = 1;
-	createInfo.pSubpasses = subpassDescriptions;
-	createInfo.dependencyCount = 1;
-	createInfo.pDependencies = &dependency;
-
-	VK_CHECK(vkCreateRenderPass(m_device, &createInfo, nullptr, &m_testRenderPass));
-
-	return true;
-}
-
-void DeviceVK::DestroyTestRenderPass()
-{
-	vkDestroyRenderPass(m_device, m_testRenderPass, nullptr);
 }
 
 bool DeviceVK::CreateFramebuffers()
@@ -630,9 +592,11 @@ bool DeviceVK::CreateFramebuffers()
 
 	for (size_t i = 0; i < m_swapchainFramebuffers.size(); ++i)
 	{
-		std::vector<VkImageView> attachments = { m_swapchain->m_imageViews[i], m_depthTexture.GetView().GetImageView() };
+		std::vector<TextureViewVK> attachments = { m_swapchain->m_textureViews[i], m_depthTexture.GetView() };
 
-		m_swapchainFramebuffers[i].Create(this, m_swapchain->m_imageExtent.width, m_swapchain->m_imageExtent.height, attachments, m_testRenderPass);
+
+
+		m_swapchainFramebuffers[i].Create(this, m_swapchain->m_imageExtent.width, m_swapchain->m_imageExtent.height, attachments);
 	}
 
 	return true;
@@ -837,7 +801,7 @@ bool DeviceVK::CreateGraphicsPipelines()
 	pipelineCreateInfo.pColorBlendState = &colorBlendCreateInfo;
 	pipelineCreateInfo.pDynamicState = nullptr;
 	pipelineCreateInfo.layout = m_testGraphicsPipelineLayout;
-	pipelineCreateInfo.renderPass = m_testRenderPass;
+	pipelineCreateInfo.renderPass = m_swapchainFramebuffers[0].GetRenderPass();
 	pipelineCreateInfo.subpass = 0;
 	// handle of a pipeline to derive from
 	pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;

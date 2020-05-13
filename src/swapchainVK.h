@@ -1,6 +1,7 @@
 #pragma once
 
 #include "commonVK.h"
+#include "textureVK.h"
 
 #include "glfw/glfw3.h"
 
@@ -32,7 +33,7 @@ public:
 	VkFormat m_imageFormat;
 	uint32_t m_imageCount;
 	std::vector<VkImage> m_images;
-	std::vector<VkImageView> m_imageViews;
+	std::vector<TextureViewVK> m_textureViews;
 };
 
 }
