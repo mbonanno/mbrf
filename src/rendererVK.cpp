@@ -65,6 +65,8 @@ void RendererVK::Cleanup()
 	m_device.DestroyShaders();
 	m_device.DestroyFramebuffers();
 
+	RenderPassCache::Cleanup(&m_device);
+
 	m_device.DestroyTextures();
 	m_device.DestroyDepthStencilBuffer();
 

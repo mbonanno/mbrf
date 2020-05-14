@@ -1,11 +1,36 @@
 #include "frameBufferVK.h"
 
 #include "deviceVK.h"
+#include "Utils.h"
 
 namespace MBRF
 {
-	VkRenderPass RenderPassManager::GetRenderPass(DeviceVK* device, const std::vector<TextureViewVK> &attachments)
+	// ---------------------------- RenderPassCache ----------------------------
+
+	std::unordered_map<size_t, VkRenderPass> RenderPassCache::m_renderPasses;
+
+	size_t RenderPassCache::GetFrameBufferIndex(const std::vector<TextureViewVK> &attachments)
 	{
+		size_t key = 0;
+
+		for (auto attachment : attachments)
+		{
+			Utils::HashCombine(key, attachment.GetAspectMask());
+			Utils::HashCombine(key, attachment.GetFormat());
+			Utils::HashCombine(key, attachment.GetBaseMip());
+			Utils::HashCombine(key, attachment.GetMipCount());
+		}
+
+		return key;
+	}
+
+	VkRenderPass RenderPassCache::GetRenderPass(DeviceVK* device, const std::vector<TextureViewVK> &attachments)
+	{
+		size_t frameBufferIndex = GetFrameBufferIndex(attachments);
+
+		if (m_renderPasses.find(frameBufferIndex) != m_renderPasses.end())
+			return m_renderPasses[frameBufferIndex];
+
 		// TODO: handle multisampling and resolve attachment
 		VkRenderPass renderPass = VK_NULL_HANDLE;
 
@@ -97,8 +122,20 @@ namespace MBRF
 
 		VK_CHECK(vkCreateRenderPass(device->GetDevice(), &createInfo, nullptr, &renderPass));
 
+		m_renderPasses[frameBufferIndex] = renderPass;
+
 		return renderPass;
 	}
+
+	void RenderPassCache::Cleanup(DeviceVK* device)
+	{
+		for (auto renderPass : m_renderPasses)
+			vkDestroyRenderPass(device->GetDevice(), renderPass.second, nullptr);
+
+		m_renderPasses.clear();
+	};
+
+	// ---------------------------- FrameBufferVK ----------------------------
 
 	bool FrameBufferVK::Create(DeviceVK* device, uint32_t width, uint32_t height, const std::vector<TextureViewVK> &attachments)
 	{
@@ -106,7 +143,7 @@ namespace MBRF
 		m_height = height;
 		m_attachments.assign(attachments.begin(), attachments.end());
 
-		m_renderPass = RenderPassManager::GetRenderPass(device, attachments);
+		m_renderPass = RenderPassCache::GetRenderPass(device, attachments);
 
 		std::vector<VkImageView> attachmentImageViews;
 		for (auto &attachment: attachments)
@@ -131,7 +168,7 @@ namespace MBRF
 	{
 		vkDestroyFramebuffer(device->GetDevice(), m_frameBuffer, nullptr);
 
-		vkDestroyRenderPass(device->GetDevice(), m_renderPass, nullptr);
+		//vkDestroyRenderPass(device->GetDevice(), m_renderPass, nullptr);
 
 		m_frameBuffer = VK_NULL_HANDLE;
 		m_renderPass = VK_NULL_HANDLE;

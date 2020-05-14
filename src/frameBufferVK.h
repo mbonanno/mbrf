@@ -3,16 +3,51 @@
 #include "commonVK.h"
 #include "textureVK.h"
 
+#include <unordered_map>
+
 namespace MBRF
 {
 
 class DeviceVK;
 
-// TODO: cache render passes
-class RenderPassManager
+class RenderPassCache
 {
 public:
 	static VkRenderPass GetRenderPass(DeviceVK* device, const std::vector<TextureViewVK> &attachments);
+	static void Cleanup(DeviceVK* device);
+
+	static size_t GetFrameBufferIndex(const std::vector<TextureViewVK> &attachments);
+
+	
+
+	// possible different way to get a std::map key. Can't use with std::unordered_map 
+
+	//struct AttachmentParams
+	//{
+	//	uint32_t       numTargets;
+	//	VkFormat       colorFormat;
+	//	VkFormat       depthFormat;
+	//
+	//	bool operator <(const AttachmentParams &rval) const
+	//	{
+	//		return
+	//			std::tie(numTargets,
+	//				colorFormat,
+	//				depthFormat)
+	//			<
+	//			std::tie(rval.numTargets,
+	//				rval.colorFormat,
+	//				rval.depthFormat);
+	//	}
+	//};
+	//
+	//struct FrameBufferIndexV
+	//{
+	//	std::vector<AttachmentParams> gender;
+	//};
+
+private:
+	static std::unordered_map<size_t, VkRenderPass> m_renderPasses;
 };
 
 class FrameBufferVK

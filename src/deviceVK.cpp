@@ -2,6 +2,7 @@
 
 #include "swapchainVK.h"
 #include "utilsVK.h"
+#include "utils.h"
 
 #include <iostream>
 #include <set>
@@ -598,8 +599,6 @@ bool DeviceVK::CreateFramebuffers()
 	{
 		std::vector<TextureViewVK> attachments = { m_swapchain->m_textureViews[i], m_depthTexture.GetView() };
 
-
-
 		m_swapchainFramebuffers[i].Create(this, m_swapchain->m_imageExtent.width, m_swapchain->m_imageExtent.height, attachments);
 	}
 
@@ -616,7 +615,7 @@ bool DeviceVK::CreateShaderModuleFromFile(const char* fileName, VkShaderModule &
 {
 	std::vector<char> shaderCode;
 
-	if (!UtilsVK::ReadFile(fileName, shaderCode))
+	if (!Utils::ReadFile(fileName, shaderCode))
 		return false;
 
 	VkShaderModuleCreateInfo createInfo = { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
