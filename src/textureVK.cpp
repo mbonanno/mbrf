@@ -2,6 +2,7 @@
 
 #include "deviceVK.h"
 #include "utilsVK.h"
+#include "utils.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -9,8 +10,29 @@
 namespace MBRF
 {
 
-bool SamplerVK::Create(DeviceVK* device, VkFilter filter, float minLod, float maxLod)
+// ---------------------------- SamplerCache ----------------------------
+
+std::unordered_map<size_t, VkSampler> SamplerCache::m_samplers;
+
+size_t SamplerCache::GetSamplerIndex(VkFilter filter, float minLod, float maxLod)
 {
+	size_t key;
+	Utils::HashCombine(key, filter);
+	Utils::HashCombine(key, minLod);
+	Utils::HashCombine(key, maxLod);
+
+	return key;
+}
+
+VkSampler SamplerCache::GetSampler(DeviceVK* device, VkFilter filter, float minLod, float maxLod)
+{
+	size_t samplerIndex = GetSamplerIndex(filter, minLod, maxLod);
+
+	if (m_samplers.find(samplerIndex) != m_samplers.end())
+		return m_samplers[samplerIndex];
+
+	VkSampler sampler = VK_NULL_HANDLE;
+
 	VkSamplerCreateInfo samplerInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	samplerInfo.magFilter = filter;
 	samplerInfo.minFilter = filter;
@@ -29,15 +51,22 @@ bool SamplerVK::Create(DeviceVK* device, VkFilter filter, float minLod, float ma
 	samplerInfo.minLod = minLod;
 	samplerInfo.maxLod = maxLod;
 
-	VK_CHECK(vkCreateSampler(device->GetDevice(), &samplerInfo, nullptr, &m_sampler));
+	VK_CHECK(vkCreateSampler(device->GetDevice(), &samplerInfo, nullptr, &sampler));
 
-	return true;
+	m_samplers[samplerIndex] = sampler;
+
+	return sampler;
 }
 
-void SamplerVK::Destroy(DeviceVK* device)
+void SamplerCache::Cleanup(DeviceVK* device)
 {
-	vkDestroySampler(device->GetDevice(), m_sampler, nullptr);
-}
+	for (auto sampler : m_samplers)
+		vkDestroySampler(device->GetDevice(), sampler.second, nullptr);
+
+	m_samplers.clear();
+};
+
+// ---------------------------- TextureViewVK ----------------------------
 
 bool TextureViewVK::Create(DeviceVK* device, VkImage image, VkFormat format, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32_t baseMip, uint32_t mipCount)
 {
@@ -84,6 +113,8 @@ void TextureViewVK::Destroy(DeviceVK* device)
 
 	m_imageView = VK_NULL_HANDLE;
 }
+
+// ---------------------------- TextureVK ----------------------------
 
 bool TextureVK::Create(DeviceVK* device, VkFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t mips, VkImageUsageFlags usage,
 	VkImageType type, VkImageLayout initialLayout, VkMemoryPropertyFlags memoryProperty, VkSampleCountFlagBits sampleCount, VkImageTiling tiling)
@@ -161,7 +192,7 @@ bool TextureVK::Create(DeviceVK* device, VkFormat format, uint32_t width, uint32
 
 	m_view.Create(device, this, aspectMask);
 
-	m_sampler.Create(device, VK_FILTER_LINEAR, 0.0f, float(mips));
+	m_sampler = SamplerCache::GetSampler(device, VK_FILTER_LINEAR, 0.0f, float(mips));
 
 	UpdateDescriptor();
 
@@ -215,7 +246,6 @@ void TextureVK::Destroy(DeviceVK* device)
 {
 	VkDevice logicDevice = device->GetDevice();
 
-	m_sampler.Destroy(device);
 	m_view.Destroy(device);
 
 	vkFreeMemory(logicDevice, m_memory, nullptr);
@@ -257,7 +287,7 @@ void TextureVK::TransitionImageLayoutAndSubmit(DeviceVK* device, VkImageAspectFl
 
 void TextureVK::UpdateDescriptor()
 {
-	m_descriptor.sampler = m_sampler.GetSampler();
+	m_descriptor.sampler = m_sampler;
 	m_descriptor.imageView = m_view.GetImageView();
 	m_descriptor.imageLayout = m_currentLayout;
 }

@@ -2,22 +2,24 @@
 
 #include "commonVK.h"
 
+#include <unordered_map>
+
 namespace MBRF
 {
 
 class DeviceVK;
 class TextureVK;
 
-class SamplerVK
+class SamplerCache
 {
 public:
-	bool Create(DeviceVK* device, VkFilter filter, float minLod, float maxLod);
-	void Destroy(DeviceVK* device);
+	static VkSampler GetSampler(DeviceVK* device, VkFilter filter, float minLod, float maxLod);
+	static void Cleanup(DeviceVK* device);
 
-	const VkSampler& GetSampler() const { return m_sampler; };
+	static size_t GetSamplerIndex(VkFilter filter, float minLod, float maxLod);
 
 private:
-	VkSampler m_sampler;
+	static std::unordered_map<size_t, VkSampler> m_samplers;
 };
 
 class TextureViewVK
@@ -78,7 +80,7 @@ private:
 
 	TextureViewVK m_view;
 	// TODO: decouple from the sampler? Could just have some global samplers
-	SamplerVK m_sampler;
+	VkSampler m_sampler;
 
 	VkImageType m_imageType;
 	VkFormat m_format;

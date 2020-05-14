@@ -70,6 +70,8 @@ void RendererVK::Cleanup()
 	m_device.DestroyTextures();
 	m_device.DestroyDepthStencilBuffer();
 
+	SamplerCache::Cleanup(&m_device);
+
 	m_device.DestroyCommandPools();
 	m_device.DestroySyncObjects();
 	m_swapchain.Destroy(&m_device);
