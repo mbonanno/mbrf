@@ -5,6 +5,8 @@
 #include "frameBufferVK.h"
 #include "textureVK.h"
 
+#include "glfw/glfw3.h"
+
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // use the Vulkan range of 0.0 to 1.0, instead of the -1 to 1.0 OpenGL range
 #include "glm.hpp"
@@ -21,7 +23,8 @@ class DeviceVK
 {
 public:
 	// TODO: create a device init info struct parameter? Also, remove swapchain dependencies in DeviceVK
-	void Init(SwapchainVK* swapchain);
+	void Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, uint32_t height);
+	void Cleanup();
 
 	// TODO: nothing to do with the device...move this stuff out ASAP
 	void Update(double dt);

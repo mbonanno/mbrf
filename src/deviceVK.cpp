@@ -49,9 +49,25 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
 const std::vector<const char*> requiredExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
-void DeviceVK::Init(SwapchainVK* swapchain)
+void DeviceVK::Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, uint32_t height)
 {
 	m_swapchain = swapchain;
+
+	CreateInstance(true);
+
+	m_swapchain->CreatePresentationSurface(this, window);
+	CreateDevice();
+	m_swapchain->Create(this, width, height);
+	CreateCommandPools();
+}
+
+void DeviceVK::Cleanup()
+{
+	DestroyCommandPools();
+	m_swapchain->Destroy(this);
+	DestroyDevice();
+	m_swapchain->DestroyPresentationSurface(this);
+	DestroyInstance();
 }
 
 bool DeviceVK::CreateInstance(bool enableValidation)

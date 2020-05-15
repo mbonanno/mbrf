@@ -14,37 +14,24 @@ bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
 
 	// Init Vulkan
 
-	m_device.Init(&m_swapchain);
+	m_device.Init(&m_swapchain, window, width, height);
 
 	// TODO: Init should initialize instance, device, specific textures to our scene
 
-	m_device.CreateInstance(true);
-
-	m_swapchain.CreatePresentationSurface(&m_device, window);
-
-	m_device.CreateDevice();
-
-	m_swapchain.Create(&m_device, width, height);
-
-	// Init Renderer
+	// Init contexts
 
 	m_device.CreateSyncObjects(s_maxFramesInFlight);
-	m_device.CreateCommandPools();
-	// Init contexts
 	m_device.AllocateCommandBuffers();
 
 	// Init Scene/Application
 	m_device.CreateDepthStencilBuffer();  
+	m_device.CreateFramebuffers(); // swapchain framebuffer
+
 	m_device.CreateTextures();  // Scene specific
-
-	m_device.CreateFramebuffers();
 	m_device.CreateShaders();  // Scene specific
-
 	m_device.CreateDescriptors();  // should be scene specific. Currently it is also submitting the descriptors...
-
-	m_device.CreateGraphicsPipelines();  // Scene sprcific
-
-	m_device.CreateTestVertexAndTriangleBuffers();  // Scene sprcific
+	m_device.CreateGraphicsPipelines();  // Scene specific
+	m_device.CreateTestVertexAndTriangleBuffers();  // Scene specific
 
 	m_device.RecordTestGraphicsCommands();  // Scene specific/should be handled by the GraphicsContext. Shouldn't be pre-recorded, but dynamic per frame
 
@@ -65,19 +52,15 @@ void RendererVK::Cleanup()
 	m_device.DestroyShaders();
 	m_device.DestroyFramebuffers();
 
-	RenderPassCache::Cleanup(&m_device);
-
 	m_device.DestroyTextures();
 	m_device.DestroyDepthStencilBuffer();
 
+	m_device.DestroySyncObjects();
+
+	RenderPassCache::Cleanup(&m_device);
 	SamplerCache::Cleanup(&m_device);
 
-	m_device.DestroyCommandPools();
-	m_device.DestroySyncObjects();
-	m_swapchain.Destroy(&m_device);
-	m_device.DestroyDevice();
-	m_swapchain.DestroyPresentationSurface(&m_device);
-	m_device.DestroyInstance();
+	m_device.Cleanup();
 }
 
 void RendererVK::Update(double dt)
