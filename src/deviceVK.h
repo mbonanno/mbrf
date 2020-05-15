@@ -16,13 +16,27 @@ namespace MBRF
 
 class SwapchainVK;
 
-// TODO: move command buffer recording (and submission?) related functionality in a new ContextVK class
 // TODO: remove any scene specific data, resources etc + any Update, Draw functionality from here
+
+struct FrameDataVK
+{
+	VkSemaphore m_acquireSemaphore = VK_NULL_HANDLE;
+	VkSemaphore m_renderSemaphore = VK_NULL_HANDLE;
+};
+
+// TODO: add anything related to command buffers recording and submission to this class
+class ContextVK
+{
+public:
+	VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
+	VkFence m_fence = VK_NULL_HANDLE;
+	VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
+};
 
 class DeviceVK
 {
 public:
-	// TODO: create a device init info struct parameter? Also, remove swapchain dependencies in DeviceVK
+	// TODO: create a device init info struct parameter? Also, remove swapchain dependencies in DeviceVK?
 	void Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, uint32_t height);
 	void Cleanup();
 
@@ -97,7 +111,6 @@ private:
 
 	SwapchainVK* m_swapchain;
 
-	// vulkan (TODO: move in a wrapper)
 	VkInstance m_instance;
 	VkDebugUtilsMessengerEXT m_debugMessenger;
 
@@ -195,18 +208,11 @@ private:
 
 	TextureVK m_testTexture;
 
-	// TODO: move all the frame dependent objects in a frame data structure, and just use a frame data array?
-
-	std::vector<VkCommandBuffer> m_graphicsCommandBuffers;
-
-	std::vector<VkSemaphore> m_acquireSemaphores;
-	std::vector<VkSemaphore> m_renderSemaphores;
-
-	std::vector<VkFence> m_fences;
-
 	VkDescriptorPool m_descriptorPool;
 	VkDescriptorSetLayout m_descriptorSetLayout;
-	std::vector<VkDescriptorSet> m_descriptorSets;
+
+	std::vector<FrameDataVK> m_frameData;
+	std::vector<ContextVK> m_graphicContexts;
 };
 
 }

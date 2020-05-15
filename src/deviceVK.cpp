@@ -59,6 +59,8 @@ void DeviceVK::Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, 
 	CreateDevice();
 	m_swapchain->Create(this, width, height);
 	CreateCommandPools();
+
+	m_graphicContexts.resize(m_swapchain->m_imageCount);
 }
 
 void DeviceVK::Cleanup()
@@ -338,9 +340,8 @@ void DeviceVK::DestroyDevice()
 	
 bool DeviceVK::CreateSyncObjects(int numFrames)
 {
-	m_acquireSemaphores.resize(numFrames);
-	m_renderSemaphores.resize(numFrames);
-	m_fences.resize(m_swapchain->m_imageCount);
+	//TODO: initialize earlier when everything else is initialized!
+	m_frameData.resize(numFrames);
 
 	VkSemaphoreCreateInfo semaphoreCreateInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 	semaphoreCreateInfo.pNext = nullptr;
@@ -348,37 +349,37 @@ bool DeviceVK::CreateSyncObjects(int numFrames)
 
 	for (int i = 0; i < numFrames; ++i)
 	{
-		VK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_acquireSemaphores[i]));
-		VK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_renderSemaphores[i]));
+		VK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_frameData[i].m_acquireSemaphore));
+		VK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_frameData[i].m_renderSemaphore));
 	}
 
 	VkFenceCreateInfo fenceCreateInfo = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
 	fenceCreateInfo.pNext = nullptr;
 	fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	for (int i = 0; i < m_fences.size(); ++i)
-		VK_CHECK(vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_fences[i]));
+	for (int i = 0; i < m_graphicContexts.size(); ++i)
+		VK_CHECK(vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_graphicContexts[i].m_fence));
 
 	return true;
 }
 
 void DeviceVK::DestroySyncObjects()
 {
-	for (int i = 0; i < m_acquireSemaphores.size(); ++i)
+	for (int i = 0; i < m_frameData.size(); ++i)
 	{
-		vkDestroySemaphore(m_device, m_acquireSemaphores[i], nullptr);
-		vkDestroySemaphore(m_device, m_renderSemaphores[i], nullptr);
+		vkDestroySemaphore(m_device, m_frameData[i].m_acquireSemaphore, nullptr);
+		vkDestroySemaphore(m_device, m_frameData[i].m_renderSemaphore, nullptr);
 	}
 
-	for (int i = 0; i < m_fences.size(); ++i)
-		vkDestroyFence(m_device, m_fences[i], nullptr);
+	for (int i = 0; i < m_graphicContexts.size(); ++i)
+		vkDestroyFence(m_device, m_graphicContexts[i].m_fence, nullptr);
 }
 
 bool DeviceVK::CreateCommandPools()
 {
 	VkCommandPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
 	createInfo.pNext = nullptr;
-	createInfo.flags = 0; // optional
+	createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;  // command buffers can be reset, explicitly or implicitly (calling vkBeginCommandBuffer)
 	createInfo.queueFamilyIndex = m_graphicsQueueFamily;
 
 	VK_CHECK(vkCreateCommandPool(m_device, &createInfo, nullptr, &m_graphicsCommandPool));
@@ -393,15 +394,17 @@ void DeviceVK::DestroyCommandPools()
 
 bool DeviceVK::AllocateCommandBuffers()
 {
-	m_graphicsCommandBuffers.resize(m_swapchain->m_imageCount);
+	for (auto &graphicContext : m_graphicContexts)
+	{
+		VkCommandBufferAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+		allocateInfo.pNext = nullptr;
+		allocateInfo.commandPool = m_graphicsCommandPool;
+		allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		allocateInfo.commandBufferCount = 1;
 
-	VkCommandBufferAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-	allocateInfo.pNext = nullptr;
-	allocateInfo.commandPool = m_graphicsCommandPool;
-	allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocateInfo.commandBufferCount = (uint32_t)m_graphicsCommandBuffers.size();
-
-	VK_CHECK(vkAllocateCommandBuffers(m_device, &allocateInfo, m_graphicsCommandBuffers.data()));
+		VK_CHECK(vkAllocateCommandBuffers(m_device, &allocateInfo, &graphicContext.m_commandBuffer));
+	}
+	
 
 	return true;
 }
@@ -533,9 +536,9 @@ void DeviceVK::RecordTestGraphicsCommands()
 	beginInfo.flags = 0; // Optional
 	beginInfo.pInheritanceInfo = nullptr; // Optional: only relevant for secondary command buffers. It specifies which state to inherit from the calling primary command buffers
 
-	for (int i = 0; i < m_graphicsCommandBuffers.size(); ++i)
+	for (int i = 0; i < m_graphicContexts.size(); ++i)
 	{
-		auto commandBuffer = m_graphicsCommandBuffers[i];
+		auto commandBuffer = m_graphicContexts[i].m_commandBuffer;
 
 		VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
 
@@ -591,7 +594,7 @@ void DeviceVK::RecordTestGraphicsCommands()
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vbs, offsets);
 		vkCmdBindIndexBuffer(commandBuffer, m_testIndexBuffer.GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipelineLayout, 0, 1, &m_descriptorSets[i], 0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipelineLayout, 0, 1, &m_graphicContexts[i].m_descriptorSet, 0, nullptr);
 
 		vkCmdPushConstants(commandBuffer, m_testGraphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m_pushConstantTestColor), &m_pushConstantTestColor);
 
@@ -845,13 +848,14 @@ bool DeviceVK::WaitForDevice()
 	return true;
 }
 
+// TODO: this should be done by ContextVK
 void DeviceVK::SubmitGraphicsQueue(uint32_t imageIndex, int currentFrame)
 {
-	VK_CHECK(vkWaitForFences(m_device, 1, &m_fences[imageIndex], VK_TRUE, UINT64_MAX));
-	VK_CHECK(vkResetFences(m_device, 1, &m_fences[imageIndex]));
+	VK_CHECK(vkWaitForFences(m_device, 1, &m_graphicContexts[imageIndex].m_fence, VK_TRUE, UINT64_MAX));
+	VK_CHECK(vkResetFences(m_device, 1, &m_graphicContexts[imageIndex].m_fence));
 
-	VkSemaphore waitSemaphores[] = { m_acquireSemaphores[currentFrame] };
-	VkSemaphore signalSemaphores[] = { m_renderSemaphores[currentFrame] };
+	VkSemaphore waitSemaphores[] = { m_frameData[currentFrame].m_acquireSemaphore };
+	VkSemaphore signalSemaphores[] = { m_frameData[currentFrame].m_renderSemaphore };
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
 	VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
@@ -860,11 +864,11 @@ void DeviceVK::SubmitGraphicsQueue(uint32_t imageIndex, int currentFrame)
 	submitInfo.pWaitSemaphores = waitSemaphores;
 	submitInfo.pWaitDstStageMask = waitStages;
 	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &m_graphicsCommandBuffers[imageIndex];
+	submitInfo.pCommandBuffers = &m_graphicContexts[imageIndex].m_commandBuffer;
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
-	VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_fences[imageIndex]));
+	VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_graphicContexts[imageIndex].m_fence));
 }
 
 void DeviceVK::CreateTestVertexAndTriangleBuffers()
@@ -964,20 +968,16 @@ bool DeviceVK::CreateDescriptors()
 
 	// Create Descriptor Sets
 
-	std::vector<VkDescriptorSetLayout> layouts(m_swapchain->m_imageCount, m_descriptorSetLayout);
-
 	VkDescriptorSetAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 	allocInfo.pNext = nullptr;
 	allocInfo.descriptorPool = m_descriptorPool;
-	allocInfo.descriptorSetCount = (uint32_t)layouts.size();
-	allocInfo.pSetLayouts = layouts.data();
+	allocInfo.descriptorSetCount = 1;
+	allocInfo.pSetLayouts = &m_descriptorSetLayout;
 
-	m_descriptorSets.resize(m_swapchain->m_imageCount);
-
-	VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, m_descriptorSets.data()));
-
-	for (size_t i = 0; i < m_descriptorSets.size(); ++i)
+	for (size_t i = 0; i < m_graphicContexts.size(); ++i)
 	{
+		VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, &m_graphicContexts[i].m_descriptorSet));
+
 		VkDescriptorBufferInfo bufferInfo = m_uboBuffers[i].GetDescriptor();
 
 		VkDescriptorImageInfo imageInfo = m_testTexture.GetDescriptor();
@@ -986,7 +986,7 @@ bool DeviceVK::CreateDescriptors()
 		// UBOs
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].pNext = nullptr;
-		descriptorWrites[0].dstSet = m_descriptorSets[i];
+		descriptorWrites[0].dstSet = m_graphicContexts[i].m_descriptorSet;
 		descriptorWrites[0].dstBinding = 0;
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorCount = 1;
@@ -997,7 +997,7 @@ bool DeviceVK::CreateDescriptors()
 		// Texture + Samplers
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].pNext = nullptr;
-		descriptorWrites[1].dstSet = m_descriptorSets[i];
+		descriptorWrites[1].dstSet = m_graphicContexts[i].m_descriptorSet;
 		descriptorWrites[1].dstBinding = 1;
 		descriptorWrites[1].dstArrayElement = 0;
 		descriptorWrites[1].descriptorCount = 1;
@@ -1076,7 +1076,7 @@ bool DeviceVK::Present(uint32_t imageIndex, uint32_t currentFrame)
 	VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
 	presentInfo.pNext = nullptr;
 	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pWaitSemaphores = &m_renderSemaphores[currentFrame];
+	presentInfo.pWaitSemaphores = &m_frameData[currentFrame].m_renderSemaphore;
 	presentInfo.swapchainCount = 1;
 	presentInfo.pSwapchains = &m_swapchain->m_swapchain;
 	presentInfo.pImageIndices = &imageIndex;
@@ -1110,7 +1110,7 @@ void DeviceVK::Update(double dt)
 
 void DeviceVK::Draw(uint32_t currentFrame)
 {
-	uint32_t imageIndex = m_swapchain->AcquireNextImage(this, m_acquireSemaphores[currentFrame]);
+	uint32_t imageIndex = m_swapchain->AcquireNextImage(this, m_frameData[currentFrame].m_acquireSemaphore);
 
 
 	// update uniform buffer

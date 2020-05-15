@@ -53,7 +53,6 @@ private:
 class FrameBufferVK
 {
 public:
-	// TODO: create render pass implicitly and cache so we can reuse compatible ones for multiple framebuffers!
 	bool Create(DeviceVK* device, uint32_t width, uint32_t height, const std::vector<TextureViewVK> &attachments);
 	void Destroy(DeviceVK* device);
 
