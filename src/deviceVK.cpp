@@ -13,6 +13,62 @@
 namespace MBRF
 {
 
+bool FrameDataVK::Create(DeviceVK* device)
+{
+	VkDevice logicDevice = device->GetDevice();
+
+	VkSemaphoreCreateInfo semaphoreCreateInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+	semaphoreCreateInfo.pNext = nullptr;
+	semaphoreCreateInfo.flags = 0;
+
+	VK_CHECK(vkCreateSemaphore(logicDevice, &semaphoreCreateInfo, nullptr, &m_acquireSemaphore));
+	VK_CHECK(vkCreateSemaphore(logicDevice, &semaphoreCreateInfo, nullptr, &m_renderSemaphore));
+
+	return true;
+}
+
+void FrameDataVK::Destroy(DeviceVK* device)
+{
+	VkDevice logicDevice = device->GetDevice();
+
+	vkDestroySemaphore(logicDevice, m_acquireSemaphore, nullptr);
+	vkDestroySemaphore(logicDevice, m_renderSemaphore, nullptr);
+
+	m_acquireSemaphore = VK_NULL_HANDLE;
+	m_renderSemaphore = VK_NULL_HANDLE;
+}
+
+bool ContextVK::Create(DeviceVK* device)
+{
+	VkDevice logicDevice = device->GetDevice();
+
+	VkCommandBufferAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+	allocateInfo.pNext = nullptr;
+	allocateInfo.commandPool = device->GetGraphicsCommandPool();
+	allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocateInfo.commandBufferCount = 1;
+
+	VK_CHECK(vkAllocateCommandBuffers(logicDevice, &allocateInfo, &m_commandBuffer));
+
+	VkFenceCreateInfo fenceCreateInfo = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+	fenceCreateInfo.pNext = nullptr;
+	fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	VK_CHECK(vkCreateFence(logicDevice, &fenceCreateInfo, nullptr, &m_fence));
+
+	return true;
+}
+
+void ContextVK::Destroy(DeviceVK* device)
+{
+	VkDevice logicDevice = device->GetDevice();
+
+	vkDestroyFence(logicDevice, m_fence, nullptr);
+
+	m_commandBuffer = VK_NULL_HANDLE;
+	m_fence = VK_NULL_HANDLE;
+}
+
 void ContextVK::Submit(DeviceVK* device, VkQueue queue)
 {
 	VkDevice logicDevice = device->GetDevice();
@@ -81,7 +137,7 @@ void DeviceVK::Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, 
 	m_swapchain = swapchain;
 	m_maxFramesInFlight = maxFramesInFlight;
 
-	m_frameData.resize(m_maxFramesInFlight);
+	
 
 	CreateInstance(true);
 
@@ -90,11 +146,15 @@ void DeviceVK::Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, 
 	m_swapchain->Create(this, width, height);
 	CreateCommandPools();
 
-	m_graphicContexts.resize(m_swapchain->m_imageCount);
+	CreateFrameData();
+	CreateGraphicsContexts();
 }
 
 void DeviceVK::Cleanup()
 {
+	DestroyGraphicsContexts();
+	DestroyFrameData();
+
 	DestroyCommandPools();
 	m_swapchain->Destroy(this);
 	DestroyDevice();
@@ -368,38 +428,24 @@ void DeviceVK::DestroyDevice()
 }
 
 	
-bool DeviceVK::CreateSyncObjects()
+bool DeviceVK::CreateFrameData()
 {
+	m_frameData.resize(m_maxFramesInFlight);
+
 	VkSemaphoreCreateInfo semaphoreCreateInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 	semaphoreCreateInfo.pNext = nullptr;
 	semaphoreCreateInfo.flags = 0;
 
 	for (int i = 0; i < m_frameData.size(); ++i)
-	{
-		VK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_frameData[i].m_acquireSemaphore));
-		VK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_frameData[i].m_renderSemaphore));
-	}
-
-	VkFenceCreateInfo fenceCreateInfo = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-	fenceCreateInfo.pNext = nullptr;
-	fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-	for (int i = 0; i < m_graphicContexts.size(); ++i)
-		VK_CHECK(vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_graphicContexts[i].m_fence));
+		m_frameData[i].Create(this);
 
 	return true;
 }
 
-void DeviceVK::DestroySyncObjects()
+void DeviceVK::DestroyFrameData()
 {
 	for (int i = 0; i < m_frameData.size(); ++i)
-	{
-		vkDestroySemaphore(m_device, m_frameData[i].m_acquireSemaphore, nullptr);
-		vkDestroySemaphore(m_device, m_frameData[i].m_renderSemaphore, nullptr);
-	}
-
-	for (int i = 0; i < m_graphicContexts.size(); ++i)
-		vkDestroyFence(m_device, m_graphicContexts[i].m_fence, nullptr);
+		m_frameData[i].Destroy(this);
 }
 
 bool DeviceVK::CreateCommandPools()
@@ -419,21 +465,20 @@ void DeviceVK::DestroyCommandPools()
 	vkDestroyCommandPool(m_device, m_graphicsCommandPool, nullptr);
 }
 
-bool DeviceVK::AllocateCommandBuffers()
+bool DeviceVK::CreateGraphicsContexts()
 {
-	for (auto &graphicContext : m_graphicContexts)
-	{
-		VkCommandBufferAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-		allocateInfo.pNext = nullptr;
-		allocateInfo.commandPool = m_graphicsCommandPool;
-		allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		allocateInfo.commandBufferCount = 1;
+	m_graphicsContexts.resize(m_swapchain->m_imageCount);
 
-		VK_CHECK(vkAllocateCommandBuffers(m_device, &allocateInfo, &graphicContext.m_commandBuffer));
-	}
+	for (auto &graphicContext : m_graphicsContexts)
+		graphicContext.Create(this);
 	
-
 	return true;
+}
+
+void DeviceVK::DestroyGraphicsContexts()
+{
+	for (auto &graphicContext : m_graphicsContexts)
+		graphicContext.Destroy(this);
 }
 
 void DeviceVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout)
@@ -563,9 +608,9 @@ void DeviceVK::RecordTestGraphicsCommands()
 	beginInfo.flags = 0; // Optional
 	beginInfo.pInheritanceInfo = nullptr; // Optional: only relevant for secondary command buffers. It specifies which state to inherit from the calling primary command buffers
 
-	for (int i = 0; i < m_graphicContexts.size(); ++i)
+	for (int i = 0; i < m_graphicsContexts.size(); ++i)
 	{
-		auto commandBuffer = m_graphicContexts[i].m_commandBuffer;
+		auto commandBuffer = m_graphicsContexts[i].m_commandBuffer;
 
 		VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
 
@@ -621,7 +666,7 @@ void DeviceVK::RecordTestGraphicsCommands()
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vbs, offsets);
 		vkCmdBindIndexBuffer(commandBuffer, m_testIndexBuffer.GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipelineLayout, 0, 1, &m_graphicContexts[i].m_descriptorSet, 0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipelineLayout, 0, 1, &m_graphicsContexts[i].m_descriptorSet, 0, nullptr);
 
 		vkCmdPushConstants(commandBuffer, m_testGraphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m_pushConstantTestColor), &m_pushConstantTestColor);
 
@@ -978,9 +1023,9 @@ bool DeviceVK::CreateDescriptors()
 	allocInfo.descriptorSetCount = 1;
 	allocInfo.pSetLayouts = &m_descriptorSetLayout;
 
-	for (size_t i = 0; i < m_graphicContexts.size(); ++i)
+	for (size_t i = 0; i < m_graphicsContexts.size(); ++i)
 	{
-		VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, &m_graphicContexts[i].m_descriptorSet));
+		VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, &m_graphicsContexts[i].m_descriptorSet));
 
 		VkDescriptorBufferInfo bufferInfo = m_uboBuffers[i].GetDescriptor();
 
@@ -990,7 +1035,7 @@ bool DeviceVK::CreateDescriptors()
 		// UBOs
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].pNext = nullptr;
-		descriptorWrites[0].dstSet = m_graphicContexts[i].m_descriptorSet;
+		descriptorWrites[0].dstSet = m_graphicsContexts[i].m_descriptorSet;
 		descriptorWrites[0].dstBinding = 0;
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorCount = 1;
@@ -1001,7 +1046,7 @@ bool DeviceVK::CreateDescriptors()
 		// Texture + Samplers
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].pNext = nullptr;
-		descriptorWrites[1].dstSet = m_graphicContexts[i].m_descriptorSet;
+		descriptorWrites[1].dstSet = m_graphicsContexts[i].m_descriptorSet;
 		descriptorWrites[1].dstBinding = 1;
 		descriptorWrites[1].dstArrayElement = 0;
 		descriptorWrites[1].descriptorCount = 1;
@@ -1123,7 +1168,7 @@ void DeviceVK::BeginFrame()
 
 void DeviceVK::EndFrame()
 {
-	m_graphicContexts[m_currentImageIndex].Submit(this, m_graphicsQueue);
+	m_graphicsContexts[m_currentImageIndex].Submit(this, m_graphicsQueue);
 
 	Present();
 

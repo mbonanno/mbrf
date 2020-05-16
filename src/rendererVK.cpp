@@ -16,11 +16,6 @@ bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
 
 	// TODO: Init should initialize instance, device, specific textures to our scene
 
-	// Init contexts
-
-	m_device.CreateSyncObjects();
-	m_device.AllocateCommandBuffers();
-
 	// Init Scene/Application
 	m_device.CreateDepthStencilBuffer();  
 	m_device.CreateFramebuffers(); // swapchain framebuffer
@@ -52,8 +47,6 @@ void RendererVK::Cleanup()
 
 	m_device.DestroyTextures();
 	m_device.DestroyDepthStencilBuffer();
-
-	m_device.DestroySyncObjects();
 
 	RenderPassCache::Cleanup(&m_device);
 	SamplerCache::Cleanup(&m_device);

@@ -18,8 +18,12 @@ class SwapchainVK;
 
 // TODO: remove any scene specific data, resources etc + any Update, Draw functionality from here
 
-struct FrameDataVK
+class FrameDataVK
 {
+public:
+	bool Create(DeviceVK* device);
+	void Destroy(DeviceVK* device);
+
 	VkSemaphore m_acquireSemaphore = VK_NULL_HANDLE;
 	VkSemaphore m_renderSemaphore = VK_NULL_HANDLE;
 };
@@ -28,6 +32,9 @@ struct FrameDataVK
 class ContextVK
 {
 public:
+	bool Create(DeviceVK* device);
+	void Destroy(DeviceVK* device);
+
 	void Submit(DeviceVK* device, VkQueue queue);
 
 	VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
@@ -57,13 +64,14 @@ public:
 	bool CreateDevice();
 	void DestroyDevice();
 
-	bool CreateSyncObjects();
-	void DestroySyncObjects();
+	bool CreateFrameData();
+	void DestroyFrameData();
 
 	bool CreateCommandPools();
 	void DestroyCommandPools();
 
-	bool AllocateCommandBuffers();
+	bool CreateGraphicsContexts();
+	void DestroyGraphicsContexts();
 
 	void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout);
 
@@ -94,6 +102,7 @@ public:
 	VkPhysicalDevice& GetPhysicalDevice() { return m_physicalDevice; };
 	VkDevice& GetDevice() { return m_device; };
 
+	VkCommandPool& GetGraphicsCommandPool() { return m_graphicsCommandPool; };
 	FrameDataVK* GetCurrentFrameData() const { return m_currentFrameData; };
 
 //private:
@@ -221,7 +230,7 @@ private:
 	std::vector<FrameDataVK> m_frameData;
 	FrameDataVK* m_currentFrameData = nullptr;
 
-	std::vector<ContextVK> m_graphicContexts;
+	std::vector<ContextVK> m_graphicsContexts;
 
 	uint32_t m_currentFrame = UINT32_MAX;
 	uint32_t m_currentImageIndex = UINT32_MAX;
