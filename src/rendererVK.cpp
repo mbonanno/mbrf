@@ -10,17 +10,15 @@ namespace MBRF
 
 bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
 {
-	m_currentFrame = 0;
-
 	// Init Vulkan
 
-	m_device.Init(&m_swapchain, window, width, height);
+	m_device.Init(&m_swapchain, window, width, height, s_maxFramesInFlight);
 
 	// TODO: Init should initialize instance, device, specific textures to our scene
 
 	// Init contexts
 
-	m_device.CreateSyncObjects(s_maxFramesInFlight);
+	m_device.CreateSyncObjects();
 	m_device.AllocateCommandBuffers();
 
 	// Init Scene/Application
@@ -71,11 +69,12 @@ void RendererVK::Update(double dt)
 
 void RendererVK::Draw()
 {
+	m_device.BeginFrame();
+
 	// TODO: device shouldn't draw anything...fix it
+	m_device.Draw();
 
-	m_device.Draw(m_currentFrame);
-
-	m_currentFrame = (m_currentFrame + 1) % s_maxFramesInFlight;
+	m_device.EndFrame();
 }
 
 }

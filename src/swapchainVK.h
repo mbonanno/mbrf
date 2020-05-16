@@ -19,7 +19,7 @@ public:
 	bool Create(DeviceVK* device, uint32_t width, uint32_t height);
 	void Destroy(DeviceVK* device);
 
-	uint32_t AcquireNextImage(DeviceVK* device, VkSemaphore semaphore);
+	uint32_t AcquireNextImage(DeviceVK* device);
 
 private:
 	bool CreateImageViews(DeviceVK* device);

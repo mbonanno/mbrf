@@ -28,21 +28,28 @@ struct FrameDataVK
 class ContextVK
 {
 public:
+	void Submit(DeviceVK* device, VkQueue queue);
+
 	VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
 	VkFence m_fence = VK_NULL_HANDLE;
 	VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
+
+	// TODO: add a BufferVK to use as scratch uniforms buffer? Could be a dynamic offset one?
 };
 
 class DeviceVK
 {
 public:
 	// TODO: create a device init info struct parameter? Also, remove swapchain dependencies in DeviceVK?
-	void Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, uint32_t height);
+	void Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, uint32_t height, uint32_t maxFramesInFlight);
 	void Cleanup();
 
 	// TODO: nothing to do with the device...move this stuff out ASAP
 	void Update(double dt);
-	void Draw(uint32_t currentFrame);
+	void Draw();
+
+	void BeginFrame();
+	void EndFrame();
 
 	bool CreateInstance(bool enableValidation);
 	void DestroyInstance();
@@ -50,7 +57,7 @@ public:
 	bool CreateDevice();
 	void DestroyDevice();
 
-	bool CreateSyncObjects(int numFrames);
+	bool CreateSyncObjects();
 	void DestroySyncObjects();
 
 	bool CreateCommandPools();
@@ -72,8 +79,6 @@ public:
 	bool CreateGraphicsPipelines();
 	void DestroyGraphicsPipelines();
 
-	void SubmitGraphicsQueue(uint32_t imageIndex, int currentFrame);
-
 	bool WaitForDevice();
 
 	void CreateTestVertexAndTriangleBuffers();
@@ -89,6 +94,8 @@ public:
 	VkPhysicalDevice& GetPhysicalDevice() { return m_physicalDevice; };
 	VkDevice& GetDevice() { return m_device; };
 
+	FrameDataVK* GetCurrentFrameData() const { return m_currentFrameData; };
+
 //private:
 
 	uint32_t FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFlags desiredCapabilities, bool queryPresentationSupport);
@@ -101,7 +108,7 @@ public:
 	void CreateTextures();
 	void DestroyTextures();
 
-	bool Present(uint32_t imageIndex, uint32_t currentFrame);
+	bool Present();
 
 	// clearColors[0] = color, clearColors[1] = depth+stencil
 	void ClearFramebufferAttachments(VkCommandBuffer commandBuffer, const FrameBufferVK& frameBuffer, int32_t x, int32_t y, uint32_t width, uint32_t height, VkClearValue clearValues[2]);
@@ -212,7 +219,13 @@ private:
 	VkDescriptorSetLayout m_descriptorSetLayout;
 
 	std::vector<FrameDataVK> m_frameData;
+	FrameDataVK* m_currentFrameData = nullptr;
+
 	std::vector<ContextVK> m_graphicContexts;
+
+	uint32_t m_currentFrame = UINT32_MAX;
+	uint32_t m_currentImageIndex = UINT32_MAX;
+	uint32_t m_maxFramesInFlight = 2;
 };
 
 }

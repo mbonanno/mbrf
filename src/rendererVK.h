@@ -23,7 +23,6 @@ private:
 	SwapchainVK m_swapchain;
 	DeviceVK m_device;
 
-	uint32_t m_currentFrame;
 	static const int s_maxFramesInFlight = 2;
 };
 

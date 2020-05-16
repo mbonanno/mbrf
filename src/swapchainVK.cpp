@@ -226,10 +226,10 @@ void SwapchainVK::DestroyImageViews(DeviceVK* device)
 		m_textureViews[i].Destroy(device);
 }
 
-uint32_t SwapchainVK::AcquireNextImage(DeviceVK* device, VkSemaphore semaphore)
+uint32_t SwapchainVK::AcquireNextImage(DeviceVK* device)
 {
 	uint32_t imageIndex;
-	VkResult result = vkAcquireNextImageKHR(device->GetDevice(), m_swapchain, UINT64_MAX, semaphore, nullptr, &imageIndex);
+	VkResult result = vkAcquireNextImageKHR(device->GetDevice(), m_swapchain, UINT64_MAX, device->GetCurrentFrameData()->m_acquireSemaphore, nullptr, &imageIndex);
 
 	assert(result == VK_SUCCESS);
 

@@ -13,6 +13,32 @@
 namespace MBRF
 {
 
+void ContextVK::Submit(DeviceVK* device, VkQueue queue)
+{
+	VkDevice logicDevice = device->GetDevice();
+
+	VK_CHECK(vkWaitForFences(logicDevice, 1, &m_fence, VK_TRUE, UINT64_MAX));
+	VK_CHECK(vkResetFences(logicDevice, 1, &m_fence));
+
+	FrameDataVK* frameData = device->GetCurrentFrameData();
+
+	VkSemaphore waitSemaphores[] = { frameData->m_acquireSemaphore };
+	VkSemaphore signalSemaphores[] = { frameData->m_renderSemaphore };
+	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+
+	VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+	submitInfo.pNext = nullptr;
+	submitInfo.waitSemaphoreCount = 1;
+	submitInfo.pWaitSemaphores = waitSemaphores;
+	submitInfo.pWaitDstStageMask = waitStages;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &m_commandBuffer;
+	submitInfo.signalSemaphoreCount = 1;
+	submitInfo.pSignalSemaphores = signalSemaphores;
+
+	VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, m_fence));
+}
+
 // ------------------------------- Validation Layer utils -------------------------------
 
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
@@ -49,9 +75,13 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
 const std::vector<const char*> requiredExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
-void DeviceVK::Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, uint32_t height)
+void DeviceVK::Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, uint32_t height, uint32_t maxFramesInFlight)
 {
+	m_currentFrame = 0;
 	m_swapchain = swapchain;
+	m_maxFramesInFlight = maxFramesInFlight;
+
+	m_frameData.resize(m_maxFramesInFlight);
 
 	CreateInstance(true);
 
@@ -338,16 +368,13 @@ void DeviceVK::DestroyDevice()
 }
 
 	
-bool DeviceVK::CreateSyncObjects(int numFrames)
+bool DeviceVK::CreateSyncObjects()
 {
-	//TODO: initialize earlier when everything else is initialized!
-	m_frameData.resize(numFrames);
-
 	VkSemaphoreCreateInfo semaphoreCreateInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 	semaphoreCreateInfo.pNext = nullptr;
 	semaphoreCreateInfo.flags = 0;
 
-	for (int i = 0; i < numFrames; ++i)
+	for (int i = 0; i < m_frameData.size(); ++i)
 	{
 		VK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_frameData[i].m_acquireSemaphore));
 		VK_CHECK(vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_frameData[i].m_renderSemaphore));
@@ -848,29 +875,6 @@ bool DeviceVK::WaitForDevice()
 	return true;
 }
 
-// TODO: this should be done by ContextVK
-void DeviceVK::SubmitGraphicsQueue(uint32_t imageIndex, int currentFrame)
-{
-	VK_CHECK(vkWaitForFences(m_device, 1, &m_graphicContexts[imageIndex].m_fence, VK_TRUE, UINT64_MAX));
-	VK_CHECK(vkResetFences(m_device, 1, &m_graphicContexts[imageIndex].m_fence));
-
-	VkSemaphore waitSemaphores[] = { m_frameData[currentFrame].m_acquireSemaphore };
-	VkSemaphore signalSemaphores[] = { m_frameData[currentFrame].m_renderSemaphore };
-	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-
-	VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-	submitInfo.pNext = nullptr;
-	submitInfo.waitSemaphoreCount = 1;
-	submitInfo.pWaitSemaphores = waitSemaphores;
-	submitInfo.pWaitDstStageMask = waitStages;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &m_graphicContexts[imageIndex].m_commandBuffer;
-	submitInfo.signalSemaphoreCount = 1;
-	submitInfo.pSignalSemaphores = signalSemaphores;
-
-	VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_graphicContexts[imageIndex].m_fence));
-}
-
 void DeviceVK::CreateTestVertexAndTriangleBuffers()
 {
 	VkDeviceSize size = sizeof(m_testCubeVerts);
@@ -1071,15 +1075,15 @@ void DeviceVK::DestroyTextures()
 	m_testTexture.Destroy(this);
 }
 
-bool DeviceVK::Present(uint32_t imageIndex, uint32_t currentFrame)
+bool DeviceVK::Present()
 {
 	VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
 	presentInfo.pNext = nullptr;
 	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pWaitSemaphores = &m_frameData[currentFrame].m_renderSemaphore;
+	presentInfo.pWaitSemaphores = &m_currentFrameData->m_renderSemaphore;
 	presentInfo.swapchainCount = 1;
 	presentInfo.pSwapchains = &m_swapchain->m_swapchain;
-	presentInfo.pImageIndices = &imageIndex;
+	presentInfo.pImageIndices = &m_currentImageIndex;
 	presentInfo.pResults = nullptr;
 
 	VK_CHECK(vkQueuePresentKHR(m_graphicsQueue, &presentInfo));
@@ -1108,20 +1112,28 @@ void DeviceVK::Update(double dt)
 	m_uboTest.m_mvpTransform = clip * proj * view * model;
 }
 
-void DeviceVK::Draw(uint32_t currentFrame)
+void DeviceVK::BeginFrame()
 {
-	uint32_t imageIndex = m_swapchain->AcquireNextImage(this, m_frameData[currentFrame].m_acquireSemaphore);
+	m_currentFrameData = &m_frameData[m_currentFrame];
 
+	m_currentImageIndex = m_swapchain->AcquireNextImage(this);
 
-	// update uniform buffer
-	m_uboBuffers[imageIndex].Update(this, sizeof(UBOTest), &m_uboTest);
+	assert(m_currentImageIndex != UINT32_MAX);
+}
 
+void DeviceVK::EndFrame()
+{
+	m_graphicContexts[m_currentImageIndex].Submit(this, m_graphicsQueue);
 
-	assert(imageIndex != UINT32_MAX);
+	Present();
 
-	SubmitGraphicsQueue(imageIndex, currentFrame);
+	m_currentFrame = (m_currentFrame + 1) % m_maxFramesInFlight;
+}
 
-	Present(imageIndex, currentFrame);
+void DeviceVK::Draw()
+{
+	// update uniform buffer (TODO: move in ContextVK?)
+	m_uboBuffers[m_currentImageIndex].Update(this, sizeof(UBOTest), &m_uboTest);
 }
 
 }
