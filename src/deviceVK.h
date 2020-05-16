@@ -1,7 +1,9 @@
 #pragma once
 
-#include "bufferVK.h"
 #include "commonVK.h"
+
+#include "bufferVK.h"
+#include "contextVK.h"
 #include "frameBufferVK.h"
 #include "textureVK.h"
 
@@ -26,24 +28,6 @@ public:
 
 	VkSemaphore m_acquireSemaphore = VK_NULL_HANDLE;
 	VkSemaphore m_renderSemaphore = VK_NULL_HANDLE;
-};
-
-// TODO: add anything related to command buffers recording and submission to this class
-class ContextVK
-{
-public:
-	bool Create(DeviceVK* device);
-	void Destroy(DeviceVK* device);
-
-	void Begin();
-	void End();
-	void Submit(DeviceVK* device, VkQueue queue);
-
-	VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
-	VkFence m_fence = VK_NULL_HANDLE;
-	VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
-
-	// TODO: add a BufferVK to use as scratch uniforms buffer? Could be a dynamic offset one?
 };
 
 class DeviceVK
@@ -120,9 +104,6 @@ public:
 	void DestroyTextures();
 
 	bool Present();
-
-	// clearColors[0] = color, clearColors[1] = depth+stencil
-	void ClearFramebufferAttachments(VkCommandBuffer commandBuffer, const FrameBufferVK& frameBuffer, int32_t x, int32_t y, uint32_t width, uint32_t height, VkClearValue clearValues[2]);
 
 private:
 	bool m_validationLayerEnabled;

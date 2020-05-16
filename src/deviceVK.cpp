@@ -13,102 +13,6 @@
 namespace MBRF
 {
 
-bool FrameDataVK::Create(DeviceVK* device)
-{
-	VkDevice logicDevice = device->GetDevice();
-
-	VkSemaphoreCreateInfo semaphoreCreateInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-	semaphoreCreateInfo.pNext = nullptr;
-	semaphoreCreateInfo.flags = 0;
-
-	VK_CHECK(vkCreateSemaphore(logicDevice, &semaphoreCreateInfo, nullptr, &m_acquireSemaphore));
-	VK_CHECK(vkCreateSemaphore(logicDevice, &semaphoreCreateInfo, nullptr, &m_renderSemaphore));
-
-	return true;
-}
-
-void FrameDataVK::Destroy(DeviceVK* device)
-{
-	VkDevice logicDevice = device->GetDevice();
-
-	vkDestroySemaphore(logicDevice, m_acquireSemaphore, nullptr);
-	vkDestroySemaphore(logicDevice, m_renderSemaphore, nullptr);
-
-	m_acquireSemaphore = VK_NULL_HANDLE;
-	m_renderSemaphore = VK_NULL_HANDLE;
-}
-
-bool ContextVK::Create(DeviceVK* device)
-{
-	VkDevice logicDevice = device->GetDevice();
-
-	VkCommandBufferAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-	allocateInfo.pNext = nullptr;
-	allocateInfo.commandPool = device->GetGraphicsCommandPool();
-	allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocateInfo.commandBufferCount = 1;
-
-	VK_CHECK(vkAllocateCommandBuffers(logicDevice, &allocateInfo, &m_commandBuffer));
-
-	VkFenceCreateInfo fenceCreateInfo = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-	fenceCreateInfo.pNext = nullptr;
-	fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-	VK_CHECK(vkCreateFence(logicDevice, &fenceCreateInfo, nullptr, &m_fence));
-
-	return true;
-}
-
-void ContextVK::Destroy(DeviceVK* device)
-{
-	VkDevice logicDevice = device->GetDevice();
-
-	vkDestroyFence(logicDevice, m_fence, nullptr);
-
-	m_commandBuffer = VK_NULL_HANDLE;
-	m_fence = VK_NULL_HANDLE;
-}
-
-void ContextVK::Begin()
-{
-	VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-	beginInfo.flags = 0; // Optional
-	beginInfo.pInheritanceInfo = nullptr; // Optional: only relevant for secondary command buffers. It specifies which state to inherit from the calling primary command buffers
-
-	VK_CHECK(vkBeginCommandBuffer(m_commandBuffer, &beginInfo));
-}
-
-void ContextVK::End()
-{
-	VK_CHECK(vkEndCommandBuffer(m_commandBuffer));
-}
-
-void ContextVK::Submit(DeviceVK* device, VkQueue queue)
-{
-	VkDevice logicDevice = device->GetDevice();
-
-	VK_CHECK(vkWaitForFences(logicDevice, 1, &m_fence, VK_TRUE, UINT64_MAX));
-	VK_CHECK(vkResetFences(logicDevice, 1, &m_fence));
-
-	FrameDataVK* frameData = device->GetCurrentFrameData();
-
-	VkSemaphore waitSemaphores[] = { frameData->m_acquireSemaphore };
-	VkSemaphore signalSemaphores[] = { frameData->m_renderSemaphore };
-	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-
-	VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-	submitInfo.pNext = nullptr;
-	submitInfo.waitSemaphoreCount = 1;
-	submitInfo.pWaitSemaphores = waitSemaphores;
-	submitInfo.pWaitDstStageMask = waitStages;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &m_commandBuffer;
-	submitInfo.signalSemaphoreCount = 1;
-	submitInfo.pSignalSemaphores = signalSemaphores;
-
-	VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, m_fence));
-}
-
 // ------------------------------- Validation Layer utils -------------------------------
 
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
@@ -138,6 +42,33 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 	std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
 
 	return VK_FALSE;
+}
+
+// ------------------------------- FrameDataVK -------------------------------
+
+bool FrameDataVK::Create(DeviceVK* device)
+{
+	VkDevice logicDevice = device->GetDevice();
+
+	VkSemaphoreCreateInfo semaphoreCreateInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+	semaphoreCreateInfo.pNext = nullptr;
+	semaphoreCreateInfo.flags = 0;
+
+	VK_CHECK(vkCreateSemaphore(logicDevice, &semaphoreCreateInfo, nullptr, &m_acquireSemaphore));
+	VK_CHECK(vkCreateSemaphore(logicDevice, &semaphoreCreateInfo, nullptr, &m_renderSemaphore));
+
+	return true;
+}
+
+void FrameDataVK::Destroy(DeviceVK* device)
+{
+	VkDevice logicDevice = device->GetDevice();
+
+	vkDestroySemaphore(logicDevice, m_acquireSemaphore, nullptr);
+	vkDestroySemaphore(logicDevice, m_renderSemaphore, nullptr);
+
+	m_acquireSemaphore = VK_NULL_HANDLE;
+	m_renderSemaphore = VK_NULL_HANDLE;
 }
 
 // ------------------------------- DeviceVK -------------------------------
@@ -586,34 +517,6 @@ void DeviceVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
 	vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
-void DeviceVK::ClearFramebufferAttachments(VkCommandBuffer commandBuffer, const FrameBufferVK& frameBuffer, int32_t x, int32_t y, uint32_t width, uint32_t height, VkClearValue clearValues[2])
-{
-	VkClearRect clearRect;
-	clearRect.rect = { {x, y}, {width, height} };
-	clearRect.baseArrayLayer = 0;
-	clearRect.layerCount = 1;
-
-	std::vector<TextureViewVK> attachments = frameBuffer.GetAttachments();
-
-	std::vector<VkClearAttachment> clearAttachments;
-	clearAttachments.resize(attachments.size());
-
-	for (size_t i = 0; i < attachments.size(); ++i)
-	{
-		VkImageAspectFlags aspectMask = attachments[i].GetAspectMask();
-
-		clearAttachments[i].aspectMask = aspectMask;
-		clearAttachments[i].colorAttachment = uint32_t(i);
-
-		if (aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
-			clearAttachments[i].clearValue.color = clearValues[0].color;
-		else if ((aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) || aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)
-			clearAttachments[i].clearValue.depthStencil = clearValues[1].depthStencil;
-	}
-
-	vkCmdClearAttachments(commandBuffer, uint32_t(clearAttachments.size()), clearAttachments.data(), 1, &clearRect);
-}
-
 void DeviceVK::RecordTestGraphicsCommands()
 {
 	// test recording
@@ -622,7 +525,8 @@ void DeviceVK::RecordTestGraphicsCommands()
 	{
 		m_graphicsContexts[i].Begin();
 
-		VkCommandBuffer commandBuffer = m_graphicsContexts[i].m_commandBuffer;
+		ContextVK context = m_graphicsContexts[i];
+		VkCommandBuffer commandBuffer = context.m_commandBuffer;
 
 #if 0
 
@@ -666,7 +570,7 @@ void DeviceVK::RecordTestGraphicsCommands()
 		clearValues[0].color = { 0.3f, 0.3f, 0.3f, 1.0f };
 		clearValues[1].depthStencil = { 1.0f, 0 };
 
-		ClearFramebufferAttachments(commandBuffer, m_swapchainFramebuffers[i], 0, 0, m_swapchain->m_imageExtent.width, m_swapchain->m_imageExtent.height, clearValues);
+		context.ClearFramebufferAttachments(&m_swapchainFramebuffers[i], 0, 0, m_swapchain->m_imageExtent.width, m_swapchain->m_imageExtent.height, clearValues);
 
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipeline);
 
@@ -1178,7 +1082,7 @@ void DeviceVK::BeginFrame()
 
 void DeviceVK::EndFrame()
 {
-	m_graphicsContexts[m_currentImageIndex].Submit(this, m_graphicsQueue);
+	m_graphicsContexts[m_currentImageIndex].Submit(this, m_graphicsQueue, m_currentFrameData->m_acquireSemaphore, m_currentFrameData->m_renderSemaphore);
 
 	Present();
 

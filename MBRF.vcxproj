@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClCompile Include="src\application.cpp" />
     <ClCompile Include="src\bufferVK.cpp" />
+    <ClCompile Include="src\contextVK.cpp" />
     <ClCompile Include="src\deviceVK.cpp" />
     <ClCompile Include="src\frameBufferVK.cpp" />
     <ClCompile Include="src\main.cpp" />
@@ -34,6 +35,7 @@
     <ClInclude Include="src\application.h" />
     <ClInclude Include="src\bufferVK.h" />
     <ClInclude Include="src\commonVK.h" />
+    <ClInclude Include="src\contextVK.h" />
     <ClInclude Include="src\deviceVK.h" />
     <ClInclude Include="src\frameBufferVK.h" />
     <ClInclude Include="src\rendererVK.h" />
