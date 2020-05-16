@@ -35,6 +35,8 @@ public:
 	bool Create(DeviceVK* device);
 	void Destroy(DeviceVK* device);
 
+	void Begin();
+	void End();
 	void Submit(DeviceVK* device, VkQueue queue);
 
 	VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;

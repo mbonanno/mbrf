@@ -69,6 +69,20 @@ void ContextVK::Destroy(DeviceVK* device)
 	m_fence = VK_NULL_HANDLE;
 }
 
+void ContextVK::Begin()
+{
+	VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+	beginInfo.flags = 0; // Optional
+	beginInfo.pInheritanceInfo = nullptr; // Optional: only relevant for secondary command buffers. It specifies which state to inherit from the calling primary command buffers
+
+	VK_CHECK(vkBeginCommandBuffer(m_commandBuffer, &beginInfo));
+}
+
+void ContextVK::End()
+{
+	VK_CHECK(vkEndCommandBuffer(m_commandBuffer));
+}
+
 void ContextVK::Submit(DeviceVK* device, VkQueue queue)
 {
 	VkDevice logicDevice = device->GetDevice();
@@ -604,15 +618,11 @@ void DeviceVK::RecordTestGraphicsCommands()
 {
 	// test recording
 
-	VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-	beginInfo.flags = 0; // Optional
-	beginInfo.pInheritanceInfo = nullptr; // Optional: only relevant for secondary command buffers. It specifies which state to inherit from the calling primary command buffers
-
 	for (int i = 0; i < m_graphicsContexts.size(); ++i)
 	{
-		auto commandBuffer = m_graphicsContexts[i].m_commandBuffer;
+		m_graphicsContexts[i].Begin();
 
-		VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
+		VkCommandBuffer commandBuffer = m_graphicsContexts[i].m_commandBuffer;
 
 #if 0
 
@@ -678,7 +688,7 @@ void DeviceVK::RecordTestGraphicsCommands()
 
 #endif
 
-		VK_CHECK(vkEndCommandBuffer(commandBuffer));
+		m_graphicsContexts[i].End();
 	}
 }
 
