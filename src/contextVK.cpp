@@ -50,13 +50,16 @@ void ContextVK::End()
 	VK_CHECK(vkEndCommandBuffer(m_commandBuffer));
 }
 
-void ContextVK::Submit(DeviceVK* device, VkQueue queue, VkSemaphore waitSemaphore, VkSemaphore signalSemaphore)
+void ContextVK::WaitForLastFrame(DeviceVK* device)
 {
 	VkDevice logicDevice = device->GetDevice();
 
 	VK_CHECK(vkWaitForFences(logicDevice, 1, &m_fence, VK_TRUE, UINT64_MAX));
 	VK_CHECK(vkResetFences(logicDevice, 1, &m_fence));
+}
 
+void ContextVK::Submit(VkQueue queue, VkSemaphore waitSemaphore, VkSemaphore signalSemaphore)
+{
 	VkSemaphore waitSemaphores[] = { waitSemaphore };
 	VkSemaphore signalSemaphores[] = { signalSemaphore };
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };

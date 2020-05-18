@@ -61,6 +61,14 @@ public:
 
 	bool WaitForDevice();
 
+	VkCommandBuffer BeginNewCommandBuffer(VkCommandBufferUsageFlags usage);
+	void SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer, bool freeCommandBuffer);
+
+	bool Present();
+
+	uint32_t FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFlags desiredCapabilities, bool queryPresentationSupport);
+	uint32_t FindDevicePresentationQueueFamilyIndex(VkPhysicalDevice device);
+
 	VkInstance& GetInstance() { return m_instance; };
 	VkPhysicalDevice& GetPhysicalDevice() { return m_physicalDevice; };
 	VkDevice& GetDevice() { return m_device; };
@@ -68,20 +76,16 @@ public:
 	VkCommandPool& GetGraphicsCommandPool() { return m_graphicsCommandPool; };
 	FrameDataVK* GetCurrentFrameData() const { return m_currentFrameData; };
 
-	uint32_t FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFlags desiredCapabilities, bool queryPresentationSupport);
-	uint32_t FindDevicePresentationQueueFamilyIndex(VkPhysicalDevice device);
+	
 
-
-	VkCommandBuffer BeginNewCommandBuffer(VkCommandBufferUsageFlags usage);
-	void SubmitCommandBufferAndWait(VkCommandBuffer commandBuffer, bool freeCommandBuffer);
-
-	bool Present();
+	ContextVK* GetCurrentGraphicsContext() { return m_currentGraphicsContext; };
 
 //private:
 	std::vector<FrameDataVK> m_frameData;
 	FrameDataVK* m_currentFrameData = nullptr;
 
 	std::vector<ContextVK> m_graphicsContexts;
+	ContextVK* m_currentGraphicsContext = nullptr;
 
 	uint32_t m_currentFrame = UINT32_MAX;
 	uint32_t m_currentImageIndex = UINT32_MAX;

@@ -24,9 +24,6 @@ bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
 	CreateShaders(&m_device);  // Scene specific
 	CreateDescriptors(&m_device);  // should be scene specific. Currently it is also submitting the descriptors...
 	CreateGraphicsPipelines(&m_device);  // Scene specific
-	
-	// TODO: record every frame?
-	RecordTestGraphicsCommands(&m_device);  // Scene specific/should be handled by the GraphicsContext. Shouldn't be pre-recorded, but dynamic per frame
 
 	return true;
 }
@@ -75,8 +72,18 @@ void RendererVK::Draw()
 {
 	m_device.BeginFrame();
 
-	// update uniform buffer (TODO: move in ContextVK?)
-	m_uboBuffers[m_device.m_currentImageIndex].Update(&m_device, sizeof(UBOTest), &m_uboTest);
+	// ------------------ Immediate Context Draw -------------------------------
+	ContextVK* context = m_device.GetCurrentGraphicsContext();
+	VkCommandBuffer commandBuffer = context->m_commandBuffer;
+
+	context->Begin();
+	m_device.TransitionImageLayout(commandBuffer, m_swapchain.m_images[m_device.m_currentImageIndex], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+	DrawFrame();
+
+	m_device.TransitionImageLayout(commandBuffer, m_swapchain.m_images[m_device.m_currentImageIndex], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+	context->End();
+	// ------------------ Immediate Context Draw -------------------------------
 
 	m_device.EndFrame();
 }
@@ -411,83 +418,61 @@ void RendererVK::CreateTestVertexAndTriangleBuffers(DeviceVK* device)
 	m_testIndexBuffer.Update(device, size, m_testCubeIndices);
 }
 
-void RendererVK::RecordTestGraphicsCommands(DeviceVK* device)
+void RendererVK::DrawFrame()
 {
-	// test recording
+	// update uniform buffer (TODO: move in ContextVK?)
+	m_uboBuffers[m_device.m_currentImageIndex].Update(&m_device, sizeof(UBOTest), &m_uboTest);
 
-	for (int i = 0; i < device->m_graphicsContexts.size(); ++i)
-	{
-		device->m_graphicsContexts[i].Begin();
+	// TODO: store current swapchain FBO as a global
+	FrameBufferVK* currentRenderTarget = &m_swapchainFramebuffers[m_device.m_currentImageIndex];
 
-		ContextVK context = device->m_graphicsContexts[i];
-		VkCommandBuffer commandBuffer = context.m_commandBuffer;
+	ContextVK* context = m_device.GetCurrentGraphicsContext();
+	VkCommandBuffer commandBuffer = context->m_commandBuffer;
 
-#if 0
 
-		VkClearColorValue clearColorValues = { 1.0, 0.0, 0.0, 1.0 };
+	// ----------- Set Render Target
+	VkRenderPassBeginInfo renderPassInfo = {};
+	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	renderPassInfo.renderPass = currentRenderTarget->GetRenderPass();
+	renderPassInfo.framebuffer = currentRenderTarget->GetFrameBuffer();
 
-		// transition the swapchain image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+	renderPassInfo.renderArea.offset = { 0, 0 };
+	renderPassInfo.renderArea.extent = m_swapchain.m_imageExtent;
 
-		device->TransitionImageLayout(commandBuffer, m_swapchain.m_images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	renderPassInfo.clearValueCount = 0;
+	renderPassInfo.pClearValues = nullptr;
 
-		VkImageSubresourceRange subresourceRange;
-		subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		subresourceRange.baseMipLevel = 0;
-		subresourceRange.levelCount = 1;
-		subresourceRange.baseArrayLayer = 0;
-		subresourceRange.layerCount = 1;
+	vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	// ----------- Set Render Target
 
-		vkCmdClearColorImage(commandBuffer, m_swapchain.m_images[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColorValues, 1, &subresourceRange);
 
-		// transition the swapchain image to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 
-		device->TransitionImageLayout(commandBuffer, m_swapchain.m_images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+	VkClearValue clearValues[2];
+	clearValues[0].color = { 0.3f, 0.3f, 0.3f, 1.0f };
+	clearValues[1].depthStencil = { 1.0f, 0 };
 
-#else
+	context->ClearFramebufferAttachments(currentRenderTarget, 0, 0, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, clearValues);
 
-		device->TransitionImageLayout(commandBuffer, m_swapchain.m_images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipeline);
 
-		VkRenderPassBeginInfo renderPassInfo = {};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = m_swapchainFramebuffers[i].GetRenderPass();
-		renderPassInfo.framebuffer = m_swapchainFramebuffers[i].GetFrameBuffer();
+	VkBuffer vbs[] = { m_testVertexBuffer.GetBuffer() };
+	VkDeviceSize offsets[] = { 0 };
 
-		renderPassInfo.renderArea.offset = { 0, 0 };
-		renderPassInfo.renderArea.extent = m_swapchain.m_imageExtent;
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vbs, offsets);
+	vkCmdBindIndexBuffer(commandBuffer, m_testIndexBuffer.GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
-		renderPassInfo.clearValueCount = 0;
-		renderPassInfo.pClearValues = nullptr;
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipelineLayout, 0, 1, &context->m_descriptorSet, 0, nullptr);
 
-		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdPushConstants(commandBuffer, m_testGraphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m_pushConstantTestColor), &m_pushConstantTestColor);
 
-		VkClearValue clearValues[2];
-		clearValues[0].color = { 0.3f, 0.3f, 0.3f, 1.0f };
-		clearValues[1].depthStencil = { 1.0f, 0 };
 
-		context.ClearFramebufferAttachments(&m_swapchainFramebuffers[i], 0, 0, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, clearValues);
 
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipeline);
 
-		VkBuffer vbs[] = { m_testVertexBuffer.GetBuffer() };
-		VkDeviceSize offsets[] = { 0 };
+	// -------------- Implicitly end render pass?
+	vkCmdDrawIndexed(commandBuffer, sizeof(m_testCubeIndices) / sizeof(uint32_t), 1, 0, 0, 0);
 
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vbs, offsets);
-		vkCmdBindIndexBuffer(commandBuffer, m_testIndexBuffer.GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
-
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipelineLayout, 0, 1, &device->m_graphicsContexts[i].m_descriptorSet, 0, nullptr);
-
-		vkCmdPushConstants(commandBuffer, m_testGraphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m_pushConstantTestColor), &m_pushConstantTestColor);
-
-		vkCmdDrawIndexed(commandBuffer, sizeof(m_testCubeIndices) / sizeof(uint32_t), 1, 0, 0, 0);
-
-		vkCmdEndRenderPass(commandBuffer);
-
-		device->TransitionImageLayout(commandBuffer, m_swapchain.m_images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-
-#endif
-
-		device->m_graphicsContexts[i].End();
-	}
+	vkCmdEndRenderPass(commandBuffer);
+	// --------------------------------------
 }
 
 void RendererVK::DestroyShaders(DeviceVK* device)

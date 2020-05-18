@@ -601,11 +601,15 @@ void DeviceVK::BeginFrame()
 	m_currentImageIndex = m_swapchain->AcquireNextImage(this);
 
 	assert(m_currentImageIndex != UINT32_MAX);
+
+	m_currentGraphicsContext = &m_graphicsContexts[m_currentImageIndex];
+
+	m_currentGraphicsContext->WaitForLastFrame(this);
 }
 
 void DeviceVK::EndFrame()
 {
-	m_graphicsContexts[m_currentImageIndex].Submit(this, m_graphicsQueue, m_currentFrameData->m_acquireSemaphore, m_currentFrameData->m_renderSemaphore);
+	m_currentGraphicsContext->Submit(m_graphicsQueue, m_currentFrameData->m_acquireSemaphore, m_currentFrameData->m_renderSemaphore);
 
 	Present();
 

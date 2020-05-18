@@ -30,7 +30,7 @@ private:
 	void DestroyTextures(DeviceVK* device);
 	void DestroyTestVertexAndTriangleBuffers(DeviceVK* device);
 	
-	void RecordTestGraphicsCommands(DeviceVK* device);
+	void DrawFrame();
 	
 	// TODO: create wrappers for the following stuff
 

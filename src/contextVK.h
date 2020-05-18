@@ -18,7 +18,9 @@ public:
 
 	void Begin();
 	void End();
-	void Submit(DeviceVK* device, VkQueue queue, VkSemaphore waitSemaphore = VK_NULL_HANDLE, VkSemaphore signalSemaphore = VK_NULL_HANDLE);
+
+	void WaitForLastFrame(DeviceVK* device);
+	void Submit(VkQueue queue, VkSemaphore waitSemaphore = VK_NULL_HANDLE, VkSemaphore signalSemaphore = VK_NULL_HANDLE);
 
 	// clearColors[0] = color, clearColors[1] = depth+stencil
 	void ClearFramebufferAttachments(const FrameBufferVK* frameBuffer, int32_t x, int32_t y, uint32_t width, uint32_t height, VkClearValue clearValues[2]);
