@@ -20,27 +20,27 @@ public:
 	void Draw();
 
 private:
-	bool CreateDepthStencilBuffer(DeviceVK* device);
-	bool CreateFramebuffers(DeviceVK* device);
-	void CreateTextures(DeviceVK* device);
-	void CreateTestVertexAndTriangleBuffers(DeviceVK* device);
+	bool CreateDepthStencilBuffer();
+	bool CreateFramebuffers();
+	void CreateTextures();
+	void CreateTestVertexAndTriangleBuffers();
 
-	void DestroyDepthStencilBuffer(DeviceVK* device);
-	void DestroyFramebuffers(DeviceVK* device);
-	void DestroyTextures(DeviceVK* device);
-	void DestroyTestVertexAndTriangleBuffers(DeviceVK* device);
+	void DestroyDepthStencilBuffer();
+	void DestroyFramebuffers();
+	void DestroyTextures();
+	void DestroyTestVertexAndTriangleBuffers();
 	
 	void DrawFrame();
 	
 	// TODO: create wrappers for the following stuff
 
-	bool CreateShaders(DeviceVK* device);
-	bool CreateDescriptors(DeviceVK* device);
-	bool CreateGraphicsPipelines(DeviceVK* device);
+	bool CreateShaders();
+	bool CreateDescriptors();
+	bool CreateGraphicsPipelines();
 
-	void DestroyShaders(DeviceVK* device);
-	void DestroyDescriptors(DeviceVK* device);
-	void DestroyGraphicsPipelines(DeviceVK* device);
+	void DestroyShaders();
+	void DestroyDescriptors();
+	void DestroyGraphicsPipelines();
 
 private:
 	SwapchainVK m_swapchain;

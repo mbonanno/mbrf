@@ -15,15 +15,15 @@ bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
 	m_device.Init(&m_swapchain, window, width, height, s_maxFramesInFlight);
 
 	// Init Scene/Application
-	CreateDepthStencilBuffer(&m_device);  
-	CreateFramebuffers(&m_device); // swapchain framebuffer
-	CreateTextures(&m_device);
-	CreateTestVertexAndTriangleBuffers(&m_device);
+	CreateDepthStencilBuffer();  
+	CreateFramebuffers(); // swapchain framebuffer
+	CreateTextures();
+	CreateTestVertexAndTriangleBuffers();
 
 	// wrap
-	CreateShaders(&m_device);  // Scene specific
-	CreateDescriptors(&m_device);  // should be scene specific. Currently it is also submitting the descriptors...
-	CreateGraphicsPipelines(&m_device);  // Scene specific
+	CreateShaders();  // Scene specific
+	CreateDescriptors();  // should be scene specific. Currently it is also submitting the descriptors...
+	CreateGraphicsPipelines();  // Scene specific
 
 	return true;
 }
@@ -32,14 +32,14 @@ void RendererVK::Cleanup()
 {
 	m_device.WaitForDevice();
 
-	DestroyGraphicsPipelines(&m_device);
-	DestroyDescriptors(&m_device);
-	DestroyShaders(&m_device);
+	DestroyGraphicsPipelines();
+	DestroyDescriptors();
+	DestroyShaders();
 	
-	DestroyTestVertexAndTriangleBuffers(&m_device);
-	DestroyTextures(&m_device);
-	DestroyFramebuffers(&m_device);
-	DestroyDepthStencilBuffer(&m_device);
+	DestroyTestVertexAndTriangleBuffers();
+	DestroyTextures();
+	DestroyFramebuffers();
+	DestroyDepthStencilBuffer();
 
 	RenderPassCache::Cleanup(&m_device);
 	SamplerCache::Cleanup(&m_device);
@@ -88,19 +88,19 @@ void RendererVK::Draw()
 	m_device.EndFrame();
 }
 
-bool RendererVK::CreateDepthStencilBuffer(DeviceVK* device)
+bool RendererVK::CreateDepthStencilBuffer()
 {
 	// TODO: check VK_FORMAT_D24_UNORM_S8_UINT format availability!
-	m_depthTexture.Create(device, VK_FORMAT_D24_UNORM_S8_UINT, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, 1, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+	m_depthTexture.Create(&m_device, VK_FORMAT_D24_UNORM_S8_UINT, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, 1, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
 	// Transition (not really needed, we could just set the initial layout to VK_IMAGE_LAYOUT_UNDEFINED in the subpass?)
 
-	m_depthTexture.TransitionImageLayoutAndSubmit(device, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+	m_depthTexture.TransitionImageLayoutAndSubmit(&m_device, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
 	return true;
 }
 
-bool RendererVK::CreateFramebuffers(DeviceVK* device)
+bool RendererVK::CreateFramebuffers()
 {
 	m_swapchainFramebuffers.resize(m_swapchain.m_imageCount);
 
@@ -108,31 +108,31 @@ bool RendererVK::CreateFramebuffers(DeviceVK* device)
 	{
 		std::vector<TextureViewVK> attachments = { m_swapchain.m_textureViews[i], m_depthTexture.GetView() };
 
-		m_swapchainFramebuffers[i].Create(device, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, attachments);
+		m_swapchainFramebuffers[i].Create(&m_device, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, attachments);
 	}
 
 	return true;
 }
 
-void RendererVK::CreateTextures(DeviceVK* device)
+void RendererVK::CreateTextures()
 {
-	m_testTexture.LoadFromFile(device, "data/textures/test.jpg");
+	m_testTexture.LoadFromFile(&m_device, "data/textures/test.jpg");
 }
 
-bool RendererVK::CreateShaders(DeviceVK* device)
+bool RendererVK::CreateShaders()
 {
 	bool result = true;
 
 	// TODO: put common data/shader dir path in a variable or define
-	result &= device->CreateShaderModuleFromFile("data/shaders/test.vert.spv", m_testVertexShader);
-	result &= device->CreateShaderModuleFromFile("data/shaders/test.frag.spv", m_testFragmentShader);
+	result &= m_device.CreateShaderModuleFromFile("data/shaders/test.vert.spv", m_testVertexShader);
+	result &= m_device.CreateShaderModuleFromFile("data/shaders/test.frag.spv", m_testFragmentShader);
 
 	assert(result);
 
 	return result;
 }
 
-bool RendererVK::CreateDescriptors(DeviceVK* device)
+bool RendererVK::CreateDescriptors()
 {
 	// Create UBO
 
@@ -140,8 +140,8 @@ bool RendererVK::CreateDescriptors(DeviceVK* device)
 
 	for (size_t i = 0; i < m_uboBuffers.size(); ++i)
 	{
-		m_uboBuffers[i].Create(device, sizeof(UBOTest), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		m_uboBuffers[i].Update(device, sizeof(UBOTest), &m_uboTest);
+		m_uboBuffers[i].Create(&m_device, sizeof(UBOTest), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		m_uboBuffers[i].Update(&m_device, sizeof(UBOTest), &m_uboTest);
 	}
 
 
@@ -161,7 +161,7 @@ bool RendererVK::CreateDescriptors(DeviceVK* device)
 	createInfo.poolSizeCount = sizeof(poolSizes) / sizeof(VkDescriptorPoolSize);
 	createInfo.pPoolSizes = poolSizes;
 
-	VK_CHECK(vkCreateDescriptorPool(device->GetDevice(), &createInfo, nullptr, &m_descriptorPool));
+	VK_CHECK(vkCreateDescriptorPool(m_device.GetDevice(), &createInfo, nullptr, &m_descriptorPool));
 
 	// Create Descriptor Set Layouts
 
@@ -185,7 +185,7 @@ bool RendererVK::CreateDescriptors(DeviceVK* device)
 	layoutCreateInfo.bindingCount = sizeof(bindings) / sizeof(VkDescriptorSetLayoutBinding);
 	layoutCreateInfo.pBindings = bindings;
 
-	VK_CHECK(vkCreateDescriptorSetLayout(device->GetDevice(), &layoutCreateInfo, nullptr, &m_descriptorSetLayout));
+	VK_CHECK(vkCreateDescriptorSetLayout(m_device.GetDevice(), &layoutCreateInfo, nullptr, &m_descriptorSetLayout));
 
 	// Create Descriptor Sets
 
@@ -195,9 +195,9 @@ bool RendererVK::CreateDescriptors(DeviceVK* device)
 	allocInfo.descriptorSetCount = 1;
 	allocInfo.pSetLayouts = &m_descriptorSetLayout;
 
-	for (size_t i = 0; i < device->m_graphicsContexts.size(); ++i)
+	for (size_t i = 0; i < m_device.m_graphicsContexts.size(); ++i)
 	{
-		VK_CHECK(vkAllocateDescriptorSets(device->GetDevice(), &allocInfo, &device->m_graphicsContexts[i].m_descriptorSet));
+		VK_CHECK(vkAllocateDescriptorSets(m_device.GetDevice(), &allocInfo, &m_device.m_graphicsContexts[i].m_descriptorSet));
 
 		VkDescriptorBufferInfo bufferInfo = m_uboBuffers[i].GetDescriptor();
 
@@ -207,7 +207,7 @@ bool RendererVK::CreateDescriptors(DeviceVK* device)
 		// UBOs
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].pNext = nullptr;
-		descriptorWrites[0].dstSet = device->m_graphicsContexts[i].m_descriptorSet;
+		descriptorWrites[0].dstSet = m_device.m_graphicsContexts[i].m_descriptorSet;
 		descriptorWrites[0].dstBinding = 0;
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorCount = 1;
@@ -218,7 +218,7 @@ bool RendererVK::CreateDescriptors(DeviceVK* device)
 		// Texture + Samplers
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].pNext = nullptr;
-		descriptorWrites[1].dstSet = device->m_graphicsContexts[i].m_descriptorSet;
+		descriptorWrites[1].dstSet = m_device.m_graphicsContexts[i].m_descriptorSet;
 		descriptorWrites[1].dstBinding = 1;
 		descriptorWrites[1].dstArrayElement = 0;
 		descriptorWrites[1].descriptorCount = 1;
@@ -227,13 +227,13 @@ bool RendererVK::CreateDescriptors(DeviceVK* device)
 		descriptorWrites[1].pBufferInfo = nullptr;
 		descriptorWrites[1].pTexelBufferView = nullptr;
 
-		vkUpdateDescriptorSets(device->GetDevice(), sizeof(descriptorWrites) / sizeof(VkWriteDescriptorSet), descriptorWrites, 0, nullptr);
+		vkUpdateDescriptorSets(m_device.GetDevice(), sizeof(descriptorWrites) / sizeof(VkWriteDescriptorSet), descriptorWrites, 0, nullptr);
 	}
 
 	return true;
 }
 
-bool RendererVK::CreateGraphicsPipelines(DeviceVK* device)
+bool RendererVK::CreateGraphicsPipelines()
 {
 	VkPipelineShaderStageCreateInfo shaderStageCreateInfos[2];
 	// vertex
@@ -372,7 +372,7 @@ bool RendererVK::CreateGraphicsPipelines(DeviceVK* device)
 	layoutCreateInfo.pushConstantRangeCount = 1;
 	layoutCreateInfo.pPushConstantRanges = &pushConstantRange;
 
-	VK_CHECK(vkCreatePipelineLayout(device->GetDevice(), &layoutCreateInfo, nullptr, &m_testGraphicsPipelineLayout));
+	VK_CHECK(vkCreatePipelineLayout(m_device.GetDevice(), &layoutCreateInfo, nullptr, &m_testGraphicsPipelineLayout));
 
 	VkGraphicsPipelineCreateInfo pipelineCreateInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 	pipelineCreateInfo.pNext = nullptr;
@@ -396,26 +396,26 @@ bool RendererVK::CreateGraphicsPipelines(DeviceVK* device)
 	// pass a valid index if the pipeline to derive from is in the same batch of pipelines passed to this vkCreateGraphicsPipelines call
 	pipelineCreateInfo.basePipelineIndex = -1;
 
-	VK_CHECK(vkCreateGraphicsPipelines(device->GetDevice(), VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &m_testGraphicsPipeline));
+	VK_CHECK(vkCreateGraphicsPipelines(m_device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &m_testGraphicsPipeline));
 
 	return true;
 }
 
-void RendererVK::CreateTestVertexAndTriangleBuffers(DeviceVK* device)
+void RendererVK::CreateTestVertexAndTriangleBuffers()
 {
 	VkDeviceSize size = sizeof(m_testCubeVerts);
 
-	m_testVertexBuffer.Create(device, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	m_testVertexBuffer.Create(&m_device, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-	m_testVertexBuffer.Update(device, size, m_testCubeVerts);
+	m_testVertexBuffer.Update(&m_device, size, m_testCubeVerts);
 
 	// index buffer
 
 	size = sizeof(m_testCubeIndices);
 
-	m_testIndexBuffer.Create(device, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	m_testIndexBuffer.Create(&m_device, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-	m_testIndexBuffer.Update(device, size, m_testCubeIndices);
+	m_testIndexBuffer.Update(&m_device, size, m_testCubeIndices);
 }
 
 void RendererVK::DrawFrame()
@@ -475,48 +475,48 @@ void RendererVK::DrawFrame()
 	// --------------------------------------
 }
 
-void RendererVK::DestroyShaders(DeviceVK* device)
+void RendererVK::DestroyShaders()
 {
-	vkDestroyShaderModule(device->GetDevice(), m_testVertexShader, nullptr);
-	vkDestroyShaderModule(device->GetDevice(), m_testFragmentShader, nullptr);
+	vkDestroyShaderModule(m_device.GetDevice(), m_testVertexShader, nullptr);
+	vkDestroyShaderModule(m_device.GetDevice(), m_testFragmentShader, nullptr);
 }
 
-void RendererVK::DestroyGraphicsPipelines(DeviceVK* device)
+void RendererVK::DestroyGraphicsPipelines()
 {
-	vkDestroyPipelineLayout(device->GetDevice(), m_testGraphicsPipelineLayout, nullptr);
-	vkDestroyPipeline(device->GetDevice(), m_testGraphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(m_device.GetDevice(), m_testGraphicsPipelineLayout, nullptr);
+	vkDestroyPipeline(m_device.GetDevice(), m_testGraphicsPipeline, nullptr);
 }
 
-void RendererVK::DestroyTestVertexAndTriangleBuffers(DeviceVK* device)
+void RendererVK::DestroyTestVertexAndTriangleBuffers()
 {
-	m_testVertexBuffer.Destroy(device);
-	m_testIndexBuffer.Destroy(device);
+	m_testVertexBuffer.Destroy(&m_device);
+	m_testIndexBuffer.Destroy(&m_device);
 }
 
-void RendererVK::DestroyDepthStencilBuffer(DeviceVK* device)
+void RendererVK::DestroyDepthStencilBuffer()
 {
-	m_depthTexture.Destroy(device);
+	m_depthTexture.Destroy(&m_device);
 }
 
-void RendererVK::DestroyDescriptors(DeviceVK* device)
+void RendererVK::DestroyDescriptors()
 {
 	for (size_t i = 0; i < m_uboBuffers.size(); ++i)
-		m_uboBuffers[i].Destroy(device);
+		m_uboBuffers[i].Destroy(&m_device);
 
-	vkDestroyDescriptorSetLayout(device->GetDevice(), m_descriptorSetLayout, nullptr);
+	vkDestroyDescriptorSetLayout(m_device.GetDevice(), m_descriptorSetLayout, nullptr);
 
-	vkDestroyDescriptorPool(device->GetDevice(), m_descriptorPool, nullptr);
+	vkDestroyDescriptorPool(m_device.GetDevice(), m_descriptorPool, nullptr);
 }
 
-void RendererVK::DestroyFramebuffers(DeviceVK* device)
+void RendererVK::DestroyFramebuffers()
 {
 	for (size_t i = 0; i < m_swapchainFramebuffers.size(); ++i)
-		m_swapchainFramebuffers[i].Destroy(device);
+		m_swapchainFramebuffers[i].Destroy(&m_device);
 }
 
-void RendererVK::DestroyTextures(DeviceVK* device)
+void RendererVK::DestroyTextures()
 {
-	m_testTexture.Destroy(device);
+	m_testTexture.Destroy(&m_device);
 }
 
 }
