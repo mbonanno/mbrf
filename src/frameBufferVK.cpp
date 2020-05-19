@@ -139,8 +139,9 @@ void RenderPassCache::Cleanup(DeviceVK* device)
 
 bool FrameBufferVK::Create(DeviceVK* device, uint32_t width, uint32_t height, const std::vector<TextureViewVK> &attachments)
 {
-	m_width = width;
-	m_height = height;
+	m_properties.m_width = width;
+	m_properties.m_height = height;
+
 	m_attachments.assign(attachments.begin(), attachments.end());
 
 	m_renderPass = RenderPassCache::GetRenderPass(device, attachments);

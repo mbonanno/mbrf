@@ -429,50 +429,23 @@ void RendererVK::DrawFrame()
 	ContextVK* context = m_device.GetCurrentGraphicsContext();
 	VkCommandBuffer commandBuffer = context->m_commandBuffer;
 
+	context->BeginPass(currentRenderTarget);
 
-	// ----------- Set Render Target
-	VkRenderPassBeginInfo renderPassInfo = {};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	renderPassInfo.renderPass = currentRenderTarget->GetRenderPass();
-	renderPassInfo.framebuffer = currentRenderTarget->GetFrameBuffer();
+	context->ClearRenderTarget(0, 0, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, { 0.3f, 0.3f, 0.3f, 1.0f }, { 1.0f, 0 });
 
-	renderPassInfo.renderArea.offset = { 0, 0 };
-	renderPassInfo.renderArea.extent = m_swapchain.m_imageExtent;
-
-	renderPassInfo.clearValueCount = 0;
-	renderPassInfo.pClearValues = nullptr;
-
-	vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-	// ----------- Set Render Target
-
-
-
-	VkClearValue clearValues[2];
-	clearValues[0].color = { 0.3f, 0.3f, 0.3f, 1.0f };
-	clearValues[1].depthStencil = { 1.0f, 0 };
-
-	context->ClearFramebufferAttachments(currentRenderTarget, 0, 0, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, clearValues);
-
+	// TODO: need to write PSO wrapper. After replace this with context->SetPSO. Orset individual states + final ApplyState call?
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipeline);
 
-	VkBuffer vbs[] = { m_testVertexBuffer.GetBuffer() };
-	VkDeviceSize offsets[] = { 0 };
+	context->SetVertexBuffer(&m_testVertexBuffer, 0);
+	context->SetIndexBuffer(&m_testIndexBuffer, 0, false);
 
-	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vbs, offsets);
-	vkCmdBindIndexBuffer(commandBuffer, m_testIndexBuffer.GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
-
+	// TODO: setup fixed descriptor bindings for the renderer (work to be done together with the PSO wrapper). After replace this with context->SetBuffer/SetTexture and final CommitShaderResources
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipelineLayout, 0, 1, &context->m_descriptorSet, 0, nullptr);
-
 	vkCmdPushConstants(commandBuffer, m_testGraphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m_pushConstantTestColor), &m_pushConstantTestColor);
 
+	context->DrawIndexed(sizeof(m_testCubeIndices) / sizeof(uint32_t), 1, 0, 0, 0);
 
-
-
-	// -------------- Implicitly end render pass?
-	vkCmdDrawIndexed(commandBuffer, sizeof(m_testCubeIndices) / sizeof(uint32_t), 1, 0, 0, 0);
-
-	vkCmdEndRenderPass(commandBuffer);
-	// --------------------------------------
+	context->EndPass();
 }
 
 void RendererVK::DestroyShaders()

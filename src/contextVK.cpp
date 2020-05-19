@@ -77,14 +77,53 @@ void ContextVK::Submit(VkQueue queue, VkSemaphore waitSemaphore, VkSemaphore sig
 	VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, m_fence));
 }
 
-void ContextVK::ClearFramebufferAttachments(const FrameBufferVK* frameBuffer, int32_t x, int32_t y, uint32_t width, uint32_t height, VkClearValue clearValues[2])
+void ContextVK::BeginPass(FrameBufferVK* renderTarget)
 {
+	assert(m_currentFrameBuffer == nullptr);
+
+	m_currentFrameBuffer = renderTarget;
+
+	// begin render pass
+
+	VkRenderPassBeginInfo renderPassInfo = {};
+	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	renderPassInfo.renderPass = m_currentFrameBuffer->GetRenderPass();
+	renderPassInfo.framebuffer = m_currentFrameBuffer->GetFrameBuffer();
+
+	FrameBufferProperties rtProps = m_currentFrameBuffer->GetProperties();
+	VkExtent2D rtExtent = { rtProps.m_width, rtProps.m_height };
+
+	renderPassInfo.renderArea.offset = { 0, 0 };
+	renderPassInfo.renderArea.extent = rtExtent;
+
+	renderPassInfo.clearValueCount = 0;
+	renderPassInfo.pClearValues = nullptr;
+
+	vkCmdBeginRenderPass(m_commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+}
+
+void ContextVK::EndPass()
+{
+	assert(m_currentFrameBuffer != nullptr);
+
+	vkCmdEndRenderPass(m_commandBuffer);
+	m_currentFrameBuffer = nullptr;
+}
+
+void ContextVK::ClearRenderTarget(int32_t x, int32_t y, uint32_t width, uint32_t height, VkClearColorValue clearColor, VkClearDepthStencilValue clearDepthStencil)
+{
+	assert(m_currentFrameBuffer != nullptr);
+
+	VkClearValue clearValues[2];
+	clearValues[0].color = clearColor;
+	clearValues[1].depthStencil = clearDepthStencil;
+
 	VkClearRect clearRect;
 	clearRect.rect = { {x, y}, {width, height} };
 	clearRect.baseArrayLayer = 0;
 	clearRect.layerCount = 1;
 
-	std::vector<TextureViewVK> attachments = frameBuffer->GetAttachments();
+	std::vector<TextureViewVK> attachments = m_currentFrameBuffer->GetAttachments();
 
 	std::vector<VkClearAttachment> clearAttachments;
 	clearAttachments.resize(attachments.size());
@@ -103,6 +142,24 @@ void ContextVK::ClearFramebufferAttachments(const FrameBufferVK* frameBuffer, in
 	}
 
 	vkCmdClearAttachments(m_commandBuffer, uint32_t(clearAttachments.size()), clearAttachments.data(), 1, &clearRect);
+}
+
+void ContextVK::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset, uint32_t firstInstance)
+{
+	vkCmdDrawIndexed(m_commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+}
+
+void ContextVK::SetVertexBuffer(const BufferVK* vertexBuffer, uint64_t offset)
+{
+	VkBuffer vbs[] = { vertexBuffer->GetBuffer() };
+	VkDeviceSize offsets[] = { offset };
+
+	vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, vbs, offsets);
+}
+
+void ContextVK::SetIndexBuffer(const BufferVK* indexBuffer, uint64_t offset, bool use16Bits)
+{
+	vkCmdBindIndexBuffer(m_commandBuffer, indexBuffer->GetBuffer(), offset, use16Bits ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
 }
 
 }
