@@ -23,21 +23,65 @@ bool ContextVK::Create(DeviceVK* device)
 
 	VK_CHECK(vkCreateFence(logicDevice, &fenceCreateInfo, nullptr, &m_fence));
 
+	CreateDescriptorPools(device);
+
 	return true;
 }
 
 void ContextVK::Destroy(DeviceVK* device)
 {
-	VkDevice logicDevice = device->GetDevice();
+	DestroyDescriptorPools(device);
 
-	vkDestroyFence(logicDevice, m_fence, nullptr);
+	vkDestroyFence(device->GetDevice(), m_fence, nullptr);
 
 	m_commandBuffer = VK_NULL_HANDLE;
 	m_fence = VK_NULL_HANDLE;
 }
 
-void ContextVK::Begin()
+bool ContextVK::CreateDescriptorPools(DeviceVK* device)
 {
+	uint32_t maxSets = 1024;
+
+	uint32_t numUniformBuffers = 1;
+	uint32_t numCombinedImageSamplers = 1;
+
+	// Create Descriptor Pool
+	VkDescriptorPoolSize poolSizes[2];
+	// UBOs
+	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSizes[0].descriptorCount = numUniformBuffers * maxSets;
+	// Texture + Samplers TODO: create separate samplers?
+	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	poolSizes[1].descriptorCount = numCombinedImageSamplers * maxSets;
+
+	VkDescriptorPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+	createInfo.pNext = nullptr;
+	createInfo.flags = 0;
+	createInfo.maxSets = maxSets;
+	createInfo.poolSizeCount = sizeof(poolSizes) / sizeof(VkDescriptorPoolSize);
+	createInfo.pPoolSizes = poolSizes;
+
+	VK_CHECK(vkCreateDescriptorPool(device->GetDevice(), &createInfo, nullptr, &m_descriptorPool));
+
+	return true;
+}
+
+void ContextVK::DestroyDescriptorPools(DeviceVK* device)
+{
+	vkDestroyDescriptorPool(device->GetDevice(), m_descriptorPool, nullptr);
+
+	m_descriptorPool = VK_NULL_HANDLE;
+}
+
+void ContextVK::ResetDescriptorPools(DeviceVK* device)
+{
+	VK_CHECK(vkResetDescriptorPool(device->GetDevice(), m_descriptorPool, 0));
+}
+
+void ContextVK::Begin(DeviceVK* device)
+{
+	ResetDescriptorPools(device);
+
 	VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 	beginInfo.flags = 0; // Optional
 	beginInfo.pInheritanceInfo = nullptr; // Optional: only relevant for secondary command buffers. It specifies which state to inherit from the calling primary command buffers

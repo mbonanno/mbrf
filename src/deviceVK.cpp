@@ -4,6 +4,8 @@
 #include "utilsVK.h"
 #include "utils.h"
 
+#include "shaderCommon.h"
+
 #include <iostream>
 #include <set>
 
@@ -89,6 +91,7 @@ void DeviceVK::Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, 
 	CreateDevice();
 	m_swapchain->Create(this, width, height);
 	CreateCommandPools();
+	CreateDescriptorSetLayouts();
 
 	CreateFrameData();
 	CreateGraphicsContexts();
@@ -99,6 +102,7 @@ void DeviceVK::Cleanup()
 	DestroyGraphicsContexts();
 	DestroyFrameData();
 
+	DestroyDescriptorSetLayouts();
 	DestroyCommandPools();
 	m_swapchain->Destroy(this);
 	DestroyDevice();
@@ -407,6 +411,38 @@ bool DeviceVK::CreateCommandPools()
 void DeviceVK::DestroyCommandPools()
 {
 	vkDestroyCommandPool(m_device, m_graphicsCommandPool, nullptr);
+}
+
+bool DeviceVK::CreateDescriptorSetLayouts()
+{
+	VkDescriptorSetLayoutBinding bindings[2];
+	// UBOs
+	bindings[0].binding = UNIFORM_BUFFER_SLOT(0);
+	bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	bindings[0].descriptorCount = 1;
+	bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	bindings[0].pImmutableSamplers = nullptr;
+	// Texture + Samplers TODO: create separate samplers?
+	bindings[1].binding = TEXTURE_SLOT(0);
+	bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	bindings[1].descriptorCount = 1;
+	bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	bindings[1].pImmutableSamplers = nullptr;
+
+	VkDescriptorSetLayoutCreateInfo layoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+	layoutCreateInfo.pNext = nullptr;
+	layoutCreateInfo.flags = 0;
+	layoutCreateInfo.bindingCount = sizeof(bindings) / sizeof(VkDescriptorSetLayoutBinding);
+	layoutCreateInfo.pBindings = bindings;
+
+	VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutCreateInfo, nullptr, &m_descriptorSetLayout));
+
+	return true;
+}
+
+void DeviceVK::DestroyDescriptorSetLayouts()
+{
+	vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
 }
 
 bool DeviceVK::CreateGraphicsContexts()

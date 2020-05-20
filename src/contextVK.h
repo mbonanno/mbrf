@@ -17,7 +17,7 @@ public:
 	bool Create(DeviceVK* device);
 	void Destroy(DeviceVK* device);
 
-	void Begin();
+	void Begin(DeviceVK* device);
 	void End();
 
 	void WaitForLastFrame(DeviceVK* device);
@@ -32,13 +32,31 @@ public:
 	void SetVertexBuffer(const BufferVK* vertexBuffer, uint64_t offset);
 	void SetIndexBuffer(const BufferVK* indexBuffer, uint64_t offset, bool use16Bits);
 
+//private:
+	bool CreateDescriptorPools(DeviceVK* device);
+	void DestroyDescriptorPools(DeviceVK* device);
+	void ResetDescriptorPools(DeviceVK* device);
+
+public:
 	VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
 	VkFence m_fence = VK_NULL_HANDLE;
+
+
+	// TODO: allocate descriptors dynamically
+	// store a list of bindings and add an ApplyState/CommitBindings function which creates a new descriptor set and updates it.
+	// also look into dynamic offset descriptors?
 	VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
 
 	FrameBufferVK* m_currentFrameBuffer = nullptr;
 
 	// TODO: add a BufferVK to use as scratch uniforms buffer? Could be a dynamic offset one?
+
+
+	VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
+	// layout is going to be fixed, based on shaderCommon.h
+	// consider using a freelist of descriptor pools so can allocate as many descriptor sets as we want. Reset every frame
+
+	// add create/update descriptor set functionality
 };
 
 }

@@ -24,7 +24,7 @@ bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
 
 	// wrap
 	CreateShaders();  // Scene specific
-	CreateDescriptors();  // should be scene specific. Currently it is also submitting the descriptors...
+	CreateUniformBuffers();  // should be scene specific. Currently it is also submitting the descriptors...
 	CreateGraphicsPipelines();  // Scene specific
 
 	return true;
@@ -35,7 +35,7 @@ void RendererVK::Cleanup()
 	m_device.WaitForDevice();
 
 	DestroyGraphicsPipelines();
-	DestroyDescriptors();
+	DestroyUniformBuffers();
 	DestroyShaders();
 	
 	DestroyTestVertexAndTriangleBuffers();
@@ -78,7 +78,7 @@ void RendererVK::Draw()
 	ContextVK* context = m_device.GetCurrentGraphicsContext();
 	VkCommandBuffer commandBuffer = context->m_commandBuffer;
 
-	context->Begin();
+	context->Begin(&m_device);
 	m_device.TransitionImageLayout(commandBuffer, m_swapchain.m_images[m_device.m_currentImageIndex], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 	DrawFrame();
@@ -134,7 +134,7 @@ bool RendererVK::CreateShaders()
 	return result;
 }
 
-bool RendererVK::CreateDescriptors()
+bool RendererVK::CreateUniformBuffers()
 {
 	// Create UBO
 
@@ -144,92 +144,6 @@ bool RendererVK::CreateDescriptors()
 	{
 		m_uboBuffers[i].Create(&m_device, sizeof(UBOTest), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		m_uboBuffers[i].Update(&m_device, sizeof(UBOTest), &m_uboTest);
-	}
-
-
-	// Create Descriptor Pool
-	VkDescriptorPoolSize poolSizes[2];
-	// UBOs
-	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSizes[0].descriptorCount = m_swapchain.m_imageCount;
-	// Texture + Samplers TODO: create separate samplers?
-	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	poolSizes[1].descriptorCount = m_swapchain.m_imageCount;
-
-	VkDescriptorPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
-	createInfo.pNext = nullptr;
-	createInfo.flags = 0;
-	createInfo.maxSets = m_swapchain.m_imageCount;
-	createInfo.poolSizeCount = sizeof(poolSizes) / sizeof(VkDescriptorPoolSize);
-	createInfo.pPoolSizes = poolSizes;
-
-	VK_CHECK(vkCreateDescriptorPool(m_device.GetDevice(), &createInfo, nullptr, &m_descriptorPool));
-
-	// Create Descriptor Set Layouts
-
-	VkDescriptorSetLayoutBinding bindings[2];
-	// UBOs
-	bindings[0].binding = UNIFORM_BUFFER_SLOT(0);
-	bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	bindings[0].descriptorCount = 1;
-	bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	bindings[0].pImmutableSamplers = nullptr;
-	// Texture + Samplers TODO: create separate samplers?
-	bindings[1].binding = TEXTURE_SLOT(0);
-	bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	bindings[1].descriptorCount = 1;
-	bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	bindings[1].pImmutableSamplers = nullptr;
-
-	VkDescriptorSetLayoutCreateInfo layoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-	layoutCreateInfo.pNext = nullptr;
-	layoutCreateInfo.flags = 0;
-	layoutCreateInfo.bindingCount = sizeof(bindings) / sizeof(VkDescriptorSetLayoutBinding);
-	layoutCreateInfo.pBindings = bindings;
-
-	VK_CHECK(vkCreateDescriptorSetLayout(m_device.GetDevice(), &layoutCreateInfo, nullptr, &m_descriptorSetLayout));
-
-	// Create Descriptor Sets
-
-	VkDescriptorSetAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-	allocInfo.pNext = nullptr;
-	allocInfo.descriptorPool = m_descriptorPool;
-	allocInfo.descriptorSetCount = 1;
-	allocInfo.pSetLayouts = &m_descriptorSetLayout;
-
-	for (size_t i = 0; i < m_device.m_graphicsContexts.size(); ++i)
-	{
-		VK_CHECK(vkAllocateDescriptorSets(m_device.GetDevice(), &allocInfo, &m_device.m_graphicsContexts[i].m_descriptorSet));
-
-		VkDescriptorBufferInfo bufferInfo = m_uboBuffers[i].GetDescriptor();
-
-		VkDescriptorImageInfo imageInfo = m_testTexture.GetDescriptor();
-
-		VkWriteDescriptorSet descriptorWrites[2];
-		// UBOs
-		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[0].pNext = nullptr;
-		descriptorWrites[0].dstSet = m_device.m_graphicsContexts[i].m_descriptorSet;
-		descriptorWrites[0].dstBinding = UNIFORM_BUFFER_SLOT(0);
-		descriptorWrites[0].dstArrayElement = 0;
-		descriptorWrites[0].descriptorCount = 1;
-		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrites[0].pImageInfo = nullptr;
-		descriptorWrites[0].pBufferInfo = &bufferInfo;
-		descriptorWrites[0].pTexelBufferView = nullptr;
-		// Texture + Samplers
-		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[1].pNext = nullptr;
-		descriptorWrites[1].dstSet = m_device.m_graphicsContexts[i].m_descriptorSet;
-		descriptorWrites[1].dstBinding = TEXTURE_SLOT(0);
-		descriptorWrites[1].dstArrayElement = 0;
-		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		descriptorWrites[1].pImageInfo = &imageInfo;
-		descriptorWrites[1].pBufferInfo = nullptr;
-		descriptorWrites[1].pTexelBufferView = nullptr;
-
-		vkUpdateDescriptorSets(m_device.GetDevice(), sizeof(descriptorWrites) / sizeof(VkWriteDescriptorSet), descriptorWrites, 0, nullptr);
 	}
 
 	return true;
@@ -366,11 +280,13 @@ bool RendererVK::CreateGraphicsPipelines()
 	pushConstantRange.offset = 0;
 	pushConstantRange.size = sizeof(m_pushConstantTestColor);
 
+	VkDescriptorSetLayout descLayout = m_device.GetDescriptorSetLayout();
+
 	VkPipelineLayoutCreateInfo layoutCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 	layoutCreateInfo.pNext = nullptr;
 	layoutCreateInfo.flags = 0;
 	layoutCreateInfo.setLayoutCount = 1;
-	layoutCreateInfo.pSetLayouts = &m_descriptorSetLayout;
+	layoutCreateInfo.pSetLayouts = &descLayout;
 	layoutCreateInfo.pushConstantRangeCount = 1;
 	layoutCreateInfo.pPushConstantRanges = &pushConstantRange;
 
@@ -420,10 +336,61 @@ void RendererVK::CreateTestVertexAndTriangleBuffers()
 	m_testIndexBuffer.Update(&m_device, size, m_testCubeIndices);
 }
 
-void RendererVK::DrawFrame()
+void RendererVK::UpdateDescriptors()
 {
 	// update uniform buffer (TODO: move in ContextVK?)
 	m_uboBuffers[m_device.m_currentImageIndex].Update(&m_device, sizeof(UBOTest), &m_uboTest);
+
+
+	// Create Descriptor Sets
+
+	VkDescriptorSetLayout layout = m_device.GetDescriptorSetLayout();
+
+	VkDescriptorSetAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+	allocInfo.pNext = nullptr;
+	allocInfo.descriptorSetCount = 1;
+	allocInfo.pSetLayouts = &layout;
+
+	// TODO: temporary, move all this stuff into ContextVK, per frame
+	allocInfo.descriptorPool = m_device.GetCurrentGraphicsContext()->m_descriptorPool;
+
+	VK_CHECK(vkAllocateDescriptorSets(m_device.GetDevice(), &allocInfo, &m_device.m_currentGraphicsContext->m_descriptorSet));
+
+	VkDescriptorBufferInfo bufferInfo = m_uboBuffers[m_device.m_currentImageIndex].GetDescriptor();
+
+	VkDescriptorImageInfo imageInfo = m_testTexture.GetDescriptor();
+
+	VkWriteDescriptorSet descriptorWrites[2];
+	// UBOs
+	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[0].pNext = nullptr;
+	descriptorWrites[0].dstSet = m_device.m_currentGraphicsContext->m_descriptorSet;
+	descriptorWrites[0].dstBinding = UNIFORM_BUFFER_SLOT(0);
+	descriptorWrites[0].dstArrayElement = 0;
+	descriptorWrites[0].descriptorCount = 1;
+	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descriptorWrites[0].pImageInfo = nullptr;
+	descriptorWrites[0].pBufferInfo = &bufferInfo;
+	descriptorWrites[0].pTexelBufferView = nullptr;
+	// Texture + Samplers
+	descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[1].pNext = nullptr;
+	descriptorWrites[1].dstSet = m_device.m_currentGraphicsContext->m_descriptorSet;
+	descriptorWrites[1].dstBinding = TEXTURE_SLOT(0);
+	descriptorWrites[1].dstArrayElement = 0;
+	descriptorWrites[1].descriptorCount = 1;
+	descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descriptorWrites[1].pImageInfo = &imageInfo;
+	descriptorWrites[1].pBufferInfo = nullptr;
+	descriptorWrites[1].pTexelBufferView = nullptr;
+
+	vkUpdateDescriptorSets(m_device.GetDevice(), sizeof(descriptorWrites) / sizeof(VkWriteDescriptorSet), descriptorWrites, 0, nullptr);
+}
+
+void RendererVK::DrawFrame()
+{
+	UpdateDescriptors();
+
 
 	// TODO: store current swapchain FBO as a global
 	FrameBufferVK* currentRenderTarget = &m_swapchainFramebuffers[m_device.m_currentImageIndex];
@@ -473,14 +440,10 @@ void RendererVK::DestroyDepthStencilBuffer()
 	m_depthTexture.Destroy(&m_device);
 }
 
-void RendererVK::DestroyDescriptors()
+void RendererVK::DestroyUniformBuffers()
 {
 	for (size_t i = 0; i < m_uboBuffers.size(); ++i)
 		m_uboBuffers[i].Destroy(&m_device);
-
-	vkDestroyDescriptorSetLayout(m_device.GetDevice(), m_descriptorSetLayout, nullptr);
-
-	vkDestroyDescriptorPool(m_device.GetDevice(), m_descriptorPool, nullptr);
 }
 
 void RendererVK::DestroyFramebuffers()

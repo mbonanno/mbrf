@@ -52,6 +52,9 @@ public:
 	bool CreateCommandPools();
 	void DestroyCommandPools();
 
+	bool CreateDescriptorSetLayouts();
+	void DestroyDescriptorSetLayouts();
+
 	bool CreateGraphicsContexts();
 	void DestroyGraphicsContexts();
 
@@ -69,11 +72,13 @@ public:
 	uint32_t FindDeviceQueueFamilyIndex(VkPhysicalDevice device, VkQueueFlags desiredCapabilities, bool queryPresentationSupport);
 	uint32_t FindDevicePresentationQueueFamilyIndex(VkPhysicalDevice device);
 
-	VkInstance& GetInstance() { return m_instance; };
-	VkPhysicalDevice& GetPhysicalDevice() { return m_physicalDevice; };
-	VkDevice& GetDevice() { return m_device; };
+	VkInstance GetInstance() { return m_instance; };
+	VkPhysicalDevice GetPhysicalDevice() { return m_physicalDevice; };
+	VkDevice GetDevice() { return m_device; };
 
-	VkCommandPool& GetGraphicsCommandPool() { return m_graphicsCommandPool; };
+	VkDescriptorSetLayout GetDescriptorSetLayout() { return m_descriptorSetLayout; };
+
+	VkCommandPool GetGraphicsCommandPool() { return m_graphicsCommandPool; };
 	FrameDataVK* GetCurrentFrameData() const { return m_currentFrameData; };
 
 	
@@ -110,6 +115,8 @@ private:
 	VkQueue m_graphicsQueue;
 
 	VkCommandPool m_graphicsCommandPool;
+
+	VkDescriptorSetLayout m_descriptorSetLayout;
 };
 
 }

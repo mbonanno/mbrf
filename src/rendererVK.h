@@ -35,19 +35,21 @@ private:
 	// TODO: create wrappers for the following stuff
 
 	bool CreateShaders();
-	bool CreateDescriptors();
+	bool CreateUniformBuffers();
 	bool CreateGraphicsPipelines();
 
 	void DestroyShaders();
-	void DestroyDescriptors();
+	void DestroyUniformBuffers();
 	void DestroyGraphicsPipelines();
+
+	// TODO: remove
+	void UpdateDescriptors();
 
 private:
 	SwapchainVK m_swapchain;
 	DeviceVK m_device;
 
 	static const int s_maxFramesInFlight = 2;
-
 
 
 
@@ -132,9 +134,6 @@ private:
 	std::vector<BufferVK> m_uboBuffers;
 
 	TextureVK m_testTexture;
-
-	VkDescriptorPool m_descriptorPool;
-	VkDescriptorSetLayout m_descriptorSetLayout;
 };
 
 }
