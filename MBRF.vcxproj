@@ -32,6 +32,7 @@
     <ClCompile Include="src\utilsVK.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="data\shaders\shaderCommon.h" />
     <ClInclude Include="src\application.h" />
     <ClInclude Include="src\bufferVK.h" />
     <ClInclude Include="src\commonVK.h" />
@@ -47,9 +48,15 @@
   <ItemGroup>
     <CustomBuild Include="data\shaders\test.frag">
       <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir)data\shaders\glslc.exe -o %(Identity).spv %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir)data\shaders\glslc.exe -o %(Identity).spv %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)data\shaders\glslc.exe -o %(Identity).spv %(Identity)</Command>
     </CustomBuild>
     <CustomBuild Include="data\shaders\test.vert">
       <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)data\shaders\glslc.exe -o %(Identity).spv %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir)data\shaders\glslc.exe -o %(Identity).spv %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir)data\shaders\glslc.exe -o %(Identity).spv %(Identity)</Command>
     </CustomBuild>
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -123,7 +130,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>extern\glfw\include;extern\vulkan\Include\;extern\glm;extern\stb;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>data\shaders;extern\glfw\include;extern\vulkan\Include\;extern\glm;extern\stb;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -133,7 +140,7 @@
       <AdditionalOptions>/NODEFAULTLIB:MSVCRT %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <CustomBuild>
-      <Command>glslc.exe -o %(Identity).spv %(Identity)</Command>
+      <Command>$(ProjectDir)data\shaders\glslc.exe -o %(Identity).spv %(Identity)</Command>
     </CustomBuild>
     <CustomBuild>
       <Message>Building shader: %(Identity)</Message>
@@ -152,7 +159,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>extern\glfw\include;extern\vulkan\Include\;extern\glm;extern\stb;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>data\shaders;extern\glfw\include;extern\vulkan\Include\;extern\glm;extern\stb;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -183,7 +190,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>extern\glfw\include;extern\vulkan\Include\;extern\glm;extern\stb;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>data\shaders;extern\glfw\include;extern\vulkan\Include\;extern\glm;extern\stb;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -194,7 +201,7 @@
       <AdditionalDependencies>glfw3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuild>
-      <Command>glslc.exe -o %(Identity).spv %(Identity)</Command>
+      <Command>$(ProjectDir)data\shaders\glslc.exe -o %(Identity).spv %(Identity)</Command>
     </CustomBuild>
     <CustomBuild>
       <Message>Building shader: %(Identity)</Message>
@@ -215,7 +222,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>extern\glfw\include;extern\vulkan\Include\;extern\glm;extern\stb;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>data\shaders;extern\glfw\include;extern\vulkan\Include\;extern\glm;extern\stb;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -226,7 +233,7 @@
       <AdditionalDependencies>glfw3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuild>
-      <Command>glslc.exe -o %(Identity).spv %(Identity)</Command>
+      <Command>$(ProjectDir)data\shaders\glslc.exe -o %(Identity).spv %(Identity)</Command>
     </CustomBuild>
     <CustomBuild>
       <Message>Building shader: %(Identity)</Message>

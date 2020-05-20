@@ -86,6 +86,9 @@
     <ClInclude Include="src\contextVK.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="data\shaders\shaderCommon.h">
+      <Filter>shaders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="data\shaders\test.frag">

@@ -1,5 +1,7 @@
 #include "rendererVK.h"
 
+#include "shaderCommon.h"
+
 #include <iostream>
 #include <set>
 
@@ -167,13 +169,13 @@ bool RendererVK::CreateDescriptors()
 
 	VkDescriptorSetLayoutBinding bindings[2];
 	// UBOs
-	bindings[0].binding = 0;
+	bindings[0].binding = UNIFORM_BUFFER_SLOT(0);
 	bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	bindings[0].descriptorCount = 1;
 	bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 	bindings[0].pImmutableSamplers = nullptr;
 	// Texture + Samplers TODO: create separate samplers?
-	bindings[1].binding = 1;
+	bindings[1].binding = TEXTURE_SLOT(0);
 	bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	bindings[1].descriptorCount = 1;
 	bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -208,7 +210,7 @@ bool RendererVK::CreateDescriptors()
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].pNext = nullptr;
 		descriptorWrites[0].dstSet = m_device.m_graphicsContexts[i].m_descriptorSet;
-		descriptorWrites[0].dstBinding = 0;
+		descriptorWrites[0].dstBinding = UNIFORM_BUFFER_SLOT(0);
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorCount = 1;
 		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -219,7 +221,7 @@ bool RendererVK::CreateDescriptors()
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].pNext = nullptr;
 		descriptorWrites[1].dstSet = m_device.m_graphicsContexts[i].m_descriptorSet;
-		descriptorWrites[1].dstBinding = 1;
+		descriptorWrites[1].dstBinding = TEXTURE_SLOT(0);
 		descriptorWrites[1].dstArrayElement = 0;
 		descriptorWrites[1].descriptorCount = 1;
 		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;

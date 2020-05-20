@@ -1,5 +1,7 @@
 #version 450
 
+#include "shaderCommon.h"
+
 vec3 triangleVerts[3] = vec3[](
     vec3(0.0, -0.5, 0.0),
     vec3(0.5, 0.5, 0.0),
@@ -12,7 +14,7 @@ vec4 vertColors[3] = vec4[](
 	vec4(0.0, 0.0, 1.0, 1.0)
 	);
 
-layout(set = 0, binding = 0) uniform UBO
+layout(set = 0, binding = UNIFORM_BUFFER_SLOT(0)) uniform UBO
 {
 	mat4x4 transform;
 	vec4 testColor;
