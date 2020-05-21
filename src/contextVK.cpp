@@ -1,6 +1,7 @@
 #include "contextVK.h"
 
 #include "deviceVK.h"
+#include "shaderCommon.h"
 
 namespace MBRF
 {
@@ -259,7 +260,7 @@ void ContextVK::CommitBindings(DeviceVK* device, VkPipelineLayout pipelineLayout
 		VkWriteDescriptorSet wds = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 		wds.pNext = nullptr;
 		wds.dstSet = descriptorSet;
-		wds.dstBinding = descBinding.m_bindingSlot;
+		wds.dstBinding = UNIFORM_BUFFER_SLOT(descBinding.m_bindingSlot);
 		wds.dstArrayElement = 0;
 		wds.descriptorCount = 1;
 		wds.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -276,10 +277,9 @@ void ContextVK::CommitBindings(DeviceVK* device, VkPipelineLayout pipelineLayout
 		DescriptorBinding descBinding = it.second;
 
 		VkWriteDescriptorSet wds = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		wds.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		wds.pNext = nullptr;
 		wds.dstSet = descriptorSet;
-		wds.dstBinding = descBinding.m_bindingSlot;
+		wds.dstBinding = TEXTURE_SLOT(descBinding.m_bindingSlot);
 		wds.dstArrayElement = 0;
 		wds.descriptorCount = 1;
 		wds.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;

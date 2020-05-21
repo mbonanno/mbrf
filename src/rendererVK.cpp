@@ -1,7 +1,5 @@
 #include "rendererVK.h"
 
-#include "shaderCommon.h"
-
 #include <iostream>
 #include <set>
 
@@ -117,8 +115,8 @@ void RendererVK::DrawFrame()
 	m_pushConstantTestColor.r = 0;
 	vkCmdPushConstants(commandBuffer, m_testGraphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m_pushConstantTestColor), &m_pushConstantTestColor);
 
-	context->SetUniformBuffer(&m_uboBuffers[m_device.m_currentImageIndex], UNIFORM_BUFFER_SLOT(0));
-	context->SetTexture(&m_testTexture, TEXTURE_SLOT(0));
+	context->SetUniformBuffer(&m_uboBuffers[m_device.m_currentImageIndex], 0);
+	context->SetTexture(&m_testTexture, 0);
 
 	context->CommitBindings(&m_device, m_testGraphicsPipelineLayout);
 
@@ -130,7 +128,7 @@ void RendererVK::DrawFrame()
 	vkCmdPushConstants(commandBuffer, m_testGraphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m_pushConstantTestColor), &m_pushConstantTestColor);
 
 	// keep the buffer just bind a different texture
-	context->SetTexture(&m_testTexture2, TEXTURE_SLOT(0));
+	context->SetTexture(&m_testTexture2, 0);
 
 	context->CommitBindings(&m_device, m_testGraphicsPipelineLayout);
 
