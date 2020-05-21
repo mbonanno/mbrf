@@ -90,6 +90,55 @@ void RendererVK::Draw()
 	m_device.EndFrame();
 }
 
+void RendererVK::DrawFrame()
+{
+	// update uniform buffer (TODO: move in ContextVK?)
+	m_uboBuffers[m_device.m_currentImageIndex].Update(&m_device, sizeof(UBOTest), &m_uboTest);
+
+
+	// TODO: store current swapchain FBO as a global
+	FrameBufferVK* currentRenderTarget = &m_swapchainFramebuffers[m_device.m_currentImageIndex];
+
+	ContextVK* context = m_device.GetCurrentGraphicsContext();
+	VkCommandBuffer commandBuffer = context->m_commandBuffer;
+
+	context->BeginPass(currentRenderTarget);
+
+	context->ClearRenderTarget(0, 0, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, { 0.3f, 0.3f, 0.3f, 1.0f }, { 1.0f, 0 });
+
+	// TODO: need to write PSO wrapper. After replace this with context->SetPSO. Orset individual states + final ApplyState call?
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipeline);
+
+	context->SetVertexBuffer(&m_testVertexBuffer, 0);
+	context->SetIndexBuffer(&m_testIndexBuffer, 0, false);
+
+	// Draw first test cube
+	
+	m_pushConstantTestColor.r = 0;
+	vkCmdPushConstants(commandBuffer, m_testGraphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m_pushConstantTestColor), &m_pushConstantTestColor);
+
+	context->SetUniformBuffer(&m_uboBuffers[m_device.m_currentImageIndex], UNIFORM_BUFFER_SLOT(0));
+	context->SetTexture(&m_testTexture, TEXTURE_SLOT(0));
+
+	context->CommitBindings(&m_device, m_testGraphicsPipelineLayout);
+
+	context->DrawIndexed(sizeof(m_testCubeIndices) / sizeof(uint32_t), 1, 0, 0, 0);
+
+	// Draw second test cube
+
+	m_pushConstantTestColor.r = 1;
+	vkCmdPushConstants(commandBuffer, m_testGraphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m_pushConstantTestColor), &m_pushConstantTestColor);
+
+	// keep the buffer just bind a different texture
+	context->SetTexture(&m_testTexture2, TEXTURE_SLOT(0));
+
+	context->CommitBindings(&m_device, m_testGraphicsPipelineLayout);
+
+	context->DrawIndexed(sizeof(m_testCubeIndices) / sizeof(uint32_t), 1, 0, 0, 0);
+
+	context->EndPass();
+}
+
 bool RendererVK::CreateDepthStencilBuffer()
 {
 	// TODO: check VK_FORMAT_D24_UNORM_S8_UINT format availability!
@@ -119,6 +168,7 @@ bool RendererVK::CreateFramebuffers()
 void RendererVK::CreateTextures()
 {
 	m_testTexture.LoadFromFile(&m_device, "data/textures/test.jpg");
+	m_testTexture2.LoadFromFile(&m_device, "data/textures/test2.png");
 }
 
 bool RendererVK::CreateShaders()
@@ -336,87 +386,6 @@ void RendererVK::CreateTestVertexAndTriangleBuffers()
 	m_testIndexBuffer.Update(&m_device, size, m_testCubeIndices);
 }
 
-void RendererVK::UpdateDescriptors()
-{
-	// update uniform buffer (TODO: move in ContextVK?)
-	m_uboBuffers[m_device.m_currentImageIndex].Update(&m_device, sizeof(UBOTest), &m_uboTest);
-
-
-	// Create Descriptor Sets
-
-	VkDescriptorSetLayout layout = m_device.GetDescriptorSetLayout();
-
-	VkDescriptorSetAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-	allocInfo.pNext = nullptr;
-	allocInfo.descriptorSetCount = 1;
-	allocInfo.pSetLayouts = &layout;
-
-	// TODO: temporary, move all this stuff into ContextVK, per frame
-	allocInfo.descriptorPool = m_device.GetCurrentGraphicsContext()->m_descriptorPool;
-
-	VK_CHECK(vkAllocateDescriptorSets(m_device.GetDevice(), &allocInfo, &m_device.m_currentGraphicsContext->m_descriptorSet));
-
-	VkDescriptorBufferInfo bufferInfo = m_uboBuffers[m_device.m_currentImageIndex].GetDescriptor();
-
-	VkDescriptorImageInfo imageInfo = m_testTexture.GetDescriptor();
-
-	VkWriteDescriptorSet descriptorWrites[2];
-	// UBOs
-	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites[0].pNext = nullptr;
-	descriptorWrites[0].dstSet = m_device.m_currentGraphicsContext->m_descriptorSet;
-	descriptorWrites[0].dstBinding = UNIFORM_BUFFER_SLOT(0);
-	descriptorWrites[0].dstArrayElement = 0;
-	descriptorWrites[0].descriptorCount = 1;
-	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	descriptorWrites[0].pImageInfo = nullptr;
-	descriptorWrites[0].pBufferInfo = &bufferInfo;
-	descriptorWrites[0].pTexelBufferView = nullptr;
-	// Texture + Samplers
-	descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites[1].pNext = nullptr;
-	descriptorWrites[1].dstSet = m_device.m_currentGraphicsContext->m_descriptorSet;
-	descriptorWrites[1].dstBinding = TEXTURE_SLOT(0);
-	descriptorWrites[1].dstArrayElement = 0;
-	descriptorWrites[1].descriptorCount = 1;
-	descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	descriptorWrites[1].pImageInfo = &imageInfo;
-	descriptorWrites[1].pBufferInfo = nullptr;
-	descriptorWrites[1].pTexelBufferView = nullptr;
-
-	vkUpdateDescriptorSets(m_device.GetDevice(), sizeof(descriptorWrites) / sizeof(VkWriteDescriptorSet), descriptorWrites, 0, nullptr);
-}
-
-void RendererVK::DrawFrame()
-{
-	UpdateDescriptors();
-
-
-	// TODO: store current swapchain FBO as a global
-	FrameBufferVK* currentRenderTarget = &m_swapchainFramebuffers[m_device.m_currentImageIndex];
-
-	ContextVK* context = m_device.GetCurrentGraphicsContext();
-	VkCommandBuffer commandBuffer = context->m_commandBuffer;
-
-	context->BeginPass(currentRenderTarget);
-
-	context->ClearRenderTarget(0, 0, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, { 0.3f, 0.3f, 0.3f, 1.0f }, { 1.0f, 0 });
-
-	// TODO: need to write PSO wrapper. After replace this with context->SetPSO. Orset individual states + final ApplyState call?
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipeline);
-
-	context->SetVertexBuffer(&m_testVertexBuffer, 0);
-	context->SetIndexBuffer(&m_testIndexBuffer, 0, false);
-
-	// TODO: setup fixed descriptor bindings for the renderer (work to be done together with the PSO wrapper). After replace this with context->SetBuffer/SetTexture and final CommitShaderResources
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipelineLayout, 0, 1, &context->m_descriptorSet, 0, nullptr);
-	vkCmdPushConstants(commandBuffer, m_testGraphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m_pushConstantTestColor), &m_pushConstantTestColor);
-
-	context->DrawIndexed(sizeof(m_testCubeIndices) / sizeof(uint32_t), 1, 0, 0, 0);
-
-	context->EndPass();
-}
-
 void RendererVK::DestroyShaders()
 {
 	vkDestroyShaderModule(m_device.GetDevice(), m_testVertexShader, nullptr);
@@ -455,6 +424,7 @@ void RendererVK::DestroyFramebuffers()
 void RendererVK::DestroyTextures()
 {
 	m_testTexture.Destroy(&m_device);
+	m_testTexture2.Destroy(&m_device);
 }
 
 }

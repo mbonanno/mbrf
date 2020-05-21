@@ -1,6 +1,7 @@
 #pragma once
 
 #include "commonVK.h"
+#include "resource.h"
 
 #include <unordered_map>
 
@@ -45,7 +46,7 @@ private:
 	uint32_t m_mipCount;
 };
 
-class TextureVK
+class TextureVK : public Resource
 {
 public:
 	// TODO: add a desc param?

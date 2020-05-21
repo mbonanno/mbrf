@@ -134,6 +134,7 @@ private:
 	std::vector<BufferVK> m_uboBuffers;
 
 	TextureVK m_testTexture;
+	TextureVK m_testTexture2;
 };
 
 }

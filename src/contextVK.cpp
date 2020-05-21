@@ -76,6 +76,9 @@ void ContextVK::DestroyDescriptorPools(DeviceVK* device)
 void ContextVK::ResetDescriptorPools(DeviceVK* device)
 {
 	VK_CHECK(vkResetDescriptorPool(device->GetDevice(), m_descriptorPool, 0));
+
+	m_uniformBufferBindings.clear();
+	m_textureBindings.clear();
 }
 
 void ContextVK::Begin(DeviceVK* device)
@@ -204,6 +207,92 @@ void ContextVK::SetVertexBuffer(const BufferVK* vertexBuffer, uint64_t offset)
 void ContextVK::SetIndexBuffer(const BufferVK* indexBuffer, uint64_t offset, bool use16Bits)
 {
 	vkCmdBindIndexBuffer(m_commandBuffer, indexBuffer->GetBuffer(), offset, use16Bits ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
+}
+
+void ContextVK::SetUniformBuffer(BufferVK* buffer, uint32_t bindingSlot)
+{
+	DescriptorBinding binding = {buffer, bindingSlot};
+
+	m_uniformBufferBindings[bindingSlot] = binding;
+}
+
+void ContextVK::SetTexture(TextureVK* texture, uint32_t bindingSlot)
+{
+	DescriptorBinding binding = { texture, bindingSlot };
+
+	m_textureBindings[bindingSlot] = binding;
+}
+
+// TODO: remove the pipelineLayout and add PSO information to ContextVK
+void ContextVK::CommitBindings(DeviceVK* device, VkPipelineLayout pipelineLayout)
+{
+	if (m_uniformBufferBindings.empty() && m_textureBindings.empty())
+		return;
+
+	// TODO: cache descriptor sets?
+
+	// Create Descriptor Set
+
+	VkDescriptorSetLayout layout = device->GetDescriptorSetLayout();
+
+	VkDescriptorSetAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+	allocInfo.pNext = nullptr;
+	allocInfo.descriptorSetCount = 1;
+	allocInfo.pSetLayouts = &layout;
+
+	// TODO: temporary, move all this stuff into ContextVK, per frame
+	allocInfo.descriptorPool = m_descriptorPool;
+
+	VkDescriptorSet descriptorSet;
+
+	VK_CHECK(vkAllocateDescriptorSets(device->GetDevice(), &allocInfo, &descriptorSet));
+
+	// Update Descriptors
+
+	std::vector<VkWriteDescriptorSet> descriptorWrites;
+
+	// UBOs
+	for (auto it : m_uniformBufferBindings)
+	{
+		DescriptorBinding descBinding = it.second;
+
+		VkWriteDescriptorSet wds = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		wds.pNext = nullptr;
+		wds.dstSet = descriptorSet;
+		wds.dstBinding = descBinding.m_bindingSlot;
+		wds.dstArrayElement = 0;
+		wds.descriptorCount = 1;
+		wds.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		wds.pImageInfo = nullptr;
+		wds.pBufferInfo = &((BufferVK*)descBinding.m_resource)->GetDescriptor();
+		wds.pTexelBufferView = nullptr;
+
+		descriptorWrites.emplace_back(wds);
+	}
+	
+	// Texture + Samplers
+	for (auto it : m_textureBindings)
+	{
+		DescriptorBinding descBinding = it.second;
+
+		VkWriteDescriptorSet wds = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		wds.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		wds.pNext = nullptr;
+		wds.dstSet = descriptorSet;
+		wds.dstBinding = descBinding.m_bindingSlot;
+		wds.dstArrayElement = 0;
+		wds.descriptorCount = 1;
+		wds.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		wds.pImageInfo = &((TextureVK*)descBinding.m_resource)->GetDescriptor();
+		wds.pBufferInfo = nullptr;
+		wds.pTexelBufferView = nullptr;
+
+		descriptorWrites.emplace_back(wds);
+	}
+	
+	vkUpdateDescriptorSets(device->GetDevice(), uint32_t(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+
+	vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
 }
 
 }

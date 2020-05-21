@@ -2,12 +2,16 @@
 
 #include "commonVK.h"
 
+#include <unordered_map>
+
 namespace MBRF
 {
 
 class BufferVK;
 class DeviceVK;
 class FrameBufferVK;
+class TextureVK;
+class Resource;
 
 // TODO: add anything related to command buffers recording and submission to this class
 // TODO: implement different types: graphics, compute, transfer
@@ -31,6 +35,11 @@ public:
 
 	void SetVertexBuffer(const BufferVK* vertexBuffer, uint64_t offset);
 	void SetIndexBuffer(const BufferVK* indexBuffer, uint64_t offset, bool use16Bits);
+
+	void SetUniformBuffer(BufferVK* buffer, uint32_t bindingSlot);
+	void SetTexture(TextureVK* texture, uint32_t bindingSlot);
+
+	void CommitBindings(DeviceVK* device, VkPipelineLayout pipelineLayout);
 
 //private:
 	bool CreateDescriptorPools(DeviceVK* device);
@@ -57,6 +66,15 @@ public:
 	// consider using a freelist of descriptor pools so can allocate as many descriptor sets as we want. Reset every frame
 
 	// add create/update descriptor set functionality
+
+	struct DescriptorBinding
+	{
+		Resource* m_resource;
+		uint32_t m_bindingSlot;
+	};
+
+	std::unordered_map<uint32_t, DescriptorBinding> m_uniformBufferBindings;
+	std::unordered_map<uint32_t, DescriptorBinding> m_textureBindings;
 };
 
 }

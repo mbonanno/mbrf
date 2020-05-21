@@ -38,6 +38,10 @@ void main()
 	//outColor = vertColors[gl_VertexIndex];
 
 	gl_Position = ubo.transform * vec4(inPosition, 1.0);
+	if (pushConsts.pushTest.r == 0)
+		gl_Position.x -= 2;
+	else if (pushConsts.pushTest.r == 1)
+		gl_Position.x += 2;
 	outColor = inColor; //ubo.testColor; //pushConsts.pushTest; //inColor
 	texCoord = inTexCoord;
 }

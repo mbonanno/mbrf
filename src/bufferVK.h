@@ -1,13 +1,14 @@
 #pragma once
 
 #include "commonVK.h"
+#include "resource.h"
 
 namespace MBRF
 {
 
 class DeviceVK;
 
-class BufferVK
+class BufferVK : public Resource
 {
 public:
 	bool Create(DeviceVK* device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryProperties);

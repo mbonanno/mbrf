@@ -89,6 +89,9 @@
     <ClInclude Include="data\shaders\shaderCommon.h">
       <Filter>shaders</Filter>
     </ClInclude>
+    <ClInclude Include="src\resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="data\shaders\test.frag">
