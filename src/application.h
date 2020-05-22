@@ -17,6 +17,8 @@ public:
 	void Update();
 	void Draw();
 
+	void ResizeWindow();
+
 private:
 	RendererVK m_rendererVK;
 

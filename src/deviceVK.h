@@ -37,8 +37,11 @@ public:
 	void Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, uint32_t height, uint32_t maxFramesInFlight);
 	void Cleanup();
 
-	void BeginFrame();
-	void EndFrame();
+	void RecreateSwapchain(uint32_t width, uint32_t height);
+
+	// if BeginFrame or EndFrame return false, it means that the swapchain/not optimal is out of date and needs to be recreated
+	bool BeginFrame();
+	bool EndFrame();
 
 	bool CreateInstance(bool enableValidation);
 	void DestroyInstance();

@@ -10,13 +10,17 @@ namespace MBRF
 
 bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
 {
+	m_pendingSwapchainResize = false;
+	m_swapchainWidth = width;
+	m_swapchainHeight = height;
+
 	// Init Vulkan
 
 	m_device.Init(&m_swapchain, window, width, height, s_maxFramesInFlight);
 
 	// Init Scene/Application
 	CreateDepthStencilBuffer();  
-	CreateFramebuffers(); // swapchain framebuffer
+	CreateSwapchainFramebuffers(); // swapchain framebuffer
 	CreateTextures();
 	CreateTestVertexAndTriangleBuffers();
 
@@ -38,13 +42,37 @@ void RendererVK::Cleanup()
 	
 	DestroyTestVertexAndTriangleBuffers();
 	DestroyTextures();
-	DestroyFramebuffers();
+	DestroySwapchainFramebuffers();
 	DestroyDepthStencilBuffer();
 
 	RenderPassCache::Cleanup(&m_device);
 	SamplerCache::Cleanup(&m_device);
 
 	m_device.Cleanup();
+}
+
+void RendererVK::RequestSwapchainResize(uint32_t width, uint32_t height)
+{
+	m_pendingSwapchainResize = true;
+	m_swapchainWidth = width;
+	m_swapchainHeight = height;
+}
+
+void RendererVK::ResizeSwapchain()
+{
+	m_device.WaitForDevice();
+
+	DestroySwapchainFramebuffers();
+	DestroyDepthStencilBuffer();
+	DestroyGraphicsPipelines();
+
+	m_device.RecreateSwapchain(m_swapchainWidth, m_swapchainHeight);
+
+	CreateDepthStencilBuffer();
+	CreateSwapchainFramebuffers();
+	CreateGraphicsPipelines();
+
+	m_pendingSwapchainResize = false;
 }
 
 void RendererVK::Update(double dt)
@@ -70,7 +98,11 @@ void RendererVK::Update(double dt)
 
 void RendererVK::Draw()
 {
-	m_device.BeginFrame();
+	if (!m_device.BeginFrame())
+	{
+		ResizeSwapchain();
+		return;
+	}
 
 	// ------------------ Immediate Context Draw -------------------------------
 	ContextVK* context = m_device.GetCurrentGraphicsContext();
@@ -85,7 +117,8 @@ void RendererVK::Draw()
 	context->End();
 	// ------------------ Immediate Context Draw -------------------------------
 
-	m_device.EndFrame();
+	if (!m_device.EndFrame() || m_pendingSwapchainResize)
+		ResizeSwapchain();
 }
 
 void RendererVK::DrawFrame()
@@ -149,7 +182,7 @@ bool RendererVK::CreateDepthStencilBuffer()
 	return true;
 }
 
-bool RendererVK::CreateFramebuffers()
+bool RendererVK::CreateSwapchainFramebuffers()
 {
 	m_swapchainFramebuffers.resize(m_swapchain.m_imageCount);
 
@@ -413,7 +446,7 @@ void RendererVK::DestroyUniformBuffers()
 		m_uboBuffers[i].Destroy(&m_device);
 }
 
-void RendererVK::DestroyFramebuffers()
+void RendererVK::DestroySwapchainFramebuffers()
 {
 	for (size_t i = 0; i < m_swapchainFramebuffers.size(); ++i)
 		m_swapchainFramebuffers[i].Destroy(&m_device);

@@ -26,6 +26,8 @@ void SwapchainVK::DestroyPresentationSurface(DeviceVK* device)
 
 bool SwapchainVK::Create(DeviceVK* device, uint32_t width, uint32_t height)
 {
+	m_outOfDate = false;
+
 	VkPhysicalDevice physicalDevice = device->GetPhysicalDevice();
 	VkDevice logicDevice = device->GetDevice();
 
@@ -186,7 +188,7 @@ bool SwapchainVK::Create(DeviceVK* device, uint32_t width, uint32_t height)
 	swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 	swapchainCreateInfo.presentMode = presentMode;
 	swapchainCreateInfo.clipped = VK_TRUE;
-	swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
+	swapchainCreateInfo.oldSwapchain = m_swapchain;
 
 	VK_CHECK(vkCreateSwapchainKHR(logicDevice, &swapchainCreateInfo, nullptr, &m_swapchain));
 
@@ -201,11 +203,12 @@ bool SwapchainVK::Create(DeviceVK* device, uint32_t width, uint32_t height)
 	return CreateImageViews(device);
 }
 
-void SwapchainVK::Destroy(DeviceVK* device)
+void SwapchainVK::Destroy(DeviceVK* device, bool keepOldHandle)
 {
 	DestroyImageViews(device);
 
-	vkDestroySwapchainKHR(device->GetDevice(), m_swapchain, nullptr);
+	if (!keepOldHandle)
+		vkDestroySwapchainKHR(device->GetDevice(), m_swapchain, nullptr);
 }
 
 bool SwapchainVK::CreateImageViews(DeviceVK* device)
@@ -238,6 +241,8 @@ uint32_t SwapchainVK::AcquireNextImage(DeviceVK* device)
 	case VK_SUCCESS:
 	case VK_SUBOPTIMAL_KHR:
 		return imageIndex;
+	case VK_ERROR_OUT_OF_DATE_KHR:
+		m_outOfDate = true;
 	default:
 		return UINT32_MAX;
 	}

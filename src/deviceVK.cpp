@@ -110,6 +110,17 @@ void DeviceVK::Cleanup()
 	DestroyInstance();
 }
 
+void DeviceVK::RecreateSwapchain(uint32_t width, uint32_t height)
+{
+	// cleanup old swapchann
+	DestroyGraphicsContexts();
+	m_swapchain->Destroy(this, true);
+
+	// create new one
+	m_swapchain->Create(this, width, height);
+	CreateGraphicsContexts();
+}
+
 bool DeviceVK::CreateInstance(bool enableValidation)
 {
 	m_validationLayerEnabled = enableValidation;
@@ -625,31 +636,42 @@ bool DeviceVK::Present()
 	presentInfo.pImageIndices = &m_currentImageIndex;
 	presentInfo.pResults = nullptr;
 
-	VK_CHECK(vkQueuePresentKHR(m_graphicsQueue, &presentInfo));
+	VkResult result = vkQueuePresentKHR(m_graphicsQueue, &presentInfo);
 
-	return true;
+	return (result != VK_ERROR_OUT_OF_DATE_KHR);
 }
 
-void DeviceVK::BeginFrame()
+bool DeviceVK::BeginFrame()
 {
 	m_currentFrameData = &m_frameData[m_currentFrame];
 
 	m_currentImageIndex = m_swapchain->AcquireNextImage(this);
+
+	if (m_swapchain->m_outOfDate)
+		return false;
 
 	assert(m_currentImageIndex != UINT32_MAX);
 
 	m_currentGraphicsContext = &m_graphicsContexts[m_currentImageIndex];
 
 	m_currentGraphicsContext->WaitForLastFrame(this);
+
+	return true;
 }
 
-void DeviceVK::EndFrame()
+bool DeviceVK::EndFrame()
 {
 	m_currentGraphicsContext->Submit(m_graphicsQueue, m_currentFrameData->m_acquireSemaphore, m_currentFrameData->m_renderSemaphore);
 
-	Present();
+	bool success = Present();
+
+	// if presenting failed, it means that the swapchain is out of date and needs to be recreated
+	if (!success)
+		return false;
 
 	m_currentFrame = (m_currentFrame + 1) % m_maxFramesInFlight;
+
+	return true;
 }
 
 }

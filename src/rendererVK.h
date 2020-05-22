@@ -19,14 +19,16 @@ public:
 	void Update(double dt);
 	void Draw();
 
+	void RequestSwapchainResize(uint32_t width, uint32_t height);
+
 private:
 	bool CreateDepthStencilBuffer();
-	bool CreateFramebuffers();
+	bool CreateSwapchainFramebuffers();
 	void CreateTextures();
 	void CreateTestVertexAndTriangleBuffers();
 
 	void DestroyDepthStencilBuffer();
-	void DestroyFramebuffers();
+	void DestroySwapchainFramebuffers();
 	void DestroyTextures();
 	void DestroyTestVertexAndTriangleBuffers();
 	
@@ -42,16 +44,17 @@ private:
 	void DestroyUniformBuffers();
 	void DestroyGraphicsPipelines();
 
-	// TODO: remove
-	void UpdateDescriptors();
+	void ResizeSwapchain();
 
 private:
 	SwapchainVK m_swapchain;
 	DeviceVK m_device;
 
+	bool m_pendingSwapchainResize = false;
+	uint32_t m_swapchainWidth = 0;
+	uint32_t m_swapchainHeight = 0;
+
 	static const int s_maxFramesInFlight = 2;
-
-
 
 	std::vector<FrameBufferVK> m_swapchainFramebuffers;
 

@@ -17,7 +17,8 @@ public:
 	void DestroyPresentationSurface(DeviceVK* device);
 
 	bool Create(DeviceVK* device, uint32_t width, uint32_t height);
-	void Destroy(DeviceVK* device);
+	// when resizing an existing swapchain, we want to keep the old VkSwapchainKHR handle
+	void Destroy(DeviceVK* device, bool keepOldHandle = false);
 
 	uint32_t AcquireNextImage(DeviceVK* device);
 
@@ -27,6 +28,8 @@ private:
 
 public:
 	VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
+
+	bool m_outOfDate = false;
 
 	VkSurfaceKHR m_presentationSurface;
 	VkExtent2D m_imageExtent;
