@@ -19,8 +19,7 @@ bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
 	m_device.Init(&m_swapchain, window, width, height, s_maxFramesInFlight);
 
 	// Init Scene/Application
-	CreateDepthStencilBuffer();  
-	CreateSwapchainFramebuffers(); // swapchain framebuffer
+	CreateBackBuffer(); // swapchain framebuffer
 	CreateTextures();
 	CreateTestVertexAndTriangleBuffers();
 
@@ -42,8 +41,7 @@ void RendererVK::Cleanup()
 	
 	DestroyTestVertexAndTriangleBuffers();
 	DestroyTextures();
-	DestroySwapchainFramebuffers();
-	DestroyDepthStencilBuffer();
+	DestroyBackBuffer();
 
 	RenderPassCache::Cleanup(&m_device);
 	SamplerCache::Cleanup(&m_device);
@@ -62,14 +60,12 @@ void RendererVK::ResizeSwapchain()
 {
 	m_device.WaitForDevice();
 
-	DestroySwapchainFramebuffers();
-	DestroyDepthStencilBuffer();
+	DestroyBackBuffer();
 	DestroyGraphicsPipelines();
 
 	m_device.RecreateSwapchain(m_swapchainWidth, m_swapchainHeight);
 
-	CreateDepthStencilBuffer();
-	CreateSwapchainFramebuffers();
+	CreateBackBuffer();
 	CreateGraphicsPipelines();
 
 	m_pendingSwapchainResize = false;
@@ -85,7 +81,7 @@ void RendererVK::Update(double dt)
 
 	glm::mat4 model = glm::rotate(glm::mat4(1.0f), m_testCubeRotation * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 4.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	glm::mat4 proj = glm::perspective(glm::radians(45.0f), m_swapchain.m_imageExtent.width / (float)m_swapchain.m_imageExtent.height, 0.1f, 10.0f);
+	glm::mat4 proj = glm::perspective(glm::radians(45.0f), m_backBuffer.m_frameBuffers[0].GetWidth() / float(m_backBuffer.m_frameBuffers[0].GetHeight()), 0.1f, 10.0f);
 
 	// Vulkan clip space has inverted Y and half Z.
 	glm::mat4 clip = glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
@@ -128,14 +124,14 @@ void RendererVK::DrawFrame()
 
 
 	// TODO: store current swapchain FBO as a global
-	FrameBufferVK* currentRenderTarget = &m_swapchainFramebuffers[m_device.m_currentImageIndex];
+	FrameBufferVK* currentRenderTarget = &m_backBuffer.m_frameBuffers[m_device.m_currentImageIndex];
 
 	ContextVK* context = m_device.GetCurrentGraphicsContext();
 	VkCommandBuffer commandBuffer = context->m_commandBuffer;
 
 	context->BeginPass(currentRenderTarget);
 
-	context->ClearRenderTarget(0, 0, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, { 0.3f, 0.3f, 0.3f, 1.0f }, { 1.0f, 0 });
+	context->ClearRenderTarget(0, 0, currentRenderTarget->GetWidth(), currentRenderTarget->GetHeight(), { 0.3f, 0.3f, 0.3f, 1.0f }, { 1.0f, 0 });
 
 	// TODO: need to write PSO wrapper. After replace this with context->SetPSO. Orset individual states + final ApplyState call?
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipeline);
@@ -170,27 +166,25 @@ void RendererVK::DrawFrame()
 	context->EndPass();
 }
 
-bool RendererVK::CreateDepthStencilBuffer()
+bool RendererVK::CreateBackBuffer()
 {
+	// Create Depth Stencil
+
 	// TODO: check VK_FORMAT_D24_UNORM_S8_UINT format availability!
-	m_depthTexture.Create(&m_device, VK_FORMAT_D24_UNORM_S8_UINT, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, 1, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+	m_backBuffer.m_depthStencilBuffer.Create(&m_device, VK_FORMAT_D24_UNORM_S8_UINT, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, 1, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
 	// Transition (not really needed, we could just set the initial layout to VK_IMAGE_LAYOUT_UNDEFINED in the subpass?)
+	m_backBuffer.m_depthStencilBuffer.TransitionImageLayoutAndSubmit(&m_device, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-	m_depthTexture.TransitionImageLayoutAndSubmit(&m_device, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+	// Create Framebuffers
 
-	return true;
-}
+	m_backBuffer.m_frameBuffers.resize(m_swapchain.m_imageCount);
 
-bool RendererVK::CreateSwapchainFramebuffers()
-{
-	m_swapchainFramebuffers.resize(m_swapchain.m_imageCount);
-
-	for (size_t i = 0; i < m_swapchainFramebuffers.size(); ++i)
+	for (size_t i = 0; i < m_backBuffer.m_frameBuffers.size(); ++i)
 	{
-		std::vector<TextureViewVK> attachments = { m_swapchain.m_textureViews[i], m_depthTexture.GetView() };
+		std::vector<TextureViewVK> attachments = { m_swapchain.m_textureViews[i], m_backBuffer.m_depthStencilBuffer.GetView() };
 
-		m_swapchainFramebuffers[i].Create(&m_device, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, attachments);
+		m_backBuffer.m_frameBuffers[i].Create(&m_device, m_swapchain.m_imageExtent.width, m_swapchain.m_imageExtent.height, attachments);
 	}
 
 	return true;
@@ -232,6 +226,8 @@ bool RendererVK::CreateUniformBuffers()
 
 bool RendererVK::CreateGraphicsPipelines()
 {
+	FrameBufferVK frameBuffer = m_backBuffer.m_frameBuffers[0];
+
 	VkPipelineShaderStageCreateInfo shaderStageCreateInfos[2];
 	// vertex
 	shaderStageCreateInfos[0].sType = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
@@ -286,7 +282,7 @@ bool RendererVK::CreateGraphicsPipelines()
 	inputAssemblyCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	inputAssemblyCreateInfo.primitiveRestartEnable = VK_FALSE;
 
-	VkViewport viewport = { 0, 0, (float)m_swapchain.m_imageExtent.width, (float)m_swapchain.m_imageExtent.height, 0.0f, 1.0f };
+	VkViewport viewport = { 0, 0, float(frameBuffer.GetWidth()), float(frameBuffer.GetHeight()), 0.0f, 1.0f };
 	VkRect2D scissor = { 0, 0, m_swapchain.m_imageExtent };
 
 	VkPipelineViewportStateCreateInfo viewportStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
@@ -388,7 +384,7 @@ bool RendererVK::CreateGraphicsPipelines()
 	pipelineCreateInfo.pColorBlendState = &colorBlendCreateInfo;
 	pipelineCreateInfo.pDynamicState = nullptr;
 	pipelineCreateInfo.layout = m_testGraphicsPipelineLayout;
-	pipelineCreateInfo.renderPass = m_swapchainFramebuffers[0].GetRenderPass();
+	pipelineCreateInfo.renderPass = frameBuffer.GetRenderPass();
 	pipelineCreateInfo.subpass = 0;
 	// handle of a pipeline to derive from
 	pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
@@ -435,21 +431,18 @@ void RendererVK::DestroyTestVertexAndTriangleBuffers()
 	m_testIndexBuffer.Destroy(&m_device);
 }
 
-void RendererVK::DestroyDepthStencilBuffer()
-{
-	m_depthTexture.Destroy(&m_device);
-}
-
 void RendererVK::DestroyUniformBuffers()
 {
 	for (size_t i = 0; i < m_uboBuffers.size(); ++i)
 		m_uboBuffers[i].Destroy(&m_device);
 }
 
-void RendererVK::DestroySwapchainFramebuffers()
+void RendererVK::DestroyBackBuffer()
 {
-	for (size_t i = 0; i < m_swapchainFramebuffers.size(); ++i)
-		m_swapchainFramebuffers[i].Destroy(&m_device);
+	for (size_t i = 0; i < m_backBuffer.m_frameBuffers.size(); ++i)
+		m_backBuffer.m_frameBuffers[i].Destroy(&m_device);
+
+	m_backBuffer.m_depthStencilBuffer.Destroy(&m_device);
 }
 
 void RendererVK::DestroyTextures()

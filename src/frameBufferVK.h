@@ -50,12 +50,6 @@ private:
 	static std::unordered_map<size_t, VkRenderPass> m_renderPasses;
 };
 
-struct FrameBufferProperties
-{
-	uint32_t m_width;
-	uint32_t m_height;
-};
-
 class FrameBufferVK
 {
 public:
@@ -66,15 +60,16 @@ public:
 	const VkRenderPass& GetRenderPass() const { return m_renderPass; };
 	const std::vector<TextureViewVK>& GetAttachments() const { return m_attachments; };
 
-	const FrameBufferProperties& GetProperties() const { return m_properties; };
+	uint32_t GetWidth()const { return m_width; };
+	uint32_t GetHeight()const { return m_height; };
 
 private:
 	VkFramebuffer m_frameBuffer = VK_NULL_HANDLE;
 	VkRenderPass m_renderPass = VK_NULL_HANDLE;
 
+	uint32_t m_width = 0;
+	uint32_t m_height = 0;
 	std::vector<TextureViewVK> m_attachments;
-
-	FrameBufferProperties m_properties;
 };
 
 }

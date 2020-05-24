@@ -138,8 +138,7 @@ void ContextVK::BeginPass(FrameBufferVK* renderTarget)
 	renderPassInfo.renderPass = m_currentFrameBuffer->GetRenderPass();
 	renderPassInfo.framebuffer = m_currentFrameBuffer->GetFrameBuffer();
 
-	FrameBufferProperties rtProps = m_currentFrameBuffer->GetProperties();
-	VkExtent2D rtExtent = { rtProps.m_width, rtProps.m_height };
+	VkExtent2D rtExtent = { m_currentFrameBuffer->GetWidth(), m_currentFrameBuffer->GetHeight()};
 
 	renderPassInfo.renderArea.offset = { 0, 0 };
 	renderPassInfo.renderArea.extent = rtExtent;

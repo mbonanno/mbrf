@@ -23,13 +23,11 @@ public:
 	void RequestSwapchainResize(uint32_t width, uint32_t height);
 
 private:
-	bool CreateDepthStencilBuffer();
-	bool CreateSwapchainFramebuffers();
+	bool CreateBackBuffer();
 	void CreateTextures();
 	void CreateTestVertexAndTriangleBuffers();
 
-	void DestroyDepthStencilBuffer();
-	void DestroySwapchainFramebuffers();
+	void DestroyBackBuffer();
 	void DestroyTextures();
 	void DestroyTestVertexAndTriangleBuffers();
 	
@@ -57,15 +55,19 @@ private:
 
 	static const int s_maxFramesInFlight = 2;
 
-	std::vector<FrameBufferVK> m_swapchainFramebuffers;
+	struct BackBuffer
+	{
+		std::vector<FrameBufferVK> m_frameBuffers;
+		TextureVK m_depthStencilBuffer;
+	};
+
+	BackBuffer m_backBuffer;
 
 	ShaderVK m_testVertexShader;
 	ShaderVK m_testFragmentShader;
 
 	VkPipelineLayout m_testGraphicsPipelineLayout;
 	VkPipeline m_testGraphicsPipeline;
-
-	TextureVK m_depthTexture;
 
 	struct TestVertex
 	{
