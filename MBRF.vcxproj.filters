@@ -51,6 +51,9 @@
     <ClCompile Include="src\contextVK.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\shaderVK.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\application.h">
@@ -90,6 +93,9 @@
       <Filter>shaders</Filter>
     </ClInclude>
     <ClInclude Include="src\resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shaderVK.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

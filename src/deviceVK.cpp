@@ -563,24 +563,6 @@ void DeviceVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
 	vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
-bool DeviceVK::CreateShaderModuleFromFile(const char* fileName, VkShaderModule &shaderModule)
-{
-	std::vector<char> shaderCode;
-
-	if (!Utils::ReadFile(fileName, shaderCode))
-		return false;
-
-	VkShaderModuleCreateInfo createInfo = { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-	createInfo.pNext = nullptr;
-	createInfo.flags = 0;
-	createInfo.codeSize = shaderCode.size();
-	createInfo.pCode = reinterpret_cast<uint32_t*>(shaderCode.data());
-
-	VK_CHECK(vkCreateShaderModule(m_device, &createInfo, nullptr, &shaderModule));
-
-	return true;
-}
-
 bool DeviceVK::WaitForDevice()
 {
 	VK_CHECK(vkDeviceWaitIdle(m_device));

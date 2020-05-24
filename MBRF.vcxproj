@@ -26,6 +26,7 @@
     <ClCompile Include="src\frameBufferVK.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\rendererVK.cpp" />
+    <ClCompile Include="src\shaderVK.cpp" />
     <ClCompile Include="src\swapchainVK.cpp" />
     <ClCompile Include="src\textureVK.cpp" />
     <ClCompile Include="src\utils.cpp" />
@@ -41,6 +42,7 @@
     <ClInclude Include="src\frameBufferVK.h" />
     <ClInclude Include="src\rendererVK.h" />
     <ClInclude Include="src\resource.h" />
+    <ClInclude Include="src\shaderVK.h" />
     <ClInclude Include="src\swapchainVK.h" />
     <ClInclude Include="src\textureVK.h" />
     <ClInclude Include="src\utils.h" />

@@ -5,6 +5,7 @@
 #include "glm.hpp"
 
 #include "deviceVK.h"
+#include "shaderVK.h"
 #include "swapchainVK.h"
 
 namespace MBRF
@@ -58,8 +59,8 @@ private:
 
 	std::vector<FrameBufferVK> m_swapchainFramebuffers;
 
-	VkShaderModule m_testVertexShader;
-	VkShaderModule m_testFragmentShader;
+	ShaderVK m_testVertexShader;
+	ShaderVK m_testFragmentShader;
 
 	VkPipelineLayout m_testGraphicsPipelineLayout;
 	VkPipeline m_testGraphicsPipeline;

@@ -207,8 +207,8 @@ bool RendererVK::CreateShaders()
 	bool result = true;
 
 	// TODO: put common data/shader dir path in a variable or define
-	result &= m_device.CreateShaderModuleFromFile("data/shaders/test.vert.spv", m_testVertexShader);
-	result &= m_device.CreateShaderModuleFromFile("data/shaders/test.frag.spv", m_testFragmentShader);
+	result &= m_testVertexShader.CreateFromFile(&m_device, "data/shaders/test.vert.spv");
+	result &= m_testFragmentShader.CreateFromFile(&m_device, "data/shaders/test.frag.spv");
 
 	assert(result);
 
@@ -238,7 +238,7 @@ bool RendererVK::CreateGraphicsPipelines()
 	shaderStageCreateInfos[0].pNext = nullptr;
 	shaderStageCreateInfos[0].flags = 0;
 	shaderStageCreateInfos[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-	shaderStageCreateInfos[0].module = m_testVertexShader;
+	shaderStageCreateInfos[0].module = m_testVertexShader.GetShaderModule();
 	shaderStageCreateInfos[0].pName = "main";
 	shaderStageCreateInfos[0].pSpecializationInfo = nullptr;
 	// fragment
@@ -246,7 +246,7 @@ bool RendererVK::CreateGraphicsPipelines()
 	shaderStageCreateInfos[1].pNext = nullptr;
 	shaderStageCreateInfos[1].flags = 0;
 	shaderStageCreateInfos[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	shaderStageCreateInfos[1].module = m_testFragmentShader;
+	shaderStageCreateInfos[1].module = m_testFragmentShader.GetShaderModule();
 	shaderStageCreateInfos[1].pName = "main";
 	shaderStageCreateInfos[1].pSpecializationInfo = nullptr;
 
@@ -419,8 +419,8 @@ void RendererVK::CreateTestVertexAndTriangleBuffers()
 
 void RendererVK::DestroyShaders()
 {
-	vkDestroyShaderModule(m_device.GetDevice(), m_testVertexShader, nullptr);
-	vkDestroyShaderModule(m_device.GetDevice(), m_testFragmentShader, nullptr);
+	m_testVertexShader.Destroy(&m_device);
+	m_testFragmentShader.Destroy(&m_device);
 }
 
 void RendererVK::DestroyGraphicsPipelines()

@@ -63,8 +63,6 @@ public:
 
 	void TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout);
 
-	bool CreateShaderModuleFromFile(const char* fileName, VkShaderModule &shaderModule);
-
 	bool WaitForDevice();
 
 	VkCommandBuffer BeginNewCommandBuffer(VkCommandBufferUsageFlags usage);

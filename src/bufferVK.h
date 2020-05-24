@@ -15,7 +15,7 @@ public:
 	bool Update(DeviceVK* device, VkDeviceSize size, void* data);
 	void Destroy(DeviceVK* device);
 
-	const VkBuffer& GetBuffer() const { return m_buffer; };
+	const VkBuffer GetBuffer() const { return m_buffer; };
 	void* GetData() { return m_data; };
 
 	const VkDescriptorBufferInfo& GetDescriptor() const { return m_descriptor; };
