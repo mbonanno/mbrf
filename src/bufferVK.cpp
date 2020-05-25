@@ -6,7 +6,7 @@
 namespace MBRF
 {
 
-bool BufferVK::Create(DeviceVK* device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryProperties)
+bool BufferVK::Create(DeviceVK* device, uint64_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryProperties)
 {
 	assert(m_buffer == VK_NULL_HANDLE);
 
@@ -72,7 +72,7 @@ bool BufferVK::Create(DeviceVK* device, VkDeviceSize size, VkBufferUsageFlags us
 	return true;
 }
 
-bool BufferVK::Update(DeviceVK* device, VkDeviceSize size, void* data)
+bool BufferVK::Update(DeviceVK* device, uint64_t size, void* data)
 {
 	assert(size <= m_size);
 

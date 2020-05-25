@@ -2,6 +2,7 @@
 
 #include "deviceVK.h"
 #include "shaderCommon.h"
+#include "vertexBufferVK.h"
 
 namespace MBRF
 {
@@ -196,17 +197,17 @@ void ContextVK::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_
 	vkCmdDrawIndexed(m_commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
-void ContextVK::SetVertexBuffer(const BufferVK* vertexBuffer, uint64_t offset)
+void ContextVK::SetVertexBuffer(const VertexBufferVK* vertexBuffer, uint64_t offset)
 {
-	VkBuffer vbs[] = { vertexBuffer->GetBuffer() };
+	VkBuffer vbs[] = { vertexBuffer->GetBuffer().GetBuffer() };
 	VkDeviceSize offsets[] = { offset };
 
 	vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, vbs, offsets);
 }
 
-void ContextVK::SetIndexBuffer(const BufferVK* indexBuffer, uint64_t offset, bool use16Bits)
+void ContextVK::SetIndexBuffer(const IndexBufferVK* indexBuffer, uint64_t offset)
 {
-	vkCmdBindIndexBuffer(m_commandBuffer, indexBuffer->GetBuffer(), offset, use16Bits ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
+	vkCmdBindIndexBuffer(m_commandBuffer, indexBuffer->GetBuffer().GetBuffer(), offset, indexBuffer->Use16Bits() ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
 }
 
 void ContextVK::SetUniformBuffer(BufferVK* buffer, uint32_t bindingSlot)

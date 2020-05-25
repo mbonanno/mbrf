@@ -31,6 +31,7 @@
     <ClCompile Include="src\textureVK.cpp" />
     <ClCompile Include="src\utils.cpp" />
     <ClCompile Include="src\utilsVK.cpp" />
+    <ClCompile Include="src\vertexBufferVK.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="data\shaders\shaderCommon.h" />
@@ -47,6 +48,7 @@
     <ClInclude Include="src\textureVK.h" />
     <ClInclude Include="src\utils.h" />
     <ClInclude Include="src\utilsVK.h" />
+    <ClInclude Include="src\vertexBufferVK.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="data\shaders\test.frag">

@@ -7,6 +7,7 @@
 #include "deviceVK.h"
 #include "shaderVK.h"
 #include "swapchainVK.h"
+#include "vertexBufferVK.h"
 
 namespace MBRF
 {
@@ -123,8 +124,8 @@ private:
 
 	float m_testCubeRotation = 0;
 
-	BufferVK m_testVertexBuffer;
-	BufferVK m_testIndexBuffer;
+	VertexBufferVK m_testVertexBuffer;
+	IndexBufferVK m_testIndexBuffer;
 
 	glm::vec4 m_pushConstantTestColor = glm::vec4(0, 1, 0, 1);
 

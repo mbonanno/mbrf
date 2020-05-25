@@ -137,7 +137,7 @@ void RendererVK::DrawFrame()
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipeline);
 
 	context->SetVertexBuffer(&m_testVertexBuffer, 0);
-	context->SetIndexBuffer(&m_testIndexBuffer, 0, false);
+	context->SetIndexBuffer(&m_testIndexBuffer, 0);
 
 	// Draw first test cube
 	
@@ -149,7 +149,7 @@ void RendererVK::DrawFrame()
 
 	context->CommitBindings(&m_device, m_testGraphicsPipelineLayout);
 
-	context->DrawIndexed(sizeof(m_testCubeIndices) / sizeof(uint32_t), 1, 0, 0, 0);
+	context->DrawIndexed(m_testIndexBuffer.GetNumIndices(), 1, 0, 0, 0);
 
 	// Draw second test cube
 
@@ -161,7 +161,7 @@ void RendererVK::DrawFrame()
 
 	context->CommitBindings(&m_device, m_testGraphicsPipelineLayout);
 
-	context->DrawIndexed(sizeof(m_testCubeIndices) / sizeof(uint32_t), 1, 0, 0, 0);
+	context->DrawIndexed(m_testIndexBuffer.GetNumIndices(), 1, 0, 0, 0);
 
 	context->EndPass();
 }
@@ -398,19 +398,15 @@ bool RendererVK::CreateGraphicsPipelines()
 
 void RendererVK::CreateTestVertexAndTriangleBuffers()
 {
-	VkDeviceSize size = sizeof(m_testCubeVerts);
+	uint32_t size = sizeof(m_testCubeVerts);
 
-	m_testVertexBuffer.Create(&m_device, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-	m_testVertexBuffer.Update(&m_device, size, m_testCubeVerts);
+	m_testVertexBuffer.Create(&m_device, size, m_testCubeVerts);
 
 	// index buffer
 
 	size = sizeof(m_testCubeIndices);
 
-	m_testIndexBuffer.Create(&m_device, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-	m_testIndexBuffer.Update(&m_device, size, m_testCubeIndices);
+	m_testIndexBuffer.Create(&m_device, size, size / sizeof(uint32_t), false, m_testCubeIndices);
 }
 
 void RendererVK::DestroyShaders()

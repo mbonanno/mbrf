@@ -12,6 +12,8 @@ class DeviceVK;
 class FrameBufferVK;
 class TextureVK;
 class Resource;
+class VertexBufferVK;
+class IndexBufferVK;
 
 // TODO: add anything related to command buffers recording and submission to this class
 // TODO: implement different types: graphics, compute, transfer
@@ -33,8 +35,8 @@ public:
 	void ClearRenderTarget(int32_t x, int32_t y, uint32_t width, uint32_t height, VkClearColorValue clearColor, VkClearDepthStencilValue clearDepthStencil);
 	void DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset, uint32_t firstInstance);
 
-	void SetVertexBuffer(const BufferVK* vertexBuffer, uint64_t offset);
-	void SetIndexBuffer(const BufferVK* indexBuffer, uint64_t offset, bool use16Bits);
+	void SetVertexBuffer(const VertexBufferVK* vertexBuffer, uint64_t offset);
+	void SetIndexBuffer(const IndexBufferVK* indexBuffer, uint64_t offset);
 
 	void SetUniformBuffer(BufferVK* buffer, uint32_t bindingSlot);
 	void SetTexture(TextureVK* texture, uint32_t bindingSlot);
