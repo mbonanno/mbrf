@@ -6,7 +6,7 @@
 namespace MBRF
 {
 
-bool ShaderVK::CreateFromFile(DeviceVK* device, const char* fileName)
+bool ShaderVK::CreateFromFile(DeviceVK* device, const char* fileName, VkShaderStageFlagBits stage)
 {
 	std::vector<char> shaderCode;
 
@@ -20,6 +20,8 @@ bool ShaderVK::CreateFromFile(DeviceVK* device, const char* fileName)
 	createInfo.pCode = reinterpret_cast<uint32_t*>(shaderCode.data());
 
 	VK_CHECK(vkCreateShaderModule(device->GetDevice(), &createInfo, nullptr, &m_shaderModule));
+
+	m_stage = stage;
 
 	return true;
 }

@@ -201,8 +201,8 @@ bool RendererVK::CreateShaders()
 	bool result = true;
 
 	// TODO: put common data/shader dir path in a variable or define
-	result &= m_testVertexShader.CreateFromFile(&m_device, "data/shaders/test.vert.spv");
-	result &= m_testFragmentShader.CreateFromFile(&m_device, "data/shaders/test.frag.spv");
+	result &= m_testVertexShader.CreateFromFile(&m_device, "data/shaders/test.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	result &= m_testFragmentShader.CreateFromFile(&m_device, "data/shaders/test.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	assert(result);
 
@@ -233,7 +233,7 @@ bool RendererVK::CreateGraphicsPipelines()
 	shaderStageCreateInfos[0].sType = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 	shaderStageCreateInfos[0].pNext = nullptr;
 	shaderStageCreateInfos[0].flags = 0;
-	shaderStageCreateInfos[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+	shaderStageCreateInfos[0].stage = m_testVertexShader.GetStage();
 	shaderStageCreateInfos[0].module = m_testVertexShader.GetShaderModule();
 	shaderStageCreateInfos[0].pName = "main";
 	shaderStageCreateInfos[0].pSpecializationInfo = nullptr;
@@ -241,7 +241,7 @@ bool RendererVK::CreateGraphicsPipelines()
 	shaderStageCreateInfos[1].sType = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 	shaderStageCreateInfos[1].pNext = nullptr;
 	shaderStageCreateInfos[1].flags = 0;
-	shaderStageCreateInfos[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	shaderStageCreateInfos[1].stage = m_testFragmentShader.GetStage();
 	shaderStageCreateInfos[1].module = m_testFragmentShader.GetShaderModule();
 	shaderStageCreateInfos[1].pName = "main";
 	shaderStageCreateInfos[1].pSpecializationInfo = nullptr;
