@@ -426,19 +426,32 @@ void DeviceVK::DestroyCommandPools()
 
 bool DeviceVK::CreateDescriptorSetLayouts()
 {
-	VkDescriptorSetLayoutBinding bindings[2];
+	VkDescriptorSetLayoutBinding bindings[MAX_NUM_BINDINGS];
+	int currentBinding = 0;
+
 	// UBOs
-	bindings[0].binding = UNIFORM_BUFFER_SLOT(0);
-	bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	bindings[0].descriptorCount = 1;
-	bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT; // TODO: set all stages?
-	bindings[0].pImmutableSamplers = nullptr;
+	for (int i = 0; i < MAX_UNIFORM_BUFFER_SLOTS; ++i)
+	{
+		bindings[currentBinding].binding = UNIFORM_BUFFER_SLOT(i);
+		bindings[currentBinding].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		bindings[currentBinding].descriptorCount = 1;
+		bindings[currentBinding].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT; // TODO: set all stages?
+		bindings[currentBinding].pImmutableSamplers = nullptr;
+
+		currentBinding++;
+	}
+	
 	// Texture + Samplers TODO: create separate samplers?
-	bindings[1].binding = TEXTURE_SLOT(0);
-	bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	bindings[1].descriptorCount = 1;
-	bindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-	bindings[1].pImmutableSamplers = nullptr;
+	for (int i = 0; i < MAX_TEXTURE_SLOTS; ++i)
+	{
+		bindings[currentBinding].binding = TEXTURE_SLOT(i);
+		bindings[currentBinding].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		bindings[currentBinding].descriptorCount = 1;
+		bindings[currentBinding].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+		bindings[currentBinding].pImmutableSamplers = nullptr;
+
+		currentBinding++;
+	}
 
 	VkDescriptorSetLayoutCreateInfo layoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
 	layoutCreateInfo.pNext = nullptr;
