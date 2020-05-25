@@ -104,6 +104,9 @@
     <ClInclude Include="src\vertexBufferVK.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\vertexFormatVK.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="data\shaders\test.frag">

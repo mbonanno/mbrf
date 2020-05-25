@@ -1,13 +1,10 @@
 #pragma once
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE // use the Vulkan range of 0.0 to 1.0, instead of the -1 to 1.0 OpenGL range
-#include "glm.hpp"
-
 #include "deviceVK.h"
 #include "shaderVK.h"
 #include "swapchainVK.h"
 #include "vertexBufferVK.h"
+#include "vertexFormatVK.h"
 
 namespace MBRF
 {
@@ -69,13 +66,6 @@ private:
 
 	VkPipelineLayout m_testGraphicsPipelineLayout;
 	VkPipeline m_testGraphicsPipeline;
-
-	struct TestVertex
-	{
-		glm::vec3 pos;
-		glm::vec4 color;
-		glm::vec2 texcoord;
-	};
 
 	TestVertex m_testTriangleVerts[3] =
 	{

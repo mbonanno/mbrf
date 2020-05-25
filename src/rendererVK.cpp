@@ -246,35 +246,16 @@ bool RendererVK::CreateGraphicsPipelines()
 	shaderStageCreateInfos[1].pName = "main";
 	shaderStageCreateInfos[1].pSpecializationInfo = nullptr;
 
-	VkVertexInputBindingDescription bindingDescription[1];
-	bindingDescription[0].binding = 0;
-	bindingDescription[0].stride = sizeof(TestVertex);
-	bindingDescription[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-	VkVertexInputAttributeDescription attributeDescription[3];
-	// pos
-	attributeDescription[0].location = 0; // shader input location
-	attributeDescription[0].binding = 0; // vertex buffer binding
-	attributeDescription[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-	attributeDescription[0].offset = offsetof(TestVertex, pos);
-	// color
-	attributeDescription[1].location = 1; // shader input location
-	attributeDescription[1].binding = 0; // vertex buffer binding
-	attributeDescription[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-	attributeDescription[1].offset = offsetof(TestVertex, color);
-	// texcoord
-	attributeDescription[2].location = 2; // shader input location
-	attributeDescription[2].binding = 0; // vertex buffer binding
-	attributeDescription[2].format = VK_FORMAT_R32G32_SFLOAT;
-	attributeDescription[2].offset = offsetof(TestVertex, texcoord);
+	VkVertexInputBindingDescription bindingDescription[] = { TestVertex::GetBindingDescription() };
+	std::vector<VkVertexInputAttributeDescription> attributeDescriptions = TestVertex::GetAttributeDescriptions();
 
 	VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 	vertexInputCreateInfo.pNext = nullptr;
 	vertexInputCreateInfo.flags = 0;
 	vertexInputCreateInfo.vertexBindingDescriptionCount = 1;
 	vertexInputCreateInfo.pVertexBindingDescriptions = bindingDescription;
-	vertexInputCreateInfo.vertexAttributeDescriptionCount = sizeof(attributeDescription) / sizeof(VkVertexInputAttributeDescription);
-	vertexInputCreateInfo.pVertexAttributeDescriptions = attributeDescription;
+	vertexInputCreateInfo.vertexAttributeDescriptionCount = uint32_t(attributeDescriptions.size());
+	vertexInputCreateInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
 	inputAssemblyCreateInfo.pNext = nullptr;

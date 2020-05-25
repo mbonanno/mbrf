@@ -49,6 +49,7 @@
     <ClInclude Include="src\utils.h" />
     <ClInclude Include="src\utilsVK.h" />
     <ClInclude Include="src\vertexBufferVK.h" />
+    <ClInclude Include="src\vertexFormatVK.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="data\shaders\test.frag">
