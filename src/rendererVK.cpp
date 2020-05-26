@@ -26,7 +26,9 @@ bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
 	// wrap
 	CreateShaders();  // Scene specific
 	CreateUniformBuffers();  // should be scene specific. Currently it is also submitting the descriptors...
-	CreateGraphicsPipelines();  // Scene specific
+	
+	ShaderVK shaders[] = { m_testVertexShader, m_testFragmentShader };
+	CreateGraphicsPipeline(&m_backBuffer.m_frameBuffers[0], shaders);
 
 	return true;
 }
@@ -35,7 +37,7 @@ void RendererVK::Cleanup()
 {
 	m_device.WaitForDevice();
 
-	DestroyGraphicsPipelines();
+	DestroyGraphicsPipeline();
 	DestroyUniformBuffers();
 	DestroyShaders();
 	
@@ -61,12 +63,14 @@ void RendererVK::ResizeSwapchain()
 	m_device.WaitForDevice();
 
 	DestroyBackBuffer();
-	DestroyGraphicsPipelines();
+	DestroyGraphicsPipeline();
 
 	m_device.RecreateSwapchain(m_swapchainWidth, m_swapchainHeight);
 
 	CreateBackBuffer();
-	CreateGraphicsPipelines();
+
+	ShaderVK shaders[] = { m_testVertexShader, m_testFragmentShader };
+	CreateGraphicsPipeline(&m_backBuffer.m_frameBuffers[0], shaders);
 
 	m_pendingSwapchainResize = false;
 }
@@ -79,8 +83,8 @@ void RendererVK::Update(double dt)
 
 	m_testCubeRotation += (float)dt;
 
-	glm::mat4 model = glm::rotate(glm::mat4(1.0f), m_testCubeRotation * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 4.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)) * glm::rotate(glm::mat4(1.0f), m_testCubeRotation * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 4.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	glm::mat4 proj = glm::perspective(glm::radians(45.0f), m_backBuffer.m_frameBuffers[0].GetWidth() / float(m_backBuffer.m_frameBuffers[0].GetHeight()), 0.1f, 10.0f);
 
 	// Vulkan clip space has inverted Y and half Z.
@@ -90,6 +94,10 @@ void RendererVK::Update(double dt)
 		0.0f, 0.0f, 0.5f, 1.0f);
 
 	m_uboTest.m_mvpTransform = clip * proj * view * model;
+
+	model = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f)) * glm::rotate(glm::mat4(1.0f), m_testCubeRotation * glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+
+	m_uboTest2.m_mvpTransform = clip * proj * view * model;
 }
 
 void RendererVK::Draw()
@@ -120,8 +128,8 @@ void RendererVK::Draw()
 void RendererVK::DrawFrame()
 {
 	// update uniform buffer (TODO: move in ContextVK?)
-	m_uboBuffers[m_device.m_currentImageIndex].Update(&m_device, sizeof(UBOTest), &m_uboTest);
-
+	m_uboBuffers1.Update(&m_device, m_device.m_currentImageIndex, &m_uboTest);
+	m_uboBuffers2.Update(&m_device, m_device.m_currentImageIndex, &m_uboTest2);
 
 	// TODO: store current swapchain FBO as a global
 	FrameBufferVK* currentRenderTarget = &m_backBuffer.m_frameBuffers[m_device.m_currentImageIndex];
@@ -140,11 +148,8 @@ void RendererVK::DrawFrame()
 	context->SetIndexBuffer(&m_testIndexBuffer, 0);
 
 	// Draw first test cube
-	
-	m_pushConstantTestColor.r = 0;
-	vkCmdPushConstants(commandBuffer, m_testGraphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m_pushConstantTestColor), &m_pushConstantTestColor);
 
-	context->SetUniformBuffer(&m_uboBuffers[m_device.m_currentImageIndex], 0);
+	context->SetUniformBuffer(&m_uboBuffers1.GetBuffer(m_device.m_currentImageIndex), 0);
 	context->SetTexture(&m_testTexture, 0);
 
 	context->CommitBindings(&m_device, m_testGraphicsPipelineLayout);
@@ -153,10 +158,7 @@ void RendererVK::DrawFrame()
 
 	// Draw second test cube
 
-	m_pushConstantTestColor.r = 1;
-	vkCmdPushConstants(commandBuffer, m_testGraphicsPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m_pushConstantTestColor), &m_pushConstantTestColor);
-
-	// keep the buffer just bind a different texture
+	context->SetUniformBuffer(&m_uboBuffers2.GetBuffer(m_device.m_currentImageIndex), 0);
 	context->SetTexture(&m_testTexture2, 0);
 
 	context->CommitBindings(&m_device, m_testGraphicsPipelineLayout);
@@ -211,38 +213,29 @@ bool RendererVK::CreateShaders()
 
 bool RendererVK::CreateUniformBuffers()
 {
-	// Create UBO
-
-	m_uboBuffers.resize(m_swapchain.m_imageCount);
-
-	for (size_t i = 0; i < m_uboBuffers.size(); ++i)
-	{
-		m_uboBuffers[i].Create(&m_device, sizeof(UBOTest), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		m_uboBuffers[i].Update(&m_device, sizeof(UBOTest), &m_uboTest);
-	}
+	m_uboBuffers1.Create(&m_device, m_swapchain.m_imageCount, sizeof(UBOTest));
+	m_uboBuffers2.Create(&m_device, m_swapchain.m_imageCount, sizeof(UBOTest));
 
 	return true;
 }
 
-bool RendererVK::CreateGraphicsPipelines()
+bool RendererVK::CreateGraphicsPipeline(FrameBufferVK* frameBuffer, ShaderVK* shaders)
 {
-	FrameBufferVK frameBuffer = m_backBuffer.m_frameBuffers[0];
-
 	VkPipelineShaderStageCreateInfo shaderStageCreateInfos[2];
 	// vertex
 	shaderStageCreateInfos[0].sType = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 	shaderStageCreateInfos[0].pNext = nullptr;
 	shaderStageCreateInfos[0].flags = 0;
-	shaderStageCreateInfos[0].stage = m_testVertexShader.GetStage();
-	shaderStageCreateInfos[0].module = m_testVertexShader.GetShaderModule();
+	shaderStageCreateInfos[0].stage = shaders[0].GetStage();
+	shaderStageCreateInfos[0].module = shaders[0].GetShaderModule();
 	shaderStageCreateInfos[0].pName = "main";
 	shaderStageCreateInfos[0].pSpecializationInfo = nullptr;
 	// fragment
 	shaderStageCreateInfos[1].sType = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 	shaderStageCreateInfos[1].pNext = nullptr;
 	shaderStageCreateInfos[1].flags = 0;
-	shaderStageCreateInfos[1].stage = m_testFragmentShader.GetStage();
-	shaderStageCreateInfos[1].module = m_testFragmentShader.GetShaderModule();
+	shaderStageCreateInfos[1].stage = shaders[1].GetStage();
+	shaderStageCreateInfos[1].module = shaders[1].GetShaderModule();
 	shaderStageCreateInfos[1].pName = "main";
 	shaderStageCreateInfos[1].pSpecializationInfo = nullptr;
 
@@ -263,8 +256,9 @@ bool RendererVK::CreateGraphicsPipelines()
 	inputAssemblyCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	inputAssemblyCreateInfo.primitiveRestartEnable = VK_FALSE;
 
-	VkViewport viewport = { 0, 0, float(frameBuffer.GetWidth()), float(frameBuffer.GetHeight()), 0.0f, 1.0f };
-	VkRect2D scissor = { 0, 0, m_swapchain.m_imageExtent };
+	VkViewport viewport = { 0, 0, float(frameBuffer->GetWidth()), float(frameBuffer->GetHeight()), 0.0f, 1.0f };
+	VkExtent2D scissorExtent = { frameBuffer->GetWidth() , frameBuffer->GetHeight() };
+	VkRect2D scissor = { 0, 0, scissorExtent };
 
 	VkPipelineViewportStateCreateInfo viewportStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
 	viewportStateCreateInfo.pNext = nullptr;
@@ -365,7 +359,7 @@ bool RendererVK::CreateGraphicsPipelines()
 	pipelineCreateInfo.pColorBlendState = &colorBlendCreateInfo;
 	pipelineCreateInfo.pDynamicState = nullptr;
 	pipelineCreateInfo.layout = m_testGraphicsPipelineLayout;
-	pipelineCreateInfo.renderPass = frameBuffer.GetRenderPass();
+	pipelineCreateInfo.renderPass = frameBuffer->GetRenderPass();
 	pipelineCreateInfo.subpass = 0;
 	// handle of a pipeline to derive from
 	pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
@@ -396,7 +390,7 @@ void RendererVK::DestroyShaders()
 	m_testFragmentShader.Destroy(&m_device);
 }
 
-void RendererVK::DestroyGraphicsPipelines()
+void RendererVK::DestroyGraphicsPipeline()
 {
 	vkDestroyPipelineLayout(m_device.GetDevice(), m_testGraphicsPipelineLayout, nullptr);
 	vkDestroyPipeline(m_device.GetDevice(), m_testGraphicsPipeline, nullptr);
@@ -410,8 +404,8 @@ void RendererVK::DestroyTestVertexAndTriangleBuffers()
 
 void RendererVK::DestroyUniformBuffers()
 {
-	for (size_t i = 0; i < m_uboBuffers.size(); ++i)
-		m_uboBuffers[i].Destroy(&m_device);
+	m_uboBuffers1.Destroy(&m_device);
+	m_uboBuffers2.Destroy(&m_device);
 }
 
 void RendererVK::DestroyBackBuffer()

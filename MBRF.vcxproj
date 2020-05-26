@@ -29,6 +29,7 @@
     <ClCompile Include="src\shaderVK.cpp" />
     <ClCompile Include="src\swapchainVK.cpp" />
     <ClCompile Include="src\textureVK.cpp" />
+    <ClCompile Include="src\uniformBufferVK.cpp" />
     <ClCompile Include="src\utils.cpp" />
     <ClCompile Include="src\utilsVK.cpp" />
     <ClCompile Include="src\vertexBufferVK.cpp" />
@@ -46,6 +47,7 @@
     <ClInclude Include="src\shaderVK.h" />
     <ClInclude Include="src\swapchainVK.h" />
     <ClInclude Include="src\textureVK.h" />
+    <ClInclude Include="src\uniformBufferVK.h" />
     <ClInclude Include="src\utils.h" />
     <ClInclude Include="src\utilsVK.h" />
     <ClInclude Include="src\vertexBufferVK.h" />
