@@ -30,7 +30,7 @@ private:
 	void DestroyTextures();
 	void DestroyTestVertexAndTriangleBuffers();
 	
-	void DrawFrame();
+	void DrawFrame(uint32_t currentFrameIndex);
 	
 	// TODO: create wrappers for the following stuff
 

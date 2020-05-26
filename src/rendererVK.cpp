@@ -108,16 +108,19 @@ void RendererVK::Draw()
 		return;
 	}
 
+	uint32_t currentFrameIndex = m_device.m_currentImageIndex;
+	VkImage currentSwapchainImage = m_swapchain.m_images[currentFrameIndex];
+
 	// ------------------ Immediate Context Draw -------------------------------
 	ContextVK* context = m_device.GetCurrentGraphicsContext();
 	VkCommandBuffer commandBuffer = context->m_commandBuffer;
 
 	context->Begin(&m_device);
-	m_device.TransitionImageLayout(commandBuffer, m_swapchain.m_images[m_device.m_currentImageIndex], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	m_device.TransitionImageLayout(commandBuffer, currentSwapchainImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-	DrawFrame();
+	DrawFrame(currentFrameIndex);
 
-	m_device.TransitionImageLayout(commandBuffer, m_swapchain.m_images[m_device.m_currentImageIndex], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+	m_device.TransitionImageLayout(commandBuffer, currentSwapchainImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 	context->End();
 	// ------------------ Immediate Context Draw -------------------------------
 
@@ -125,14 +128,14 @@ void RendererVK::Draw()
 		ResizeSwapchain();
 }
 
-void RendererVK::DrawFrame()
+void RendererVK::DrawFrame(uint32_t currentFrameIndex)
 {
 	// update uniform buffer (TODO: move in ContextVK?)
-	m_uboBuffers1.Update(&m_device, m_device.m_currentImageIndex, &m_uboTest);
-	m_uboBuffers2.Update(&m_device, m_device.m_currentImageIndex, &m_uboTest2);
+	m_uboBuffers1.Update(&m_device, currentFrameIndex, &m_uboTest);
+	m_uboBuffers2.Update(&m_device, currentFrameIndex, &m_uboTest2);
 
 	// TODO: store current swapchain FBO as a global
-	FrameBufferVK* currentRenderTarget = &m_backBuffer.m_frameBuffers[m_device.m_currentImageIndex];
+	FrameBufferVK* currentRenderTarget = &m_backBuffer.m_frameBuffers[currentFrameIndex];
 
 	ContextVK* context = m_device.GetCurrentGraphicsContext();
 	VkCommandBuffer commandBuffer = context->m_commandBuffer;
@@ -149,7 +152,7 @@ void RendererVK::DrawFrame()
 
 	// Draw first test cube
 
-	context->SetUniformBuffer(&m_uboBuffers1.GetBuffer(m_device.m_currentImageIndex), 0);
+	context->SetUniformBuffer(&m_uboBuffers1.GetBuffer(currentFrameIndex), 0);
 	context->SetTexture(&m_testTexture, 0);
 
 	context->CommitBindings(&m_device, m_testGraphicsPipelineLayout);
@@ -158,7 +161,7 @@ void RendererVK::DrawFrame()
 
 	// Draw second test cube
 
-	context->SetUniformBuffer(&m_uboBuffers2.GetBuffer(m_device.m_currentImageIndex), 0);
+	context->SetUniformBuffer(&m_uboBuffers2.GetBuffer(currentFrameIndex), 0);
 	context->SetTexture(&m_testTexture2, 0);
 
 	context->CommitBindings(&m_device, m_testGraphicsPipelineLayout);
