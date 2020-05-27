@@ -10,10 +10,11 @@ namespace MBRF
 class BufferVK;
 class DeviceVK;
 class FrameBufferVK;
-class TextureVK;
-class Resource;
-class VertexBufferVK;
 class IndexBufferVK;
+class Resource;
+class PipelineVK;
+class TextureVK;
+class VertexBufferVK;
 
 // TODO: add anything related to command buffers recording and submission to this class
 // TODO: implement different types: graphics, compute, transfer
@@ -35,13 +36,15 @@ public:
 	void ClearRenderTarget(int32_t x, int32_t y, uint32_t width, uint32_t height, VkClearColorValue clearColor, VkClearDepthStencilValue clearDepthStencil);
 	void DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset, uint32_t firstInstance);
 
+	void SetPipeline(PipelineVK* pipeline);
+
 	void SetVertexBuffer(const VertexBufferVK* vertexBuffer, uint64_t offset);
 	void SetIndexBuffer(const IndexBufferVK* indexBuffer, uint64_t offset);
 
 	void SetUniformBuffer(BufferVK* buffer, uint32_t bindingSlot);
 	void SetTexture(TextureVK* texture, uint32_t bindingSlot);
 
-	void CommitBindings(DeviceVK* device, VkPipelineLayout pipelineLayout);
+	void CommitBindings(DeviceVK* device);
 
 //private:
 	bool CreateDescriptorPools(DeviceVK* device);
@@ -58,6 +61,7 @@ public:
 	// also look into dynamic offset descriptors?
 	VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
 
+	PipelineVK* m_currentPipeline = nullptr;
 	FrameBufferVK* m_currentFrameBuffer = nullptr;
 
 	// TODO: add a BufferVK to use as scratch uniforms buffer? Could be a dynamic offset one?
@@ -77,6 +81,9 @@ public:
 
 	std::unordered_map<uint32_t, DescriptorBinding> m_uniformBufferBindings;
 	std::unordered_map<uint32_t, DescriptorBinding> m_textureBindings;
+
+private:
+	static const uint32_t s_descriptorPoolMaxSets = 1024;
 };
 
 }

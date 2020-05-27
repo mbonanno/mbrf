@@ -60,6 +60,9 @@
     <ClCompile Include="src\uniformBufferVK.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\pipelineVK.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\application.h">
@@ -113,6 +116,9 @@
     <ClInclude Include="src\uniformBufferVK.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\pipelineVK.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="data\shaders\test.frag">
@@ -121,5 +127,10 @@
     <CustomBuild Include="data\shaders\test.vert">
       <Filter>shaders</Filter>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="data\shaders\test2.frag">
+      <Filter>shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

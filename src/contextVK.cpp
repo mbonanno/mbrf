@@ -2,6 +2,7 @@
 
 #include "deviceVK.h"
 #include "shaderCommon.h"
+#include "pipelineVK.h"
 #include "vertexBufferVK.h"
 
 namespace MBRF
@@ -42,8 +43,6 @@ void ContextVK::Destroy(DeviceVK* device)
 
 bool ContextVK::CreateDescriptorPools(DeviceVK* device)
 {
-	uint32_t maxSets = 1024;
-
 	uint32_t numUniformBuffers = 1;
 	uint32_t numCombinedImageSamplers = 1;
 
@@ -51,15 +50,15 @@ bool ContextVK::CreateDescriptorPools(DeviceVK* device)
 	VkDescriptorPoolSize poolSizes[2];
 	// UBOs
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSizes[0].descriptorCount = numUniformBuffers * maxSets;
+	poolSizes[0].descriptorCount = numUniformBuffers * s_descriptorPoolMaxSets;
 	// Texture + Samplers TODO: create separate samplers?
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	poolSizes[1].descriptorCount = numCombinedImageSamplers * maxSets;
+	poolSizes[1].descriptorCount = numCombinedImageSamplers * s_descriptorPoolMaxSets;
 
 	VkDescriptorPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 	createInfo.pNext = nullptr;
 	createInfo.flags = 0;
-	createInfo.maxSets = maxSets;
+	createInfo.maxSets = s_descriptorPoolMaxSets;
 	createInfo.poolSizeCount = sizeof(poolSizes) / sizeof(VkDescriptorPoolSize);
 	createInfo.pPoolSizes = poolSizes;
 
@@ -85,6 +84,7 @@ void ContextVK::ResetDescriptorPools(DeviceVK* device)
 
 void ContextVK::Begin(DeviceVK* device)
 {
+	m_currentPipeline = nullptr;
 	ResetDescriptorPools(device);
 
 	VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
@@ -197,6 +197,28 @@ void ContextVK::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_
 	vkCmdDrawIndexed(m_commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
+void ContextVK::SetPipeline(PipelineVK* pipeline)
+{
+	m_currentPipeline = pipeline;
+
+	VkPipelineBindPoint bindPoint;
+	
+	switch (pipeline->GetType())
+	{
+	case PipelineVK::GRAPHICS:
+		bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		break;
+	case PipelineVK::COMPUTE:
+		bindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
+		break;
+	default:
+		assert(0); // not implemented
+		break;
+	}
+
+	vkCmdBindPipeline(m_commandBuffer, bindPoint, pipeline->GetPipeline());
+}
+
 void ContextVK::SetVertexBuffer(const VertexBufferVK* vertexBuffer, uint64_t offset)
 {
 	VkBuffer vbs[] = { vertexBuffer->GetBuffer().GetBuffer() };
@@ -225,7 +247,7 @@ void ContextVK::SetTexture(TextureVK* texture, uint32_t bindingSlot)
 }
 
 // TODO: remove the pipelineLayout and add PSO information to ContextVK
-void ContextVK::CommitBindings(DeviceVK* device, VkPipelineLayout pipelineLayout)
+void ContextVK::CommitBindings(DeviceVK* device)
 {
 	if (m_uniformBufferBindings.empty() && m_textureBindings.empty())
 		return;
@@ -291,6 +313,10 @@ void ContextVK::CommitBindings(DeviceVK* device, VkPipelineLayout pipelineLayout
 	}
 	
 	vkUpdateDescriptorSets(device->GetDevice(), uint32_t(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+
+	assert(m_currentPipeline != nullptr && m_currentPipeline->GetType() == PipelineVK::GRAPHICS);
+
+	VkPipelineLayout pipelineLayout = ((GraphicsPipelineVK*)m_currentPipeline)->GetLayout();
 
 	vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
 }

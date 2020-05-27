@@ -1,6 +1,7 @@
 #pragma once
 
 #include "deviceVK.h"
+#include "pipelineVK.h"
 #include "shaderVK.h"
 #include "swapchainVK.h"
 #include "uniformBufferVK.h"
@@ -36,11 +37,11 @@ private:
 
 	bool CreateShaders();
 	bool CreateUniformBuffers();
-	bool CreateGraphicsPipeline(FrameBufferVK* frameBuffer, ShaderVK* shaders);
+	bool CreateGraphicsPipelines();
 
 	void DestroyShaders();
 	void DestroyUniformBuffers();
-	void DestroyGraphicsPipeline();
+	void DestroyGraphicsPipelines();
 
 	void ResizeSwapchain();
 
@@ -65,8 +66,10 @@ private:
 	ShaderVK m_testVertexShader;
 	ShaderVK m_testFragmentShader;
 
-	VkPipelineLayout m_testGraphicsPipelineLayout;
-	VkPipeline m_testGraphicsPipeline;
+	ShaderVK m_testFragmentShader2;
+
+	GraphicsPipelineVK m_testGraphicsPipeline;
+	GraphicsPipelineVK m_testGraphicsPipeline2;
 
 	TestVertex m_testTriangleVerts[3] =
 	{

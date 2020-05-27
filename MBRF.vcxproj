@@ -25,6 +25,7 @@
     <ClCompile Include="src\deviceVK.cpp" />
     <ClCompile Include="src\frameBufferVK.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\pipelineVK.cpp" />
     <ClCompile Include="src\rendererVK.cpp" />
     <ClCompile Include="src\shaderVK.cpp" />
     <ClCompile Include="src\swapchainVK.cpp" />
@@ -42,6 +43,7 @@
     <ClInclude Include="src\contextVK.h" />
     <ClInclude Include="src\deviceVK.h" />
     <ClInclude Include="src\frameBufferVK.h" />
+    <ClInclude Include="src\pipelineVK.h" />
     <ClInclude Include="src\rendererVK.h" />
     <ClInclude Include="src\resource.h" />
     <ClInclude Include="src\shaderVK.h" />
@@ -65,6 +67,11 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)data\shaders\glslc.exe -o %(Identity).spv %(Identity)</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir)data\shaders\glslc.exe -o %(Identity).spv %(Identity)</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir)data\shaders\glslc.exe -o %(Identity).spv %(Identity)</Command>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="data\shaders\test2.frag">
+      <FileType>Document</FileType>
     </CustomBuild>
   </ItemGroup>
   <PropertyGroup Label="Globals">
