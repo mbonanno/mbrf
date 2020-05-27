@@ -84,7 +84,7 @@ VkRenderPass RenderPassCache::GetRenderPass(DeviceVK* device, const std::vector<
 		{
 			assert(!"FrameBufferVK::Create: attachments[i].GetAspectMask() type not implemented");
 
-			return false;
+			return VK_NULL_HANDLE;
 		}
 	}
 
