@@ -127,10 +127,8 @@
     <CustomBuild Include="data\shaders\test.vert">
       <Filter>shaders</Filter>
     </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="data\shaders\test2.frag">
+    <CustomBuild Include="data\shaders\test2.frag">
       <Filter>shaders</Filter>
-    </None>
+    </CustomBuild>
   </ItemGroup>
 </Project>
