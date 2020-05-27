@@ -8,7 +8,7 @@
 namespace MBRF
 {
 
-bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
+bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height, bool enableValidation)
 {
 	m_pendingSwapchainResize = false;
 	m_swapchainWidth = width;
@@ -16,7 +16,7 @@ bool RendererVK::Init(GLFWwindow* window, uint32_t width, uint32_t height)
 
 	// Init Vulkan
 
-	m_device.Init(&m_swapchain, window, width, height, s_maxFramesInFlight);
+	m_device.Init(&m_swapchain, window, width, height, s_maxFramesInFlight, enableValidation);
 
 	// Init Scene/Application
 	CreateBackBuffer(); // swapchain framebuffer

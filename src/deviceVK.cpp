@@ -77,13 +77,13 @@ void FrameDataVK::Destroy(DeviceVK* device)
 const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
 const std::vector<const char*> requiredExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
-void DeviceVK::Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, uint32_t height, uint32_t maxFramesInFlight)
+void DeviceVK::Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, uint32_t height, uint32_t maxFramesInFlight, bool enableValidation)
 {
 	m_currentFrame = 0;
 	m_swapchain = swapchain;
 	m_maxFramesInFlight = maxFramesInFlight;
 
-	CreateInstance(true);
+	CreateInstance(enableValidation);
 
 	m_swapchain->CreatePresentationSurface(this, window);
 	CreateDevice();
@@ -124,6 +124,9 @@ void DeviceVK::RecreateSwapchain(uint32_t width, uint32_t height)
 bool DeviceVK::CreateInstance(bool enableValidation)
 {
 	m_validationLayerEnabled = enableValidation;
+
+	if (m_validationLayerEnabled)
+		std::cout << "[DeviceVK::CreateInstance] Using Vulkan validation layer." << std::endl;
 
 	uint32_t extensionCount;
 	VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr));

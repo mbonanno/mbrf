@@ -34,7 +34,7 @@ class DeviceVK
 {
 public:
 	// TODO: create a device init info struct parameter? Also, remove swapchain dependencies in DeviceVK?
-	void Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, uint32_t height, uint32_t maxFramesInFlight);
+	void Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, uint32_t height, uint32_t maxFramesInFlight, bool enableValidation);
 	void Cleanup();
 
 	void RecreateSwapchain(uint32_t width, uint32_t height);

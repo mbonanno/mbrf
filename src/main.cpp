@@ -2,9 +2,11 @@
 
 #include <iostream>
 
-int main()
+int main(int argc, char **argv)
 {
 	MBRF::Application app;
+
+	app.ParseCommandLineArguments(argc, argv);
 
 	app.Run();
 

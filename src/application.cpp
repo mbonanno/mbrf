@@ -6,12 +6,26 @@ const uint32_t s_windowHeight = 600;
 namespace MBRF
 {
 
+void Application::ParseCommandLineArguments(int argc, char **argv)
+{
+	if (argc == 1)
+		return;
+
+	for (int i = 1; i < argc; ++i)
+	{
+		std::string param = argv[i];
+
+		if (param == "-vulkan_validation")
+			m_enableVulkanValidation = true;
+	}
+}
+
 void Application::Init()
 {
 	int width, height;
 	glfwGetFramebufferSize(m_window, &width, &height);
 
-	m_rendererVK.Init(m_window, width, height);
+	m_rendererVK.Init(m_window, width, height, m_enableVulkanValidation);
 
 	m_lastFrameTime = std::chrono::steady_clock::now();
 }

@@ -14,7 +14,7 @@ namespace MBRF
 class RendererVK
 {
 public:
-	bool Init(GLFWwindow* window, uint32_t width, uint32_t height);
+	bool Init(GLFWwindow* window, uint32_t width, uint32_t height, bool enableValidation);
 	void Cleanup();
 
 	void Update(double dt);

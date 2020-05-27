@@ -19,8 +19,11 @@ public:
 
 	void ResizeWindow();
 
+	void ParseCommandLineArguments(int argc, char **argv);
+
 private:
 	RendererVK m_rendererVK;
+	bool m_enableVulkanValidation = false;
 
 	GLFWwindow* m_window;
 
