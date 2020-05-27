@@ -31,7 +31,9 @@ private:
 	void DestroyTextures();
 	void DestroyTestVertexAndTriangleBuffers();
 	
-	void DrawFrame(uint32_t currentFrameIndex);
+	void DrawFrame();
+
+	FrameBufferVK* GetCurrentBackBuffer();
 	
 	// TODO: create wrappers for the following stuff
 

@@ -93,8 +93,10 @@ public:
 	std::vector<ContextVK> m_graphicsContexts;
 	ContextVK* m_currentGraphicsContext = nullptr;
 
-	uint32_t m_currentFrame = UINT32_MAX;
-	uint32_t m_currentImageIndex = UINT32_MAX;
+	uint32_t m_swapchainImageCount = 0;
+	uint32_t m_currentFrame = 0;
+	uint32_t m_currentImageIndex = 0;
+
 	uint32_t m_maxFramesInFlight = 2;
 
 private:

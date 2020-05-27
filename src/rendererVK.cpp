@@ -81,9 +81,11 @@ void RendererVK::Update(double dt)
 
 	m_testCubeRotation += (float)dt;
 
+	FrameBufferVK* backBuffer = GetCurrentBackBuffer();
+
 	glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)) * glm::rotate(glm::mat4(1.0f), m_testCubeRotation * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 4.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	glm::mat4 proj = glm::perspective(glm::radians(45.0f), m_backBuffer.m_frameBuffers[0].GetWidth() / float(m_backBuffer.m_frameBuffers[0].GetHeight()), 0.1f, 10.0f);
+	glm::mat4 proj = glm::perspective(glm::radians(45.0f), backBuffer->GetWidth() / float(backBuffer->GetHeight()), 0.1f, 10.0f);
 
 	// Vulkan clip space has inverted Y and half Z.
 	glm::mat4 clip = glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
@@ -116,7 +118,7 @@ void RendererVK::Draw()
 	context->Begin(&m_device);
 	m_device.TransitionImageLayout(commandBuffer, currentSwapchainImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-	DrawFrame(currentFrameIndex);
+	DrawFrame();
 
 	m_device.TransitionImageLayout(commandBuffer, currentSwapchainImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 	context->End();
@@ -126,14 +128,14 @@ void RendererVK::Draw()
 		ResizeSwapchain();
 }
 
-void RendererVK::DrawFrame(uint32_t currentFrameIndex)
+void RendererVK::DrawFrame()
 {
 	// update uniform buffer (TODO: move in ContextVK?)
-	m_uboBuffers1.Update(&m_device, currentFrameIndex, &m_uboTest);
-	m_uboBuffers2.Update(&m_device, currentFrameIndex, &m_uboTest2);
+	m_uboBuffers1.UpdateCurrentBuffer(&m_device, &m_uboTest);
+	m_uboBuffers2.UpdateCurrentBuffer(&m_device, &m_uboTest2);
 
 	// TODO: store current swapchain FBO as a global
-	FrameBufferVK* currentRenderTarget = &m_backBuffer.m_frameBuffers[currentFrameIndex];
+	FrameBufferVK* currentRenderTarget = GetCurrentBackBuffer();
 
 	ContextVK* context = m_device.GetCurrentGraphicsContext();
 	VkCommandBuffer commandBuffer = context->m_commandBuffer;
@@ -150,7 +152,7 @@ void RendererVK::DrawFrame(uint32_t currentFrameIndex)
 
 	// Draw first test cube
 
-	context->SetUniformBuffer(&m_uboBuffers1.GetBuffer(currentFrameIndex), 0);
+	context->SetUniformBuffer(&m_uboBuffers1.GetCurrentBuffer(&m_device), 0);
 	context->SetTexture(&m_testTexture, 0);
 
 	context->CommitBindings(&m_device);
@@ -161,7 +163,7 @@ void RendererVK::DrawFrame(uint32_t currentFrameIndex)
 
 	context->SetPipeline(&m_testGraphicsPipeline2);
 
-	context->SetUniformBuffer(&m_uboBuffers2.GetBuffer(currentFrameIndex), 0);
+	context->SetUniformBuffer(&m_uboBuffers2.GetCurrentBuffer(&m_device), 0);
 	context->SetTexture(&m_testTexture2, 0);
 
 	context->CommitBindings(&m_device);
@@ -195,6 +197,11 @@ bool RendererVK::CreateBackBuffer()
 	return true;
 }
 
+FrameBufferVK* RendererVK::GetCurrentBackBuffer()
+{
+	return &m_backBuffer.m_frameBuffers[m_device.m_currentImageIndex];
+}
+
 void RendererVK::CreateTextures()
 {
 	m_testTexture.LoadFromFile(&m_device, "data/textures/test.jpg");
@@ -218,8 +225,8 @@ bool RendererVK::CreateShaders()
 
 bool RendererVK::CreateUniformBuffers()
 {
-	m_uboBuffers1.Create(&m_device, m_swapchain.m_imageCount, sizeof(UBOTest));
-	m_uboBuffers2.Create(&m_device, m_swapchain.m_imageCount, sizeof(UBOTest));
+	m_uboBuffers1.Create(&m_device, sizeof(UBOTest));
+	m_uboBuffers2.Create(&m_device, sizeof(UBOTest));
 
 	return true;
 }
@@ -227,10 +234,10 @@ bool RendererVK::CreateUniformBuffers()
 bool RendererVK::CreateGraphicsPipelines()
 {
 	std::vector<ShaderVK> shaders = { m_testVertexShader, m_testFragmentShader };
-	m_testGraphicsPipeline.Create(&m_device, &m_backBuffer.m_frameBuffers[0], shaders);
+	m_testGraphicsPipeline.Create(&m_device, GetCurrentBackBuffer(), shaders);
 
 	std::vector<ShaderVK> shaders2 = { m_testVertexShader, m_testFragmentShader2 };
-	m_testGraphicsPipeline2.Create(&m_device, &m_backBuffer.m_frameBuffers[0], shaders2);
+	m_testGraphicsPipeline2.Create(&m_device, GetCurrentBackBuffer(), shaders2);
 
 	return true;
 }

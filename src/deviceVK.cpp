@@ -93,6 +93,8 @@ void DeviceVK::Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, 
 
 	CreateFrameData();
 	CreateGraphicsContexts();
+
+	m_swapchainImageCount = m_swapchain->m_imageCount;
 }
 
 void DeviceVK::Cleanup()
