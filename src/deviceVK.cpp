@@ -83,8 +83,6 @@ void DeviceVK::Init(SwapchainVK* swapchain, GLFWwindow* window, uint32_t width, 
 	m_swapchain = swapchain;
 	m_maxFramesInFlight = maxFramesInFlight;
 
-	
-
 	CreateInstance(true);
 
 	m_swapchain->CreatePresentationSurface(this, window);
@@ -156,7 +154,7 @@ bool DeviceVK::CreateInstance(bool enableValidation)
 	VK_CHECK(vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data()));
 
 	// check validation layer support
-	if (!UtilsVK::CheckLayersSupport(validationLayers, availableLayers))
+	if (enableValidation && !UtilsVK::CheckLayersSupport(validationLayers, availableLayers))
 		return false;
 
 	VkApplicationInfo appInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
@@ -321,7 +319,7 @@ bool DeviceVK::CreateDevice()
 		std::vector<VkLayerProperties> availableLayers(layerCount);
 		VK_CHECK(vkEnumerateDeviceLayerProperties(device, &layerCount, availableLayers.data()));
 
-		if (!UtilsVK::CheckLayersSupport(validationLayers, availableLayers))
+		if ( m_validationLayerEnabled && !UtilsVK::CheckLayersSupport(validationLayers, availableLayers))
 			continue;
 
 		// check queues support

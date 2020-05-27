@@ -143,7 +143,6 @@ void RendererVK::DrawFrame(uint32_t currentFrameIndex)
 	context->ClearRenderTarget(0, 0, currentRenderTarget->GetWidth(), currentRenderTarget->GetHeight(), { 0.3f, 0.3f, 0.3f, 1.0f }, { 1.0f, 0 });
 
 	// TODO: need to write PSO wrapper. After replace this with context->SetPSO. Orset individual states + final ApplyState call?
-	//vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_testGraphicsPipeline.GetPipeline());
 	context->SetPipeline(&m_testGraphicsPipeline);
 
 	context->SetVertexBuffer(&m_testVertexBuffer, 0);
