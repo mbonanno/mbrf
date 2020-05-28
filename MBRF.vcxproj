@@ -20,11 +20,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\application.cpp" />
+    <ClCompile Include="src\applicationDemo.cpp" />
     <ClCompile Include="src\bufferVK.cpp" />
     <ClCompile Include="src\contextVK.cpp" />
     <ClCompile Include="src\deviceVK.cpp" />
     <ClCompile Include="src\frameBufferVK.cpp" />
-    <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\pipelineVK.cpp" />
     <ClCompile Include="src\rendererVK.cpp" />
     <ClCompile Include="src\shaderVK.cpp" />
@@ -38,6 +38,7 @@
   <ItemGroup>
     <ClInclude Include="data\shaders\shaderCommon.h" />
     <ClInclude Include="src\application.h" />
+    <ClInclude Include="src\applicationDemo.h" />
     <ClInclude Include="src\bufferVK.h" />
     <ClInclude Include="src\commonVK.h" />
     <ClInclude Include="src\contextVK.h" />

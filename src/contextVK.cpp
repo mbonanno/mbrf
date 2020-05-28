@@ -1,8 +1,10 @@
 #include "contextVK.h"
 
 #include "deviceVK.h"
-#include "shaderCommon.h"
+#include "frameBufferVK.h"
 #include "pipelineVK.h"
+#include "shaderCommon.h"
+#include "textureVK.h"
 #include "vertexBufferVK.h"
 
 namespace MBRF

@@ -1,11 +1,7 @@
 #pragma once
 
 #include "commonVK.h"
-
-#include "bufferVK.h"
 #include "contextVK.h"
-#include "frameBufferVK.h"
-#include "textureVK.h"
 
 #include "glfw/glfw3.h"
 

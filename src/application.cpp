@@ -28,10 +28,16 @@ void Application::Init()
 	m_rendererVK.Init(m_window, width, height, m_enableVulkanValidation);
 
 	m_lastFrameTime = std::chrono::steady_clock::now();
+
+	OnInit();
 }
 
 void Application::Cleanup()
 {
+	m_rendererVK.WaitForDevice();
+
+	OnCleanup();
+
 	m_rendererVK.Cleanup();
 }
 
@@ -45,12 +51,19 @@ void Application::Update()
 	double dt = duration<double, seconds::period>(currentFrameTime - m_lastFrameTime).count();
 	m_lastFrameTime = currentFrameTime;
 		
-	m_rendererVK.Update(dt);
+	//m_rendererVK.Update(dt);
+
+	OnUpdate(dt);
 }
 
 void Application::Draw()
 {
-	m_rendererVK.Draw();
+	if (!m_rendererVK.BeginDraw())
+		return;
+
+	OnDraw();
+
+	m_rendererVK.EndDraw();
 }
 
 void Application::ResizeWindow()
@@ -65,7 +78,7 @@ void Application::ResizeWindow()
 		glfwWaitEvents();
 	}
 
-	m_rendererVK.RequestSwapchainResize(width, height);
+	m_rendererVK.RequestSwapchainResize(width, height, std::bind(&Application::OnResize, this));
 }
 
 static void resizeCallback(GLFWwindow* window, int width, int height) {

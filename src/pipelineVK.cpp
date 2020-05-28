@@ -1,6 +1,7 @@
 #include "pipelineVK.h"
 
 #include "deviceVK.h"
+#include "frameBufferVK.h"
 #include "vertexFormatVK.h"
 
 namespace MBRF
