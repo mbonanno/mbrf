@@ -1,6 +1,6 @@
 #version 450
 
-#include "shaderCommon.h"
+#include "..\shaderCommon.h"
 
 layout(set = 0, binding = TEXTURE_SLOT(0)) uniform sampler2D texSampler;
 

@@ -11,6 +11,8 @@
 #include "vertexBufferVK.h"
 #include "vertexFormatVK.h"
 
+#include <gtc/matrix_transform.hpp>
+
 #include <chrono>
 
 namespace MBRF

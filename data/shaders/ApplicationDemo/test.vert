@@ -1,6 +1,6 @@
 #version 450
 
-#include "shaderCommon.h"
+#include "..\shaderCommon.h"
 
 vec3 triangleVerts[3] = vec3[](
     vec3(0.0, -0.5, 0.0),

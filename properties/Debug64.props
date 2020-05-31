@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)src;$(SolutionDir)data\shaders;$(SolutionDir)extern\glfw\include;$(SolutionDir)extern\vulkan\Include\;$(SolutionDir)extern\glm;$(SolutionDir)extern\stb;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>glfw3.lib;vulkan-1.lib;$(SolutionDir)x64\Debug\MBRF.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)extern\glfw\lib-vc2017;$(SolutionDir)extern\vulkan\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>/NODEFAULTLIB:msvcrt.lib %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+    <CustomBuild>
+      <Command>$(SolutionDir)data\shaders\glslc.exe -o %(Identity).spv %(Identity)</Command>
+      <Message>Building shader: %(Identity)</Message>
+      <LinkObjects>false</LinkObjects>
+      <Outputs>%(Identity).spv</Outputs>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemGroup />
+</Project>

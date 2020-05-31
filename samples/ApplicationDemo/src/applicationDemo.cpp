@@ -1,7 +1,5 @@
 #include "applicationDemo.h"
 
-#include <gtc/matrix_transform.hpp>
-
 namespace MBRF
 {
 
@@ -106,8 +104,8 @@ void ApplicationDemo::OnDraw()
 
 void ApplicationDemo::CreateTextures()
 {
-	m_testTexture.LoadFromFile(m_rendererVK.GetDevice(), "data/textures/test.jpg");
-	m_testTexture2.LoadFromFile(m_rendererVK.GetDevice(), "data/textures/test2.png");
+	m_testTexture.LoadFromFile(m_rendererVK.GetDevice(), "../../data/textures/test.jpg");
+	m_testTexture2.LoadFromFile(m_rendererVK.GetDevice(), "../../data/textures/test2.png");
 }
 
 bool ApplicationDemo::CreateShaders()
@@ -115,10 +113,10 @@ bool ApplicationDemo::CreateShaders()
 	bool result = true;
 
 	// TODO: put common data/shader dir path in a variable or define
-	result &= m_testVertexShader.CreateFromFile(m_rendererVK.GetDevice(), "data/shaders/test.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-	result &= m_testFragmentShader.CreateFromFile(m_rendererVK.GetDevice(), "data/shaders/test.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	result &= m_testVertexShader.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/ApplicationDemo/test.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	result &= m_testFragmentShader.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/ApplicationDemo/test.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-	result &= m_testFragmentShader2.CreateFromFile(m_rendererVK.GetDevice(), "data/shaders/test2.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	result &= m_testFragmentShader2.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/ApplicationDemo/test2.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	assert(result);
 
