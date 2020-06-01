@@ -5,7 +5,7 @@
 namespace MBRF
 {
 
-class ApplicationDemo : public Application
+class HelloTriangle : public Application
 {
 	void OnInit();
 	void OnCleanup();
@@ -27,24 +27,22 @@ class ApplicationDemo : public Application
 	void DestroyUniformBuffers();
 	void DestroyGraphicsPipelines();
 
-	ShaderVK m_testVertexShader;
-	ShaderVK m_testFragmentShader;
+	ShaderVK m_vertexShader;
+	ShaderVK m_fragmentShader;
 
 	ShaderVK m_testFragmentShader2;
 
-	GraphicsPipelineVK m_testGraphicsPipeline;
+	GraphicsPipelineVK m_graphicsPipeline;
 	GraphicsPipelineVK m_testGraphicsPipeline2;
 
-	TestVertex m_testTriangleVerts[3] =
+	struct Vertex
 	{
-		{{0.0, -0.5, 0.0f}, {1.0, 0.0, 0.0, 1.0}, {0, 1}},
-		{{0.5, 0.5, 0.0f}, {0.0, 1.0, 0.0, 1.0}, {1, 0}},
-		{{-0.5, 0.5, 0.0f}, {0.0, 0.0, 1.0, 1.0}, {0, 0}}
+		glm::vec3 m_pos;
+		glm::vec4 m_color;
+		glm::vec2 m_texcoord;
 	};
 
-	uint32_t m_testTriangleIndices[3] = { 0, 1, 2 };
-
-	TestVertex m_testCubeVerts[8] =
+	Vertex m_testCubeVerts[8] =
 	{
 		// top
 		{{-0.5, -0.5,  0.5}, {1.0, 0.0, 0.0, 1.0}, {0, 1}},
@@ -79,6 +77,8 @@ class ApplicationDemo : public Application
 		3, 2, 6,
 		6, 7, 3
 	};
+
+	VertexFormatVK m_vertexFormat;
 
 	float m_testCubeRotation = 0;
 

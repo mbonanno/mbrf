@@ -9,48 +9,32 @@
 namespace MBRF
 {
 
-struct TestVertex
+struct VertexAttributeVK
 {
-	glm::vec3 m_pos;
-	glm::vec4 m_color;
-	glm::vec2 m_texcoord;
+	VertexAttributeVK(uint32_t location, VkFormat format, uint32_t offset, uint32_t size): m_location(location), m_format(format), m_offset(offset), m_size(size) {};
 
-	static VkVertexInputBindingDescription GetBindingDescription() 
-	{
-		VkVertexInputBindingDescription bindingDescription;
-		bindingDescription.binding = 0;
-		bindingDescription.stride = sizeof(TestVertex);
-		bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	uint32_t m_location;
+	VkFormat m_format;
+	uint32_t m_offset;
+	uint32_t m_size;
+};
 
-		return bindingDescription;
-	}
+class VertexFormatVK
+{
+public:
+	VertexFormatVK(uint32_t binding=0): m_binding(binding) {};
 
-	static std::vector<VkVertexInputAttributeDescription> GetAttributeDescriptions()
-	{
-		std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
-		attributeDescriptions.resize(3);
+	void AddAttribute(const VertexAttributeVK &attribute);
 
-		// pos
-		attributeDescriptions[0].location = 0; // shader input location
-		attributeDescriptions[0].binding = 0; // vertex buffer binding
-		attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDescriptions[0].offset = offsetof(TestVertex, m_pos);
-		// color
-		attributeDescriptions[1].location = 1; // shader input location
-		attributeDescriptions[1].binding = 0; // vertex buffer binding
-		attributeDescriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-		attributeDescriptions[1].offset = offsetof(TestVertex, m_color);
-		// texcoord
-		attributeDescriptions[2].location = 2; // shader input location
-		attributeDescriptions[2].binding = 0; // vertex buffer binding
-		attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-		attributeDescriptions[2].offset = offsetof(TestVertex, m_texcoord);
+	VkVertexInputBindingDescription GetBindingDescription() const;
+	std::vector<VkVertexInputAttributeDescription> GetAttributeDescriptions() const;
 
-		return attributeDescriptions;
-	}
-	
+	void SetBinding(uint32_t binding) { m_binding = binding; };
 
-	
+private:
+	uint32_t m_binding = 0;
+	uint32_t m_stride = 0;
+	std::vector<VertexAttributeVK> m_attributes;
 };
 
 }

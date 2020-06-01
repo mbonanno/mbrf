@@ -3,10 +3,12 @@
 #include "deviceVK.h"
 #include "utils.h"
 
+#include <iostream>
+
 namespace MBRF
 {
 
-bool ShaderVK::CreateFromFile(DeviceVK* device, const char* fileName, VkShaderStageFlagBits stage)
+bool ShaderVK::CreateFromFile(DeviceVK* device, const char* fileName, ShaderStage stage)
 {
 	std::vector<char> shaderCode;
 
@@ -21,7 +23,22 @@ bool ShaderVK::CreateFromFile(DeviceVK* device, const char* fileName, VkShaderSt
 
 	VK_CHECK(vkCreateShaderModule(device->GetDevice(), &createInfo, nullptr, &m_shaderModule));
 
-	m_stage = stage;
+	switch (stage)
+	{
+	case SHADER_STAGE_VERTEX:
+		m_stage = VK_SHADER_STAGE_VERTEX_BIT;
+		break;
+	case SHADER_STAGE_FRAGMENT:
+		m_stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+		break;
+	case SHADER_STAGE_COMPUTE:
+		m_stage = VK_SHADER_STAGE_COMPUTE_BIT;
+		break;
+	default:
+		std::cout << "Shader stage not implemented yet" << std::endl;
+		assert(0);
+		return false;
+	}
 
 	return true;
 }

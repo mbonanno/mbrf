@@ -7,7 +7,7 @@
 namespace MBRF
 {
 
-bool GraphicsPipelineVK::Create(DeviceVK* device, FrameBufferVK* frameBuffer, std::vector<ShaderVK> shaders)
+bool GraphicsPipelineVK::Create(DeviceVK* device, VertexFormatVK* vertexFormat, FrameBufferVK* frameBuffer, std::vector<ShaderVK> shaders, bool backFaceCulling)
 {
 	VkPipelineShaderStageCreateInfo shaderStageCreateInfos[2];
 	// vertex
@@ -27,8 +27,8 @@ bool GraphicsPipelineVK::Create(DeviceVK* device, FrameBufferVK* frameBuffer, st
 	shaderStageCreateInfos[1].pName = "main";
 	shaderStageCreateInfos[1].pSpecializationInfo = nullptr;
 
-	VkVertexInputBindingDescription bindingDescription[] = { TestVertex::GetBindingDescription() };
-	std::vector<VkVertexInputAttributeDescription> attributeDescriptions = TestVertex::GetAttributeDescriptions();
+	VkVertexInputBindingDescription bindingDescription[] = { /*TestVertex::GetBindingDescription()*/vertexFormat->GetBindingDescription() };
+	std::vector<VkVertexInputAttributeDescription> attributeDescriptions = /*TestVertex::GetAttributeDescriptions()*/vertexFormat->GetAttributeDescriptions();
 
 	VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 	vertexInputCreateInfo.pNext = nullptr;
@@ -62,7 +62,7 @@ bool GraphicsPipelineVK::Create(DeviceVK* device, FrameBufferVK* frameBuffer, st
 	rasterizationCreateInfo.depthClampEnable = VK_FALSE;
 	rasterizationCreateInfo.rasterizerDiscardEnable = VK_FALSE;
 	rasterizationCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
-	rasterizationCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizationCreateInfo.cullMode = backFaceCulling ? VK_CULL_MODE_BACK_BIT : VK_CULL_MODE_NONE;
 	rasterizationCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizationCreateInfo.depthBiasEnable = VK_FALSE;
 	rasterizationCreateInfo.depthBiasConstantFactor = 0.0f;

@@ -8,6 +8,7 @@ namespace MBRF
 
 class DeviceVK;
 class FrameBufferVK;
+class VertexFormatVK;
 
 class PipelineVK
 {
@@ -35,7 +36,7 @@ public:
 	GraphicsPipelineVK() : PipelineVK(GRAPHICS) {};
 
 	// TODO: add all needed states
-	bool Create(DeviceVK* device, FrameBufferVK* frameBuffer, std::vector<ShaderVK> shaders);
+	bool Create(DeviceVK* device, VertexFormatVK* vertexFormat, FrameBufferVK* frameBuffer, std::vector<ShaderVK> shaders, bool backFaceCulling);
 	void Destroy(DeviceVK* device);
 
 	VkPipelineLayout GetLayout() const { return m_layout; };

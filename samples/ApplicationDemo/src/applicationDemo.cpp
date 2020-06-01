@@ -3,7 +3,7 @@
 namespace MBRF
 {
 
-void ApplicationDemo::OnInit()
+void HelloTriangle::OnInit()
 {
 	CreateTextures();
 	CreateTestVertexAndTriangleBuffers();
@@ -14,7 +14,7 @@ void ApplicationDemo::OnInit()
 	CreateGraphicsPipelines();
 }
 
-void ApplicationDemo::OnCleanup()
+void HelloTriangle::OnCleanup()
 {
 	DestroyGraphicsPipelines();
 	DestroyUniformBuffers();
@@ -24,13 +24,13 @@ void ApplicationDemo::OnCleanup()
 	DestroyTextures();
 }
 
-void ApplicationDemo::OnResize()
+void HelloTriangle::OnResize()
 {
 	DestroyGraphicsPipelines();
 	CreateGraphicsPipelines();
 }
 
-void ApplicationDemo::OnUpdate(double dt)
+void HelloTriangle::OnUpdate(double dt)
 {
 	m_uboTest.m_testColor.x += (float)dt;
 	if (m_uboTest.m_testColor.x > 1.0f)
@@ -57,7 +57,7 @@ void ApplicationDemo::OnUpdate(double dt)
 	m_uboTest2.m_mvpTransform = clip * proj * view * model;
 }
 
-void ApplicationDemo::OnDraw()
+void HelloTriangle::OnDraw()
 {
 	// update uniform buffer (TODO: move in ContextVK?)
 	m_uboBuffers1.UpdateCurrentBuffer(m_rendererVK.GetDevice(), &m_uboTest);
@@ -74,7 +74,7 @@ void ApplicationDemo::OnDraw()
 	context->ClearRenderTarget(0, 0, currentRenderTarget->GetWidth(), currentRenderTarget->GetHeight(), { 0.3f, 0.3f, 0.3f, 1.0f }, { 1.0f, 0 });
 
 	// TODO: need to write PSO wrapper. After replace this with context->SetPSO. Orset individual states + final ApplyState call?
-	context->SetPipeline(&m_testGraphicsPipeline);
+	context->SetPipeline(&m_graphicsPipeline);
 
 	context->SetVertexBuffer(&m_testVertexBuffer, 0);
 	context->SetIndexBuffer(&m_testIndexBuffer, 0);
@@ -102,28 +102,28 @@ void ApplicationDemo::OnDraw()
 	context->EndPass();
 }
 
-void ApplicationDemo::CreateTextures()
+void HelloTriangle::CreateTextures()
 {
 	m_testTexture.LoadFromFile(m_rendererVK.GetDevice(), "../../data/textures/test.jpg");
 	m_testTexture2.LoadFromFile(m_rendererVK.GetDevice(), "../../data/textures/test2.png");
 }
 
-bool ApplicationDemo::CreateShaders()
+bool HelloTriangle::CreateShaders()
 {
 	bool result = true;
 
 	// TODO: put common data/shader dir path in a variable or define
-	result &= m_testVertexShader.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/ApplicationDemo/test.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-	result &= m_testFragmentShader.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/ApplicationDemo/test.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	result &= m_vertexShader.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/ApplicationDemo/test.vert.spv", SHADER_STAGE_VERTEX);
+	result &= m_fragmentShader.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/ApplicationDemo/test.frag.spv", SHADER_STAGE_FRAGMENT);
 
-	result &= m_testFragmentShader2.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/ApplicationDemo/test2.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+	result &= m_testFragmentShader2.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/ApplicationDemo/test2.frag.spv", SHADER_STAGE_FRAGMENT);
 
 	assert(result);
 
 	return result;
 }
 
-bool ApplicationDemo::CreateUniformBuffers()
+bool HelloTriangle::CreateUniformBuffers()
 {
 	m_uboBuffers1.Create(m_rendererVK.GetDevice(), sizeof(UBOTest));
 	m_uboBuffers2.Create(m_rendererVK.GetDevice(), sizeof(UBOTest));
@@ -131,19 +131,21 @@ bool ApplicationDemo::CreateUniformBuffers()
 	return true;
 }
 
-bool ApplicationDemo::CreateGraphicsPipelines()
+bool HelloTriangle::CreateGraphicsPipelines()
 {
-	std::vector<ShaderVK> shaders = { m_testVertexShader, m_testFragmentShader };
-	m_testGraphicsPipeline.Create(m_rendererVK.GetDevice(), m_rendererVK.GetCurrentBackBuffer(), shaders);
+	std::vector<ShaderVK> shaders = { m_vertexShader, m_fragmentShader };
+	m_graphicsPipeline.Create(m_rendererVK.GetDevice(), &m_vertexFormat, m_rendererVK.GetCurrentBackBuffer(), shaders, true);
 
-	std::vector<ShaderVK> shaders2 = { m_testVertexShader, m_testFragmentShader2 };
-	m_testGraphicsPipeline2.Create(m_rendererVK.GetDevice(), m_rendererVK.GetCurrentBackBuffer(), shaders2);
+	std::vector<ShaderVK> shaders2 = { m_vertexShader, m_testFragmentShader2 };
+	m_testGraphicsPipeline2.Create(m_rendererVK.GetDevice(), &m_vertexFormat, m_rendererVK.GetCurrentBackBuffer(), shaders2, true);
 
 	return true;
 }
 
-void ApplicationDemo::CreateTestVertexAndTriangleBuffers()
+void HelloTriangle::CreateTestVertexAndTriangleBuffers()
 {
+	// vertex buffer
+
 	uint32_t size = sizeof(m_testCubeVerts);
 
 	m_testVertexBuffer.Create(m_rendererVK.GetDevice(), size, m_testCubeVerts);
@@ -153,36 +155,42 @@ void ApplicationDemo::CreateTestVertexAndTriangleBuffers()
 	size = sizeof(m_testCubeIndices);
 
 	m_testIndexBuffer.Create(m_rendererVK.GetDevice(), size, size / sizeof(uint32_t), false, m_testCubeIndices);
+
+	// vertex format
+
+	m_vertexFormat.AddAttribute(VertexAttributeVK(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, m_pos), sizeof(Vertex::m_pos)));
+	m_vertexFormat.AddAttribute(VertexAttributeVK(1, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex, m_color), sizeof(Vertex::m_color)));
+	m_vertexFormat.AddAttribute(VertexAttributeVK(2, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, m_texcoord), sizeof(Vertex::m_texcoord)));
 }
 
-void ApplicationDemo::DestroyShaders()
+void HelloTriangle::DestroyShaders()
 {
-	m_testVertexShader.Destroy(m_rendererVK.GetDevice());
-	m_testFragmentShader.Destroy(m_rendererVK.GetDevice());
+	m_vertexShader.Destroy(m_rendererVK.GetDevice());
+	m_fragmentShader.Destroy(m_rendererVK.GetDevice());
 
 	m_testFragmentShader2.Destroy(m_rendererVK.GetDevice());
 }
 
-void ApplicationDemo::DestroyGraphicsPipelines()
+void HelloTriangle::DestroyGraphicsPipelines()
 {
-	m_testGraphicsPipeline.Destroy(m_rendererVK.GetDevice());
+	m_graphicsPipeline.Destroy(m_rendererVK.GetDevice());
 
 	m_testGraphicsPipeline2.Destroy(m_rendererVK.GetDevice());
 }
 
-void ApplicationDemo::DestroyTestVertexAndTriangleBuffers()
+void HelloTriangle::DestroyTestVertexAndTriangleBuffers()
 {
 	m_testVertexBuffer.Destroy(m_rendererVK.GetDevice());
 	m_testIndexBuffer.Destroy(m_rendererVK.GetDevice());
 }
 
-void ApplicationDemo::DestroyUniformBuffers()
+void HelloTriangle::DestroyUniformBuffers()
 {
 	m_uboBuffers1.Destroy(m_rendererVK.GetDevice());
 	m_uboBuffers2.Destroy(m_rendererVK.GetDevice());
 }
 
-void ApplicationDemo::DestroyTextures()
+void HelloTriangle::DestroyTextures()
 {
 	m_testTexture.Destroy(m_rendererVK.GetDevice());
 	m_testTexture2.Destroy(m_rendererVK.GetDevice());
@@ -192,7 +200,7 @@ void ApplicationDemo::DestroyTextures()
 
 int main(int argc, char **argv)
 {
-	MBRF::ApplicationDemo app;
+	MBRF::HelloTriangle app;
 
 	app.ParseCommandLineArguments(argc, argv);
 
