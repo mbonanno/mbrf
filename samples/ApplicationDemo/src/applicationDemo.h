@@ -30,7 +30,7 @@ class HelloTriangle : public Application
 	ShaderVK m_vertexShader;
 	ShaderVK m_fragmentShader;
 
-	ShaderVK m_testFragmentShader2;
+	ShaderVK m_fragmentShader2;
 
 	GraphicsPipelineVK m_graphicsPipeline;
 	GraphicsPipelineVK m_testGraphicsPipeline2;

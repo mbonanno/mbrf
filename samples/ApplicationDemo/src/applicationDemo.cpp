@@ -116,7 +116,7 @@ bool HelloTriangle::CreateShaders()
 	result &= m_vertexShader.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/ApplicationDemo/test.vert.spv", SHADER_STAGE_VERTEX);
 	result &= m_fragmentShader.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/ApplicationDemo/test.frag.spv", SHADER_STAGE_FRAGMENT);
 
-	result &= m_testFragmentShader2.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/ApplicationDemo/test2.frag.spv", SHADER_STAGE_FRAGMENT);
+	result &= m_fragmentShader2.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/ApplicationDemo/test2.frag.spv", SHADER_STAGE_FRAGMENT);
 
 	assert(result);
 
@@ -133,11 +133,17 @@ bool HelloTriangle::CreateUniformBuffers()
 
 bool HelloTriangle::CreateGraphicsPipelines()
 {
-	std::vector<ShaderVK> shaders = { m_vertexShader, m_fragmentShader };
-	m_graphicsPipeline.Create(m_rendererVK.GetDevice(), &m_vertexFormat, m_rendererVK.GetCurrentBackBuffer(), shaders, true);
+	GraphicsPipelineDesc desc;
+	desc.m_vertexFormat = &m_vertexFormat;
+	desc.m_frameBuffer = m_rendererVK.GetCurrentBackBuffer();
+	desc.m_shaders = { m_vertexShader, m_fragmentShader };
+	desc.m_cullMode = CULL_MODE_BACK;
 
-	std::vector<ShaderVK> shaders2 = { m_vertexShader, m_testFragmentShader2 };
-	m_testGraphicsPipeline2.Create(m_rendererVK.GetDevice(), &m_vertexFormat, m_rendererVK.GetCurrentBackBuffer(), shaders2, true);
+	m_graphicsPipeline.Create(m_rendererVK.GetDevice(), desc);
+
+	desc.m_shaders = { m_vertexShader, m_fragmentShader2 };
+
+	m_testGraphicsPipeline2.Create(m_rendererVK.GetDevice(), desc);
 
 	return true;
 }
@@ -168,7 +174,7 @@ void HelloTriangle::DestroyShaders()
 	m_vertexShader.Destroy(m_rendererVK.GetDevice());
 	m_fragmentShader.Destroy(m_rendererVK.GetDevice());
 
-	m_testFragmentShader2.Destroy(m_rendererVK.GetDevice());
+	m_fragmentShader2.Destroy(m_rendererVK.GetDevice());
 }
 
 void HelloTriangle::DestroyGraphicsPipelines()

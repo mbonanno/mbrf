@@ -68,8 +68,13 @@ bool HelloTriangle::CreateShaders()
 
 bool HelloTriangle::CreateGraphicsPipelines()
 {
-	std::vector<ShaderVK> shaders = { m_vertexShader, m_fragmentShader };
-	m_graphicsPipeline.Create(m_rendererVK.GetDevice(), &m_vertexFormat, m_rendererVK.GetCurrentBackBuffer(), shaders, false);
+	GraphicsPipelineDesc desc;
+	desc.m_vertexFormat = &m_vertexFormat;
+	desc.m_frameBuffer = m_rendererVK.GetCurrentBackBuffer();
+	desc.m_shaders = { m_vertexShader, m_fragmentShader };
+	desc.m_cullMode = CULL_MODE_NONE;
+
+	m_graphicsPipeline.Create(m_rendererVK.GetDevice(), desc);
 
 	return true;
 }

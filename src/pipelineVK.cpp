@@ -7,28 +7,34 @@
 namespace MBRF
 {
 
-bool GraphicsPipelineVK::Create(DeviceVK* device, VertexFormatVK* vertexFormat, FrameBufferVK* frameBuffer, std::vector<ShaderVK> shaders, bool backFaceCulling)
+VkCullModeFlags CullModeToVk[NUM_CULL_MODES] = 
 {
-	VkPipelineShaderStageCreateInfo shaderStageCreateInfos[2];
-	// vertex
-	shaderStageCreateInfos[0].sType = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
-	shaderStageCreateInfos[0].pNext = nullptr;
-	shaderStageCreateInfos[0].flags = 0;
-	shaderStageCreateInfos[0].stage = shaders[0].GetStage();
-	shaderStageCreateInfos[0].module = shaders[0].GetShaderModule();
-	shaderStageCreateInfos[0].pName = "main";
-	shaderStageCreateInfos[0].pSpecializationInfo = nullptr;
-	// fragment
-	shaderStageCreateInfos[1].sType = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
-	shaderStageCreateInfos[1].pNext = nullptr;
-	shaderStageCreateInfos[1].flags = 0;
-	shaderStageCreateInfos[1].stage = shaders[1].GetStage();
-	shaderStageCreateInfos[1].module = shaders[1].GetShaderModule();
-	shaderStageCreateInfos[1].pName = "main";
-	shaderStageCreateInfos[1].pSpecializationInfo = nullptr;
+	VK_CULL_MODE_BACK_BIT,
+	VK_CULL_MODE_FRONT_BIT,
+	VK_CULL_MODE_NONE
+};
 
-	VkVertexInputBindingDescription bindingDescription[] = { /*TestVertex::GetBindingDescription()*/vertexFormat->GetBindingDescription() };
-	std::vector<VkVertexInputAttributeDescription> attributeDescriptions = /*TestVertex::GetAttributeDescriptions()*/vertexFormat->GetAttributeDescriptions();
+bool GraphicsPipelineVK::Create(DeviceVK* device, const GraphicsPipelineDesc &desc)
+{
+	std::vector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos;
+
+	for (auto shader: desc.m_shaders)
+	{
+		VkPipelineShaderStageCreateInfo pssci;
+
+		pssci.sType = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+		pssci.pNext = nullptr;
+		pssci.flags = 0;
+		pssci.stage = shader.GetStage();
+		pssci.module = shader.GetShaderModule();
+		pssci.pName = "main";
+		pssci.pSpecializationInfo = nullptr;
+
+		shaderStageCreateInfos.emplace_back(pssci);
+	}
+
+	VkVertexInputBindingDescription bindingDescription[] = { desc.m_vertexFormat->GetBindingDescription() };
+	std::vector<VkVertexInputAttributeDescription> attributeDescriptions = desc.m_vertexFormat->GetAttributeDescriptions();
 
 	VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 	vertexInputCreateInfo.pNext = nullptr;
@@ -44,8 +50,11 @@ bool GraphicsPipelineVK::Create(DeviceVK* device, VertexFormatVK* vertexFormat, 
 	inputAssemblyCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	inputAssemblyCreateInfo.primitiveRestartEnable = VK_FALSE;
 
-	VkViewport viewport = { 0, 0, float(frameBuffer->GetWidth()), float(frameBuffer->GetHeight()), 0.0f, 1.0f };
-	VkExtent2D scissorExtent = { frameBuffer->GetWidth() , frameBuffer->GetHeight() };
+	uint32_t width = desc.m_frameBuffer->GetWidth();
+	uint32_t height = desc.m_frameBuffer->GetHeight();
+
+	VkViewport viewport = { 0, 0, float(width), float(height), 0.0f, 1.0f };
+	VkExtent2D scissorExtent = { width , height };
 	VkRect2D scissor = { 0, 0, scissorExtent };
 
 	VkPipelineViewportStateCreateInfo viewportStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
@@ -62,7 +71,7 @@ bool GraphicsPipelineVK::Create(DeviceVK* device, VertexFormatVK* vertexFormat, 
 	rasterizationCreateInfo.depthClampEnable = VK_FALSE;
 	rasterizationCreateInfo.rasterizerDiscardEnable = VK_FALSE;
 	rasterizationCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
-	rasterizationCreateInfo.cullMode = backFaceCulling ? VK_CULL_MODE_BACK_BIT : VK_CULL_MODE_NONE;
+	rasterizationCreateInfo.cullMode = CullModeToVk[desc.m_cullMode];
 	rasterizationCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizationCreateInfo.depthBiasEnable = VK_FALSE;
 	rasterizationCreateInfo.depthBiasConstantFactor = 0.0f;
@@ -135,8 +144,8 @@ bool GraphicsPipelineVK::Create(DeviceVK* device, VertexFormatVK* vertexFormat, 
 	VkGraphicsPipelineCreateInfo pipelineCreateInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 	pipelineCreateInfo.pNext = nullptr;
 	pipelineCreateInfo.flags = 0;
-	pipelineCreateInfo.stageCount = 2;
-	pipelineCreateInfo.pStages = shaderStageCreateInfos;
+	pipelineCreateInfo.stageCount = uint32_t(shaderStageCreateInfos.size());
+	pipelineCreateInfo.pStages = shaderStageCreateInfos.data();
 	pipelineCreateInfo.pVertexInputState = &vertexInputCreateInfo;
 	pipelineCreateInfo.pInputAssemblyState = &inputAssemblyCreateInfo;
 	pipelineCreateInfo.pTessellationState = nullptr;
@@ -147,7 +156,7 @@ bool GraphicsPipelineVK::Create(DeviceVK* device, VertexFormatVK* vertexFormat, 
 	pipelineCreateInfo.pColorBlendState = &colorBlendCreateInfo;
 	pipelineCreateInfo.pDynamicState = nullptr;
 	pipelineCreateInfo.layout = m_layout;
-	pipelineCreateInfo.renderPass = frameBuffer->GetRenderPass();
+	pipelineCreateInfo.renderPass = desc.m_frameBuffer->GetRenderPass();
 	pipelineCreateInfo.subpass = 0;
 	// handle of a pipeline to derive from
 	pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;

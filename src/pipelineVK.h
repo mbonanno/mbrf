@@ -30,13 +30,29 @@ protected:
 	VkPipeline m_pipeline;
 };
 
+enum CullMode
+{
+	CULL_MODE_BACK,
+	CULL_MODE_FRONT,
+	CULL_MODE_NONE,
+	NUM_CULL_MODES
+};
+
+struct GraphicsPipelineDesc
+{
+	VertexFormatVK* m_vertexFormat = nullptr;
+	FrameBufferVK* m_frameBuffer = nullptr;
+	std::vector<ShaderVK> m_shaders;
+	CullMode m_cullMode = CULL_MODE_NONE;
+};
+
 class GraphicsPipelineVK: public PipelineVK
 {
 public:
 	GraphicsPipelineVK() : PipelineVK(GRAPHICS) {};
 
 	// TODO: add all needed states
-	bool Create(DeviceVK* device, VertexFormatVK* vertexFormat, FrameBufferVK* frameBuffer, std::vector<ShaderVK> shaders, bool backFaceCulling);
+	bool Create(DeviceVK* device, const GraphicsPipelineDesc &desc);
 	void Destroy(DeviceVK* device);
 
 	VkPipelineLayout GetLayout() const { return m_layout; };
