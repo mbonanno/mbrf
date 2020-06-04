@@ -15,6 +15,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HelloTriangle", "samples\He
 		{E05310CB-75D3-4984-BEB0-4C537FED9550} = {E05310CB-75D3-4984-BEB0-4C537FED9550}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PostProcessing", "samples\PostProcessing\PostProcessing.vcxproj", "{40A6F42C-E8EE-4065-9590-45268679DE49}"
+	ProjectSection(ProjectDependencies) = postProject
+		{E05310CB-75D3-4984-BEB0-4C537FED9550} = {E05310CB-75D3-4984-BEB0-4C537FED9550}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -33,6 +38,10 @@ Global
 		{34194B88-177D-43AD-B558-4965D68EF32B}.Debug|x64.Build.0 = Debug|x64
 		{34194B88-177D-43AD-B558-4965D68EF32B}.Release|x64.ActiveCfg = Debug|x64
 		{34194B88-177D-43AD-B558-4965D68EF32B}.Release|x64.Build.0 = Debug|x64
+		{40A6F42C-E8EE-4065-9590-45268679DE49}.Debug|x64.ActiveCfg = Debug|x64
+		{40A6F42C-E8EE-4065-9590-45268679DE49}.Debug|x64.Build.0 = Debug|x64
+		{40A6F42C-E8EE-4065-9590-45268679DE49}.Release|x64.ActiveCfg = Debug|x64
+		{40A6F42C-E8EE-4065-9590-45268679DE49}.Release|x64.Build.0 = Debug|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
