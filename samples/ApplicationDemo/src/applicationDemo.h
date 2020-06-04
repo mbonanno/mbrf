@@ -5,7 +5,7 @@
 namespace MBRF
 {
 
-class HelloTriangle : public Application
+class ApplicationDemo : public Application
 {
 	void OnInit();
 	void OnCleanup();
