@@ -27,33 +27,33 @@ class PostProcessing: public Application
 	void DestroyUniformBuffers();
 	void DestroyGraphicsPipelines();
 
-	ShaderVK m_vertexShader;
-	ShaderVK m_fragmentShader;
+	ShaderVK m_offscreenVertexShader;
+	ShaderVK m_offscreenFragmentShader;
 
-	ShaderVK m_fragmentShader2;
+	ShaderVK m_quadVertexShader;
+	ShaderVK m_quadFragmentShader;
 
-	GraphicsPipelineVK m_graphicsPipeline;
-	GraphicsPipelineVK m_testGraphicsPipeline2;
+	GraphicsPipelineVK m_offscreenPipeline;
+	GraphicsPipelineVK m_postProcPipeline;
 
-	struct Vertex
+	struct VertexPosUV
 	{
 		glm::vec3 m_pos;
-		glm::vec4 m_color;
 		glm::vec2 m_texcoord;
 	};
 
-	Vertex m_testCubeVerts[8] =
+	VertexPosUV m_testCubeVerts[8] =
 	{
 		// top
-		{{-0.5, -0.5,  0.5}, {1.0, 0.0, 0.0, 1.0}, {0, 1}},
-		{{ 0.5, -0.5,  0.5}, {0.0, 1.0, 0.0, 1.0}, {1, 1}},
-		{{ 0.5,  0.5,  0.5}, {0.0, 0.0, 1.0, 1.0}, {1, 0}},
-		{{-0.5,  0.5,  0.5}, {1.0, 1.0, 1.0, 1.0}, {0, 0}},
+		{{-0.5, -0.5,  0.5}, {0, 1}},
+		{{ 0.5, -0.5,  0.5}, {1, 1}},
+		{{ 0.5,  0.5,  0.5}, {1, 0}},
+		{{-0.5,  0.5,  0.5}, {0, 0}},
 		// bottom
-		{{-0.5, -0.5, -0.5}, {1.0, 0.0, 0.0, 1.0}, {0, 1}},
-		{{ 0.5, -0.5, -0.5}, {0.0, 1.0, 0.0, 1.0}, {1, 1}},
-		{{ 0.5,  0.5, -0.5}, {0.0, 0.0, 1.0, 1.0}, {1, 0}},
-		{{-0.5,  0.5, -0.5 }, {1.0, 1.0, 1.0, 1.0}, {0, 0}}
+		{{-0.5, -0.5, -0.5}, {0, 1}},
+		{{ 0.5, -0.5, -0.5}, {1, 1}},
+		{{ 0.5,  0.5, -0.5}, {1, 0}},
+		{{-0.5,  0.5, -0.5 }, {0, 0}}
 	};
 
 	uint32_t m_testCubeIndices[36] =
@@ -78,12 +78,25 @@ class PostProcessing: public Application
 		6, 7, 3
 	};
 
-	VertexFormatVK m_vertexFormat;
+	VertexPosUV m_quadVerts[4] =
+	{
+		{ { 1.0f, 1.0f, 0.0f }, { 1.0f, 1.0f }},
+		{ { -1.0f, 1.0f, 0.0f }, { 0.0f, 1.0f }},
+		{ { -1.0f, -1.0f, 0.0f }, { 0.0f, 0.0f }},
+		{ { 1.0f, -1.0f, 0.0f }, { 1.0f, 0.0f }}
+	};
 
-	float m_testCubeRotation = 0;
+	uint32_t m_quadIndices[6] = { 0,1,2, 2,3,0 };
 
-	VertexBufferVK m_testVertexBuffer;
-	IndexBufferVK m_testIndexBuffer;
+	VertexFormatVK m_vertexFormatPosUV;
+
+	float m_cubeRotation = 0;
+
+	VertexBufferVK m_cubeVertexBuffer;
+	IndexBufferVK m_cubeIndexBuffer;
+
+	VertexBufferVK m_quadVertexBuffer;
+	IndexBufferVK m_quadIndexBuffer;
 
 	glm::vec4 m_pushConstantTestColor = glm::vec4(0, 1, 0, 1);
 
@@ -95,15 +108,17 @@ class PostProcessing: public Application
 	};
 
 	UBOTest m_uboTest = { glm::mat4(), {1, 0, 1, 1} };
-	UBOTest m_uboTest2 = { glm::mat4(), {1, 0, 1, 1} };
 
-	UniformBufferVK m_uboBuffers1;
+	UniformBufferVK m_uniformBuffer;
 	UniformBufferVK m_uboBuffers2;
 
-	TextureVK m_testTexture;
-	TextureVK m_testTexture2;
+	TextureVK m_renderTarget;
+	TextureVK m_offscreenDepthStencil;
 
-	FrameBufferVK m_testFBO;
+	TextureVK m_sceneTexture;
+	TextureVK m_vignetteTexture;
+
+	FrameBufferVK m_offscreenFramebuffer;
 };
 
 }
