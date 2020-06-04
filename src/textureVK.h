@@ -68,7 +68,8 @@ public:
 
 	const VkDescriptorImageInfo& GetDescriptor() const { return m_descriptor; };
 
-	void TransitionImageLayoutAndSubmit(DeviceVK* device, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout);
+	void TransitionImageLayout(DeviceVK* device, VkCommandBuffer commandBuffer, VkImageLayout newLayout);
+	void TransitionImageLayoutAndSubmit(DeviceVK* device, VkImageLayout newLayout);
 
 private:
 	void UpdateDescriptor();

@@ -213,7 +213,7 @@ bool TextureVK::Update(DeviceVK* device, uint32_t width, uint32_t height, uint32
 
 	VkDeviceSize size = width * height * depth * bpp;
 
-	TransitionImageLayoutAndSubmit(device, m_view.GetAspectMask(), m_currentLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	TransitionImageLayoutAndSubmit(device, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	BufferVK stagingBuffer;
 	stagingBuffer.Create(device, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
@@ -236,7 +236,7 @@ bool TextureVK::Update(DeviceVK* device, uint32_t width, uint32_t height, uint32
 
 	device->SubmitCommandBufferAndWait(commandBuffer, true);
 
-	TransitionImageLayoutAndSubmit(device, m_view.GetAspectMask(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, newLayout);
+	TransitionImageLayoutAndSubmit(device, newLayout);
 
 	stagingBuffer.Destroy(device);
 
@@ -273,17 +273,22 @@ void TextureVK::LoadFromFile(DeviceVK* device, const char* fileName)
 	stbi_image_free(pixels);
 }
 
-void TextureVK::TransitionImageLayoutAndSubmit(DeviceVK* device, VkImageAspectFlags aspectFlags, VkImageLayout oldLayout, VkImageLayout newLayout)
+void TextureVK::TransitionImageLayout(DeviceVK* device, VkCommandBuffer commandBuffer, VkImageLayout newLayout)
 {
-	VkCommandBuffer commandBuffer = device->BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-	device->TransitionImageLayout(commandBuffer, m_image, aspectFlags, oldLayout, newLayout);
-
-	device->SubmitCommandBufferAndWait(commandBuffer, true);
+	device->TransitionImageLayout(commandBuffer, m_image, m_view.GetAspectMask(), m_currentLayout, newLayout);
 
 	m_currentLayout = newLayout;
 
 	UpdateDescriptor();
+}
+
+void TextureVK::TransitionImageLayoutAndSubmit(DeviceVK* device, VkImageLayout newLayout)
+{
+	VkCommandBuffer commandBuffer = device->BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+	TransitionImageLayout(device, commandBuffer, newLayout);
+
+	device->SubmitCommandBufferAndWait(commandBuffer, true);
 }
 
 void TextureVK::UpdateDescriptor()

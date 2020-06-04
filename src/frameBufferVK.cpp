@@ -96,7 +96,7 @@ VkRenderPass RenderPassCache::GetRenderPass(DeviceVK* device, const std::vector<
 	subpassDescriptions[0].colorAttachmentCount = uint32_t(colorAttachmentRefs.size());
 	subpassDescriptions[0].pColorAttachments = colorAttachmentRefs.data();
 	subpassDescriptions[0].pResolveAttachments = 0;
-	subpassDescriptions[0].pDepthStencilAttachment = &depthAttachmentRef;
+	subpassDescriptions[0].pDepthStencilAttachment = numDepthAttachments > 0 ? &depthAttachmentRef : nullptr;
 	subpassDescriptions[0].preserveAttachmentCount = 0;
 	subpassDescriptions[0].pPreserveAttachments = nullptr;
 
