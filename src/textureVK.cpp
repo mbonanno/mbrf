@@ -188,8 +188,25 @@ bool TextureVK::Create(DeviceVK* device, VkFormat format, uint32_t width, uint32
 	VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 
 	if (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
-		aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+	{
+		switch (m_format)
+		{
+		case VK_FORMAT_D16_UNORM:
+		case VK_FORMAT_X8_D24_UNORM_PACK32:
+		case VK_FORMAT_D32_SFLOAT:
 
+			aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+			break;
+		case VK_FORMAT_S8_UINT:
+
+			aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
+			break;
+		default:
+
+			aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+			break;
+		}
+	}
 
 	m_view.Create(device, this, aspectMask);
 

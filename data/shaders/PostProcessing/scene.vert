@@ -5,7 +5,6 @@
 layout(set = 0, binding = UNIFORM_BUFFER_SLOT(0)) uniform UBO
 {
 	mat4x4 transform;
-	vec4 testColor;
 } ubo;
 
 layout(location = 0) in vec3 inPosition;

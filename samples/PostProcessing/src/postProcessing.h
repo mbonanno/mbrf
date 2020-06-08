@@ -101,16 +101,26 @@ class PostProcessing: public Application
 	glm::vec4 m_pushConstantTestColor = glm::vec4(0, 1, 0, 1);
 
 	// TODO: make sure of alignment requirements
-	struct UBOTest
+	struct SceneUniforms
 	{
 		glm::mat4 m_mvpTransform;
-		glm::vec4 m_testColor;
 	};
 
-	UBOTest m_uboTest = { glm::mat4(), {1, 0, 1, 1} };
+	SceneUniforms m_sceneUniforms = { glm::mat4() };
 
-	UniformBufferVK m_uniformBuffer;
-	UniformBufferVK m_uboBuffers2;
+	const float m_nearPlane = 0.1f;
+	const float m_farPlane = 10.0f;
+
+	struct PostProcUniforms
+	{
+		float m_nearPlane;
+		float m_farPlane;
+	};
+
+	PostProcUniforms m_postProcUniforms = { m_nearPlane, m_farPlane };
+
+	UniformBufferVK m_sceneUniformBuffer;
+	UniformBufferVK m_postProcUniformBuffer;
 
 	TextureVK m_renderTarget;
 	TextureVK m_offscreenDepthStencil;

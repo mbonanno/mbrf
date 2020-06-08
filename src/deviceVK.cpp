@@ -521,6 +521,11 @@ void DeviceVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
 		srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
 		break;
+	case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+		srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+		break;
 	default:
 		std::cout << "image transition FROM this type layout not implemented yet!" << std::endl;
 		assert(0);

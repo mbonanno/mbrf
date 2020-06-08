@@ -61,7 +61,7 @@ VkRenderPass RenderPassCache::GetRenderPass(DeviceVK* device, const std::vector<
 			VkAttachmentReference attachmentRef = { uint32_t(i), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
 			colorAttachmentRefs.emplace_back(attachmentRef);
 		}
-		else if ((aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) && (aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT))
+		else if ((aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) || (aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT))
 		{
 			attachmentDescriptions[i].flags = 0;
 			attachmentDescriptions[i].format = attachments[i].GetFormat();

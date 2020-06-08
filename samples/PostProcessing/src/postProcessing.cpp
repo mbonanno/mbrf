@@ -32,17 +32,13 @@ void PostProcessing::OnResize()
 
 void PostProcessing::OnUpdate(double dt)
 {
-	m_uboTest.m_testColor.x += (float)dt;
-	if (m_uboTest.m_testColor.x > 1.0f)
-		m_uboTest.m_testColor.x = 0.0f;
-
 	m_cubeRotation += (float)dt;
 
 	FrameBufferVK* backBuffer = m_rendererVK.GetCurrentBackBuffer();
 
 	glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f)) * glm::rotate(glm::mat4(1.0f), m_cubeRotation * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 4.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	glm::mat4 proj = glm::perspective(glm::radians(45.0f), backBuffer->GetWidth() / float(backBuffer->GetHeight()), 0.1f, 10.0f);
+	glm::mat4 proj = glm::perspective(glm::radians(45.0f), backBuffer->GetWidth() / float(backBuffer->GetHeight()), m_nearPlane, m_farPlane);
 
 	// Vulkan clip space has inverted Y and half Z.
 	glm::mat4 clip = glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
@@ -50,12 +46,13 @@ void PostProcessing::OnUpdate(double dt)
 		0.0f, 0.0f, 0.5f, 0.0f,
 		0.0f, 0.0f, 0.5f, 1.0f);
 
-	m_uboTest.m_mvpTransform = clip * proj * view * model;
+	m_sceneUniforms.m_mvpTransform = clip * proj * view * model;
 }
 
 void PostProcessing::OnDraw()
 {
-	m_uniformBuffer.UpdateCurrentBuffer(m_rendererVK.GetDevice(), &m_uboTest);
+	m_sceneUniformBuffer.UpdateCurrentBuffer(m_rendererVK.GetDevice(), &m_sceneUniforms);
+	m_postProcUniformBuffer.UpdateCurrentBuffer(m_rendererVK.GetDevice(), &m_postProcUniforms);
 
 	ContextVK* context = m_rendererVK.GetDevice()->GetCurrentGraphicsContext();
 	VkCommandBuffer commandBuffer = context->m_commandBuffer;
@@ -63,6 +60,8 @@ void PostProcessing::OnDraw()
 	// Draw scene offscreen
 
 	m_renderTarget.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+	m_offscreenDepthStencil.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
 	FrameBufferVK* currentRenderTarget = &m_offscreenFramebuffer;
 
@@ -73,7 +72,7 @@ void PostProcessing::OnDraw()
 
 	context->SetVertexBuffer(&m_cubeVertexBuffer, 0);
 	context->SetIndexBuffer(&m_cubeIndexBuffer, 0);
-	context->SetUniformBuffer(&m_uniformBuffer.GetCurrentBuffer(m_rendererVK.GetDevice()), 0);
+	context->SetUniformBuffer(&m_sceneUniformBuffer.GetCurrentBuffer(m_rendererVK.GetDevice()), 0);
 	context->SetTexture(&m_sceneTexture, 0);
 
 	context->CommitBindings(m_rendererVK.GetDevice());
@@ -83,6 +82,8 @@ void PostProcessing::OnDraw()
 	context->EndPass();
 
 	m_renderTarget.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+	m_offscreenDepthStencil.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	// Draw fullscreen quad
 
@@ -97,8 +98,10 @@ void PostProcessing::OnDraw()
 	context->SetVertexBuffer(&m_quadVertexBuffer, 0);
 	context->SetIndexBuffer(&m_quadIndexBuffer, 0);
 
+	context->SetUniformBuffer(&m_postProcUniformBuffer.GetCurrentBuffer(m_rendererVK.GetDevice()), 0);
 	context->SetTexture(&m_renderTarget, 0);
-	context->SetTexture(&m_vignetteTexture, 1);
+	context->SetTexture(&m_offscreenDepthStencil, 1);
+	context->SetTexture(&m_vignetteTexture, 2);
 
 	context->CommitBindings(m_rendererVK.GetDevice());
 
@@ -115,7 +118,7 @@ void PostProcessing::CreateTextures()
 	m_renderTarget.Create(m_rendererVK.GetDevice(), VK_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 	m_renderTarget.TransitionImageLayoutAndSubmit(m_rendererVK.GetDevice(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-	m_offscreenDepthStencil.Create(m_rendererVK.GetDevice(), VK_FORMAT_D24_UNORM_S8_UINT, width, height, 1, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+	m_offscreenDepthStencil.Create(m_rendererVK.GetDevice(), VK_FORMAT_D16_UNORM, width, height, 1, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	m_offscreenDepthStencil.TransitionImageLayoutAndSubmit(m_rendererVK.GetDevice(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
 
@@ -144,7 +147,8 @@ bool PostProcessing::CreateShaders()
 
 bool PostProcessing::CreateUniformBuffers()
 {
-	m_uniformBuffer.Create(m_rendererVK.GetDevice(), sizeof(UBOTest));
+	m_sceneUniformBuffer.Create(m_rendererVK.GetDevice(), sizeof(SceneUniforms));
+	m_postProcUniformBuffer.Create(m_rendererVK.GetDevice(), sizeof(PostProcUniforms));
 
 	return true;
 }
@@ -157,7 +161,7 @@ bool PostProcessing::CreateGraphicsPipelines()
 	desc.m_vertexFormat = &m_vertexFormatPosUV;
 	desc.m_frameBuffer = &m_offscreenFramebuffer;
 	desc.m_shaders = { m_offscreenVertexShader, m_offscreenFragmentShader };
-	desc.m_cullMode = CULL_MODE_BACK;
+	desc.m_cullMode = CULL_MODE_NONE;
 
 	m_offscreenPipeline.Create(m_rendererVK.GetDevice(), desc);
 
@@ -232,7 +236,8 @@ void PostProcessing::DestroyTestVertexAndTriangleBuffers()
 
 void PostProcessing::DestroyUniformBuffers()
 {
-	m_uniformBuffer.Destroy(m_rendererVK.GetDevice());
+	m_sceneUniformBuffer.Destroy(m_rendererVK.GetDevice());
+	m_postProcUniformBuffer.Destroy(m_rendererVK.GetDevice());
 }
 
 void PostProcessing::DestroyTextures()
