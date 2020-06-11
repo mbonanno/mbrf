@@ -2,7 +2,7 @@
 
 #include "..\shaderCommon.h"
 
-layout (local_size_x = 1, local_size_y = 1) in;
+layout (local_size_x = 16, local_size_y = 16) in;
 
 layout (binding = STORAGE_IMAGE_SLOT(0), rgba8) uniform readonly image2D inputImage;
 layout (binding = STORAGE_IMAGE_SLOT(1), rgba8) uniform image2D resultImage;
