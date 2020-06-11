@@ -444,13 +444,25 @@ bool DeviceVK::CreateDescriptorSetLayouts()
 		currentBinding++;
 	}
 	
-	// Texture + Samplers TODO: create separate samplers?
+	// Textures + Samplers TODO: create separate samplers?
 	for (int i = 0; i < MAX_TEXTURE_SLOTS; ++i)
 	{
 		bindings[currentBinding].binding = TEXTURE_SLOT(i);
 		bindings[currentBinding].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		bindings[currentBinding].descriptorCount = 1;
 		bindings[currentBinding].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+		bindings[currentBinding].pImmutableSamplers = nullptr;
+
+		currentBinding++;
+	}
+
+	// Storage Images
+	for (int i = 0; i < MAX_STORAGE_IMAGE_SLOTS; ++i)
+	{
+		bindings[currentBinding].binding = STORAGE_IMAGE_SLOT(i);
+		bindings[currentBinding].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		bindings[currentBinding].descriptorCount = 1;
+		bindings[currentBinding].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
 		bindings[currentBinding].pImmutableSamplers = nullptr;
 
 		currentBinding++;
@@ -508,7 +520,8 @@ void DeviceVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
 
 		break;
 	case VK_IMAGE_LAYOUT_GENERAL:
-		srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+		srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
 		break;
 	case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
@@ -545,7 +558,8 @@ void DeviceVK::TransitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
 
 		break;
 	case VK_IMAGE_LAYOUT_GENERAL:
-		dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+		dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+		dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
 		break;
 	case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:

@@ -28,17 +28,20 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\data\shaders\PostProcessing\quad.frag">
+    <CustomBuild Include="..\..\data\shaders\PostProcessing\test.comp">
       <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\data\shaders\PostProcessing\quad.vert">
+    </CustomBuild>
+    <CustomBuild Include="..\..\data\shaders\PostProcessing\quad.frag">
       <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\data\shaders\PostProcessing\scene.vert">
+    </CustomBuild>
+    <CustomBuild Include="..\..\data\shaders\PostProcessing\quad.vert">
       <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\data\shaders\PostProcessing\scene.frag">
+    </CustomBuild>
+    <CustomBuild Include="..\..\data\shaders\PostProcessing\scene.frag">
       <Filter>shaders</Filter>
-    </None>
+    </CustomBuild>
+    <CustomBuild Include="..\..\data\shaders\PostProcessing\scene.vert">
+      <Filter>shaders</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

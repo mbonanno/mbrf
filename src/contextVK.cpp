@@ -45,17 +45,21 @@ void ContextVK::Destroy(DeviceVK* device)
 
 bool ContextVK::CreateDescriptorPools(DeviceVK* device)
 {
-	uint32_t numUniformBuffers = 1;
-	uint32_t numCombinedImageSamplers = 1;
+	uint32_t numUniformBuffers = MAX_UNIFORM_BUFFER_SLOTS;
+	uint32_t numCombinedImageSamplers = MAX_TEXTURE_SLOTS;
+	uint32_t numStorageImages = MAX_STORAGE_IMAGE_SLOTS;
 
 	// Create Descriptor Pool
-	VkDescriptorPoolSize poolSizes[2];
+	VkDescriptorPoolSize poolSizes[3];
 	// UBOs
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = numUniformBuffers * s_descriptorPoolMaxSets;
 	// Texture + Samplers TODO: create separate samplers?
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	poolSizes[1].descriptorCount = numCombinedImageSamplers * s_descriptorPoolMaxSets;
+	// Storage Images
+	poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	poolSizes[2].descriptorCount = numStorageImages * s_descriptorPoolMaxSets;
 
 	VkDescriptorPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 	createInfo.pNext = nullptr;
@@ -203,22 +207,7 @@ void ContextVK::SetPipeline(PipelineVK* pipeline)
 {
 	m_currentPipeline = pipeline;
 
-	VkPipelineBindPoint bindPoint;
-	
-	switch (pipeline->GetType())
-	{
-	case PipelineVK::GRAPHICS:
-		bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		break;
-	case PipelineVK::COMPUTE:
-		bindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
-		break;
-	default:
-		assert(0); // not implemented
-		break;
-	}
-
-	vkCmdBindPipeline(m_commandBuffer, bindPoint, pipeline->GetPipeline());
+	vkCmdBindPipeline(m_commandBuffer, m_currentPipeline->GetBindPoint(), pipeline->GetPipeline());
 }
 
 void ContextVK::SetVertexBuffer(const VertexBufferVK* vertexBuffer, uint64_t offset)
@@ -248,10 +237,17 @@ void ContextVK::SetTexture(TextureVK* texture, uint32_t bindingSlot)
 	m_textureBindings[bindingSlot] = binding;
 }
 
+void ContextVK::SetStorageImage(TextureVK* texture, uint32_t bindingSlot)
+{
+	DescriptorBinding binding = { texture, bindingSlot };
+
+	m_storageImageBindings[bindingSlot] = binding;
+}
+
 // TODO: remove the pipelineLayout and add PSO information to ContextVK
 void ContextVK::CommitBindings(DeviceVK* device)
 {
-	if (m_uniformBufferBindings.empty() && m_textureBindings.empty())
+	if (m_uniformBufferBindings.empty() && m_textureBindings.empty() && m_storageImageBindings.empty())
 		return;
 
 	// TODO: cache descriptor sets?
@@ -294,6 +290,8 @@ void ContextVK::CommitBindings(DeviceVK* device)
 
 		descriptorWrites.emplace_back(wds);
 	}
+
+	m_uniformBufferBindings.clear();
 	
 	// Texture + Samplers
 	for (auto it : m_textureBindings)
@@ -313,14 +311,36 @@ void ContextVK::CommitBindings(DeviceVK* device)
 
 		descriptorWrites.emplace_back(wds);
 	}
+
+	m_textureBindings.clear();
+
+	// Storage Images
+	for (auto it : m_storageImageBindings)
+	{
+		DescriptorBinding descBinding = it.second;
+
+		VkWriteDescriptorSet wds = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		wds.pNext = nullptr;
+		wds.dstSet = descriptorSet;
+		wds.dstBinding = STORAGE_IMAGE_SLOT(descBinding.m_bindingSlot);
+		wds.dstArrayElement = 0;
+		wds.descriptorCount = 1;
+		wds.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		wds.pImageInfo = &((TextureVK*)descBinding.m_resource)->GetDescriptor();
+		wds.pBufferInfo = nullptr;
+		wds.pTexelBufferView = nullptr;
+
+		descriptorWrites.emplace_back(wds);
+	}
+
+	m_storageImageBindings.clear();
 	
 	vkUpdateDescriptorSets(device->GetDevice(), uint32_t(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 
-	assert(m_currentPipeline != nullptr && m_currentPipeline->GetType() == PipelineVK::GRAPHICS);
+	assert(m_currentPipeline != nullptr);
 
-	VkPipelineLayout pipelineLayout = ((GraphicsPipelineVK*)m_currentPipeline)->GetLayout();
-
-	vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+	vkCmdBindDescriptorSets(m_commandBuffer, m_currentPipeline->GetBindPoint(), m_currentPipeline->GetLayout(), 0, 1, &descriptorSet, 0, nullptr);
+	
 }
 
 }

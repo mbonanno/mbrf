@@ -49,8 +49,15 @@ void PostProcessing::OnUpdate(double dt)
 	m_sceneUniforms.m_mvpTransform = clip * proj * view * model;
 }
 
+// 3 passes:
+// - render the scene offscreen
+// - apply any needed postprocessing in the compute pass
+// - render the result to a full screen quad
+
 void PostProcessing::OnDraw()
 {
+	// TODO: implement transitions batching!
+
 	m_sceneUniformBuffer.UpdateCurrentBuffer(m_rendererVK.GetDevice(), &m_sceneUniforms);
 	m_postProcUniformBuffer.UpdateCurrentBuffer(m_rendererVK.GetDevice(), &m_postProcUniforms);
 
@@ -60,7 +67,6 @@ void PostProcessing::OnDraw()
 	// Draw scene offscreen
 
 	m_renderTarget.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-
 	m_offscreenDepthStencil.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
 	FrameBufferVK* currentRenderTarget = &m_offscreenFramebuffer;
@@ -82,8 +88,24 @@ void PostProcessing::OnDraw()
 	context->EndPass();
 
 	m_renderTarget.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
 	m_offscreenDepthStencil.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+
+	// Compute Pass
+
+	m_renderTarget.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_GENERAL);
+	m_computeTarget.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_GENERAL);
+
+	context->SetPipeline(&m_computePipeline);
+
+	context->SetStorageImage(&m_renderTarget, 0);
+	context->SetStorageImage(&m_computeTarget, 1);
+
+	context->CommitBindings(m_rendererVK.GetDevice());
+	vkCmdDispatch(context->m_commandBuffer, m_computeTarget.GetWidth(), m_computeTarget.GetHeight(), 1);
+
+	m_computeTarget.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
 
 	// Draw fullscreen quad
 
@@ -99,7 +121,7 @@ void PostProcessing::OnDraw()
 	context->SetIndexBuffer(&m_quadIndexBuffer, 0);
 
 	context->SetUniformBuffer(&m_postProcUniformBuffer.GetCurrentBuffer(m_rendererVK.GetDevice()), 0);
-	context->SetTexture(&m_renderTarget, 0);
+	context->SetTexture(&m_computeTarget, 0);
 	context->SetTexture(&m_offscreenDepthStencil, 1);
 	context->SetTexture(&m_vignetteTexture, 2);
 
@@ -115,12 +137,15 @@ void PostProcessing::CreateTextures()
 	uint32_t width = m_rendererVK.GetCurrentBackBuffer()->GetWidth();
 	uint32_t height = m_rendererVK.GetCurrentBackBuffer()->GetHeight();
 
-	m_renderTarget.Create(m_rendererVK.GetDevice(), VK_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+	m_renderTarget.Create(m_rendererVK.GetDevice(), VK_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
 	m_renderTarget.TransitionImageLayoutAndSubmit(m_rendererVK.GetDevice(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	m_offscreenDepthStencil.Create(m_rendererVK.GetDevice(), VK_FORMAT_D16_UNORM, width, height, 1, 1, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	m_offscreenDepthStencil.TransitionImageLayoutAndSubmit(m_rendererVK.GetDevice(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
+
+	m_computeTarget.Create(m_rendererVK.GetDevice(), VK_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	m_computeTarget.TransitionImageLayoutAndSubmit(m_rendererVK.GetDevice(), VK_IMAGE_LAYOUT_GENERAL);
 
 	std::vector<TextureViewVK> attachments = { m_renderTarget.GetView(), m_offscreenDepthStencil.GetView() };
 	m_offscreenFramebuffer.Create(m_rendererVK.GetDevice(), width, height, attachments);
@@ -139,6 +164,8 @@ bool PostProcessing::CreateShaders()
 
 	result &= m_quadVertexShader.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/PostProcessing/quad.vert.spv", SHADER_STAGE_VERTEX);
 	result &= m_quadFragmentShader.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/PostProcessing/quad.frag.spv", SHADER_STAGE_FRAGMENT);
+
+	result &= m_computeShader.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/PostProcessing/test.comp.spv", SHADER_STAGE_COMPUTE);
 
 	assert(result);
 
@@ -172,6 +199,10 @@ bool PostProcessing::CreateGraphicsPipelines()
 	desc.m_cullMode = CULL_MODE_NONE;
 
 	m_postProcPipeline.Create(m_rendererVK.GetDevice(), desc);
+
+	// COMPUTE
+
+	m_computePipeline.Create(m_rendererVK.GetDevice(), &m_computeShader);
 
 	return true;
 }
@@ -216,6 +247,8 @@ void PostProcessing::DestroyShaders()
 
 	m_quadVertexShader.Destroy(m_rendererVK.GetDevice());
 	m_quadFragmentShader.Destroy(m_rendererVK.GetDevice());
+
+	m_computeShader.Destroy(m_rendererVK.GetDevice());
 }
 
 void PostProcessing::DestroyGraphicsPipelines()
@@ -223,6 +256,8 @@ void PostProcessing::DestroyGraphicsPipelines()
 	m_offscreenPipeline.Destroy(m_rendererVK.GetDevice());
 
 	m_postProcPipeline.Destroy(m_rendererVK.GetDevice());
+
+	m_computePipeline.Destroy(m_rendererVK.GetDevice());
 }
 
 void PostProcessing::DestroyTestVertexAndTriangleBuffers()
@@ -249,6 +284,8 @@ void PostProcessing::DestroyTextures()
 
 	m_sceneTexture.Destroy(m_rendererVK.GetDevice());
 	m_vignetteTexture.Destroy(m_rendererVK.GetDevice());
+
+	m_computeTarget.Destroy(m_rendererVK.GetDevice());
 }
 
 }

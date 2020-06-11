@@ -43,6 +43,7 @@ public:
 
 	void SetUniformBuffer(BufferVK* buffer, uint32_t bindingSlot);
 	void SetTexture(TextureVK* texture, uint32_t bindingSlot);
+	void SetStorageImage(TextureVK* texture, uint32_t bindingSlot);
 
 	void CommitBindings(DeviceVK* device);
 
@@ -81,6 +82,7 @@ public:
 
 	std::unordered_map<uint32_t, DescriptorBinding> m_uniformBufferBindings;
 	std::unordered_map<uint32_t, DescriptorBinding> m_textureBindings;
+	std::unordered_map<uint32_t, DescriptorBinding> m_storageImageBindings;
 
 private:
 	static const uint32_t s_descriptorPoolMaxSets = 1024;

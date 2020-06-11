@@ -30,11 +30,15 @@ class PostProcessing: public Application
 	ShaderVK m_offscreenVertexShader;
 	ShaderVK m_offscreenFragmentShader;
 
+	ShaderVK m_computeShader;
+
 	ShaderVK m_quadVertexShader;
 	ShaderVK m_quadFragmentShader;
 
 	GraphicsPipelineVK m_offscreenPipeline;
 	GraphicsPipelineVK m_postProcPipeline;
+
+	ComputePipelineVK m_computePipeline;
 
 	struct VertexPosUV
 	{
@@ -124,6 +128,8 @@ class PostProcessing: public Application
 
 	TextureVK m_renderTarget;
 	TextureVK m_offscreenDepthStencil;
+
+	TextureVK m_computeTarget;
 
 	TextureVK m_sceneTexture;
 	TextureVK m_vignetteTexture;

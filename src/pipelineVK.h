@@ -15,8 +15,8 @@ class PipelineVK
 public:
 	enum PipelineType
 	{
-		GRAPHICS,
-		COMPUTE
+		PIPELINE_TYPE_GRAPHICS,
+		PIPELINE_TYPE_COMPUTE
 	};
 
 	PipelineVK(PipelineType type) : m_type(type) {};
@@ -25,9 +25,16 @@ public:
 	VkPipeline GetPipeline() const { return m_pipeline; };
 	PipelineType GetType() const { return m_type; };
 
+	VkPipelineBindPoint GetBindPoint();
+
+	virtual VkPipelineLayout GetLayout() const = 0;
+
+protected:
+	void Destroy(DeviceVK* device);
+
 protected:
 	PipelineType m_type;
-	VkPipeline m_pipeline;
+	VkPipeline m_pipeline = VK_NULL_HANDLE;
 };
 
 enum CullMode
@@ -46,10 +53,13 @@ struct GraphicsPipelineDesc
 	CullMode m_cullMode = CULL_MODE_NONE;
 };
 
+// TODO: for now using a different layout per pipeline, even though they are actually using the same layout, 
+// but might be handy in the future if we want to differentiate?
+
 class GraphicsPipelineVK: public PipelineVK
 {
 public:
-	GraphicsPipelineVK() : PipelineVK(GRAPHICS) {};
+	GraphicsPipelineVK() : PipelineVK(PIPELINE_TYPE_GRAPHICS) {};
 
 	// TODO: add all needed states
 	bool Create(DeviceVK* device, const GraphicsPipelineDesc &desc);
@@ -58,9 +68,21 @@ public:
 	VkPipelineLayout GetLayout() const { return m_layout; };
 
 private:
-	VkPipelineLayout m_layout;
+	VkPipelineLayout m_layout = VK_NULL_HANDLE;
 };
 
-// TODO: implement compute PSO
+class ComputePipelineVK : public PipelineVK
+{
+public:
+	ComputePipelineVK() : PipelineVK(PIPELINE_TYPE_COMPUTE) {};
+
+	bool Create(DeviceVK* device, ShaderVK* computeShader);
+	void Destroy(DeviceVK* device);
+
+	VkPipelineLayout GetLayout() const { return m_layout; };
+
+private:
+	VkPipelineLayout m_layout = VK_NULL_HANDLE;
+};
 
 }

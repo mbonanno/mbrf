@@ -71,6 +71,9 @@ public:
 	void TransitionImageLayout(DeviceVK* device, VkCommandBuffer commandBuffer, VkImageLayout newLayout);
 	void TransitionImageLayoutAndSubmit(DeviceVK* device, VkImageLayout newLayout);
 
+	uint32_t GetWidth() const { return m_width; };
+	uint32_t GetHeight() const { return m_height; };
+
 private:
 	void UpdateDescriptor();
 

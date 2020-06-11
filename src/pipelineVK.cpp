@@ -7,6 +7,31 @@
 namespace MBRF
 {
 
+// ------------------------------- PipelineVK -------------------------------
+
+void PipelineVK::Destroy(DeviceVK* device)
+{
+	vkDestroyPipeline(device->GetDevice(), m_pipeline, nullptr);
+}
+
+VkPipelineBindPoint PipelineVK::GetBindPoint()
+{
+	switch (m_type)
+	{
+	case PipelineVK::PIPELINE_TYPE_GRAPHICS:
+		return VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+	case PipelineVK::PIPELINE_TYPE_COMPUTE:
+		return VK_PIPELINE_BIND_POINT_COMPUTE;
+
+	default:
+		assert(0); // not implemented
+		return VK_PIPELINE_BIND_POINT_MAX_ENUM;
+	}
+}
+
+// ------------------------------- GraphicsPipelineVK -------------------------------
+
 VkCullModeFlags CullModeToVk[NUM_CULL_MODES] = 
 {
 	VK_CULL_MODE_BACK_BIT,
@@ -20,9 +45,8 @@ bool GraphicsPipelineVK::Create(DeviceVK* device, const GraphicsPipelineDesc &de
 
 	for (auto shader: desc.m_shaders)
 	{
-		VkPipelineShaderStageCreateInfo pssci;
+		VkPipelineShaderStageCreateInfo pssci = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 
-		pssci.sType = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 		pssci.pNext = nullptr;
 		pssci.flags = 0;
 		pssci.stage = shader.GetStage();
@@ -171,7 +195,52 @@ bool GraphicsPipelineVK::Create(DeviceVK* device, const GraphicsPipelineDesc &de
 void GraphicsPipelineVK::Destroy(DeviceVK* device)
 {
 	vkDestroyPipelineLayout(device->GetDevice(), m_layout, nullptr);
-	vkDestroyPipeline(device->GetDevice(), m_pipeline, nullptr);
+	PipelineVK::Destroy(device);
+}
+
+// ------------------------------- ComputePipelineVK -------------------------------
+
+bool ComputePipelineVK::Create(DeviceVK* device, ShaderVK* computeShader)
+{
+	assert(computeShader->GetStage() == VK_SHADER_STAGE_COMPUTE_BIT);
+
+	VkPipelineShaderStageCreateInfo shaderStageCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+	shaderStageCreateInfo.pNext = nullptr;
+	shaderStageCreateInfo.flags = 0;
+	shaderStageCreateInfo.stage = computeShader->GetStage();
+	shaderStageCreateInfo.module = computeShader->GetShaderModule();
+	shaderStageCreateInfo.pName = "main";
+	shaderStageCreateInfo.pSpecializationInfo = nullptr;
+
+	VkDescriptorSetLayout descLayout = device->GetDescriptorSetLayout();
+
+	VkPipelineLayoutCreateInfo layoutCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+	layoutCreateInfo.pNext = nullptr;
+	layoutCreateInfo.flags = 0;
+	layoutCreateInfo.setLayoutCount = 1;
+	layoutCreateInfo.pSetLayouts = &descLayout;
+	layoutCreateInfo.pushConstantRangeCount = 0;
+	layoutCreateInfo.pPushConstantRanges = nullptr;
+
+	VK_CHECK(vkCreatePipelineLayout(device->GetDevice(), &layoutCreateInfo, nullptr, &m_layout));
+
+	VkComputePipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
+	createInfo.pNext = nullptr;
+	createInfo.flags = 0;
+	createInfo.stage = shaderStageCreateInfo;
+	createInfo.layout = m_layout;
+	createInfo.basePipelineHandle = VK_NULL_HANDLE;
+	createInfo.basePipelineIndex = -1;
+
+	VK_CHECK(vkCreateComputePipelines(device->GetDevice(), VK_NULL_HANDLE, 1, &createInfo, nullptr, &m_pipeline));
+
+	return true;
+}
+
+void ComputePipelineVK::Destroy(DeviceVK* device)
+{
+	vkDestroyPipelineLayout(device->GetDevice(), m_layout, nullptr);
+	PipelineVK::Destroy(device);
 }
 
 }
