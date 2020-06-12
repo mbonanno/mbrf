@@ -7,7 +7,6 @@
 #include "pipelineVK.h"
 #include "shaderVK.h"
 #include "textureVK.h"
-#include "uniformBufferVK.h"
 #include "vertexBufferVK.h"
 #include "vertexFormatVK.h"
 

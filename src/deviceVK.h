@@ -78,6 +78,8 @@ public:
 	VkCommandPool GetGraphicsCommandPool() { return m_graphicsCommandPool; };
 	FrameDataVK* GetCurrentFrameData() const { return m_currentFrameData; };
 
+
+	VkPhysicalDeviceProperties GetPhysicalDeviceProperties() const { return m_physicalDeviceProperties; };
 	
 
 	ContextVK* GetCurrentGraphicsContext() { return m_currentGraphicsContext; };

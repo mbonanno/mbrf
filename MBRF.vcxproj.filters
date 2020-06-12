@@ -48,9 +48,6 @@
     <ClCompile Include="src\textureVK.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\uniformBufferVK.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -111,9 +108,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\vertexFormatVK.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\uniformBufferVK.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\pipelineVK.h">

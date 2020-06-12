@@ -33,7 +33,7 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\..\data\shaders\PostProcessing\test.comp">
+    <CustomBuild Include="..\..\data\shaders\PostProcessing\blur.comp">
       <FileType>Document</FileType>
     </CustomBuild>
   </ItemGroup>

@@ -28,9 +28,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\..\data\shaders\PostProcessing\test.comp">
-      <Filter>shaders</Filter>
-    </CustomBuild>
     <CustomBuild Include="..\..\data\shaders\PostProcessing\quad.frag">
       <Filter>shaders</Filter>
     </CustomBuild>
@@ -41,6 +38,9 @@
       <Filter>shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\data\shaders\PostProcessing\scene.vert">
+      <Filter>shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\data\shaders\PostProcessing\blur.comp">
       <Filter>shaders</Filter>
     </CustomBuild>
   </ItemGroup>

@@ -9,7 +9,6 @@ void ApplicationDemo::OnInit()
 	CreateTestVertexAndTriangleBuffers();
 
 	CreateShaders();
-	CreateUniformBuffers();
 
 	CreateGraphicsPipelines();
 }
@@ -17,7 +16,6 @@ void ApplicationDemo::OnInit()
 void ApplicationDemo::OnCleanup()
 {
 	DestroyGraphicsPipelines();
-	DestroyUniformBuffers();
 	DestroyShaders();
 
 	DestroyTestVertexAndTriangleBuffers();
@@ -59,10 +57,6 @@ void ApplicationDemo::OnUpdate(double dt)
 
 void ApplicationDemo::OnDraw()
 {
-	// update uniform buffer (TODO: move in ContextVK?)
-	m_uboBuffers1.UpdateCurrentBuffer(m_rendererVK.GetDevice(), &m_uboTest);
-	m_uboBuffers2.UpdateCurrentBuffer(m_rendererVK.GetDevice(), &m_uboTest2);
-
 	// TODO: store current swapchain FBO as a global
 	FrameBufferVK* currentRenderTarget = m_rendererVK.GetCurrentBackBuffer();
 
@@ -81,7 +75,7 @@ void ApplicationDemo::OnDraw()
 
 	// Draw first test cube
 
-	context->SetUniformBuffer(&m_uboBuffers1.GetCurrentBuffer(m_rendererVK.GetDevice()), 0);
+	context->SetUniformBuffer(m_rendererVK.GetDevice(), &m_uboTest, sizeof(UBOTest), 0);
 	context->SetTexture(&m_testTexture, 0);
 
 	context->CommitBindings(m_rendererVK.GetDevice());
@@ -92,7 +86,7 @@ void ApplicationDemo::OnDraw()
 
 	context->SetPipeline(&m_testGraphicsPipeline2);
 
-	context->SetUniformBuffer(&m_uboBuffers2.GetCurrentBuffer(m_rendererVK.GetDevice()), 0);
+	context->SetUniformBuffer(m_rendererVK.GetDevice(), &m_uboTest2, sizeof(UBOTest), 0);
 	context->SetTexture(&m_testTexture2, 0);
 
 	context->CommitBindings(m_rendererVK.GetDevice());
@@ -121,14 +115,6 @@ bool ApplicationDemo::CreateShaders()
 	assert(result);
 
 	return result;
-}
-
-bool ApplicationDemo::CreateUniformBuffers()
-{
-	m_uboBuffers1.Create(m_rendererVK.GetDevice(), sizeof(UBOTest));
-	m_uboBuffers2.Create(m_rendererVK.GetDevice(), sizeof(UBOTest));
-
-	return true;
 }
 
 bool ApplicationDemo::CreateGraphicsPipelines()
@@ -188,12 +174,6 @@ void ApplicationDemo::DestroyTestVertexAndTriangleBuffers()
 {
 	m_testVertexBuffer.Destroy(m_rendererVK.GetDevice());
 	m_testIndexBuffer.Destroy(m_rendererVK.GetDevice());
-}
-
-void ApplicationDemo::DestroyUniformBuffers()
-{
-	m_uboBuffers1.Destroy(m_rendererVK.GetDevice());
-	m_uboBuffers2.Destroy(m_rendererVK.GetDevice());
 }
 
 void ApplicationDemo::DestroyTextures()

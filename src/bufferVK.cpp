@@ -6,6 +6,8 @@
 namespace MBRF
 {
 
+// ------------------------------- BufferVK -------------------------------
+
 bool BufferVK::Create(DeviceVK* device, uint64_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryProperties)
 {
 	assert(m_buffer == VK_NULL_HANDLE);
@@ -72,13 +74,17 @@ bool BufferVK::Create(DeviceVK* device, uint64_t size, VkBufferUsageFlags usage,
 	return true;
 }
 
-bool BufferVK::Update(DeviceVK* device, uint64_t size, void* data)
+bool BufferVK::Update(DeviceVK* device, uint64_t size, void* data, uint32_t offset)
 {
 	assert(size <= m_size);
 
+	m_descriptor.buffer = m_buffer;
+	m_descriptor.offset = offset;
+	m_descriptor.range = size;
+
 	if (m_hasCpuAccess)
 	{
-		std::memcpy(m_data, data, size);
+		std::memcpy((char*)m_data + offset, data, size);
 
 		if (!m_hasCoherentMemory)
 		{
@@ -114,7 +120,7 @@ bool BufferVK::Update(DeviceVK* device, uint64_t size, void* data)
 
 	VkBufferCopy region;
 	region.srcOffset = 0;
-	region.dstOffset = 0;
+	region.dstOffset = offset;
 	region.size = size;
 
 	vkCmdCopyBuffer(commandBuffer, stagingBuffer.m_buffer, m_buffer, 1, &region);
@@ -135,6 +141,25 @@ void BufferVK::Destroy(DeviceVK* device)
 
 	m_buffer = VK_NULL_HANDLE;
 	m_memory = VK_NULL_HANDLE;
+}
+
+// ------------------------------- BufferRegionVK -------------------------------
+
+bool BufferRegionVK::Create(DeviceVK* device, BufferVK* buffer, uint64_t size, uint32_t offset, void* data)
+{
+	m_buffer = buffer;
+	m_size = size;
+	m_offset = offset;
+
+	m_buffer->Update(device, size, data, offset);
+
+	// Update descriptor
+
+	m_descriptor.buffer = m_buffer->GetBuffer();
+	m_descriptor.offset = m_offset;
+	m_descriptor.range = m_size;
+
+	return true;
 }
 
 }

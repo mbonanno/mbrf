@@ -20,11 +20,9 @@ class ApplicationDemo : public Application
 	void DestroyTestVertexAndTriangleBuffers();
 
 	bool CreateShaders();
-	bool CreateUniformBuffers();
 	bool CreateGraphicsPipelines();
 
 	void DestroyShaders();
-	void DestroyUniformBuffers();
 	void DestroyGraphicsPipelines();
 
 	ShaderVK m_vertexShader;
@@ -96,9 +94,6 @@ class ApplicationDemo : public Application
 
 	UBOTest m_uboTest = { glm::mat4(), {1, 0, 1, 1} };
 	UBOTest m_uboTest2 = { glm::mat4(), {1, 0, 1, 1} };
-
-	UniformBufferVK m_uboBuffers1;
-	UniformBufferVK m_uboBuffers2;
 
 	TextureVK m_testTexture;
 	TextureVK m_testTexture2;

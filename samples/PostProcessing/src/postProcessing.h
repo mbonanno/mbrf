@@ -20,11 +20,9 @@ class PostProcessing: public Application
 	void DestroyTestVertexAndTriangleBuffers();
 
 	bool CreateShaders();
-	bool CreateUniformBuffers();
 	bool CreateGraphicsPipelines();
 
 	void DestroyShaders();
-	void DestroyUniformBuffers();
 	void DestroyGraphicsPipelines();
 
 	ShaderVK m_offscreenVertexShader;
@@ -114,17 +112,6 @@ class PostProcessing: public Application
 
 	const float m_nearPlane = 0.1f;
 	const float m_farPlane = 10.0f;
-
-	struct PostProcUniforms
-	{
-		float m_nearPlane;
-		float m_farPlane;
-	};
-
-	PostProcUniforms m_postProcUniforms = { m_nearPlane, m_farPlane };
-
-	UniformBufferVK m_sceneUniformBuffer;
-	UniformBufferVK m_postProcUniformBuffer;
 
 	TextureVK m_renderTarget;
 	TextureVK m_offscreenDepthStencil;

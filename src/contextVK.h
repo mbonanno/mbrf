@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bufferVK.h"
 #include "commonVK.h"
 
 #include <unordered_map>
@@ -7,7 +8,6 @@
 namespace MBRF
 {
 
-class BufferVK;
 class DeviceVK;
 class FrameBufferVK;
 class IndexBufferVK;
@@ -42,6 +42,7 @@ public:
 	void SetIndexBuffer(const IndexBufferVK* indexBuffer, uint64_t offset);
 
 	void SetUniformBuffer(BufferVK* buffer, uint32_t bindingSlot);
+	void SetUniformBuffer(DeviceVK* device, void* data, uint64_t size, uint32_t bindingSlot);
 	void SetTexture(TextureVK* texture, uint32_t bindingSlot);
 	void SetStorageImage(TextureVK* texture, uint32_t bindingSlot);
 
@@ -56,17 +57,14 @@ public:
 	VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
 	VkFence m_fence = VK_NULL_HANDLE;
 
-
-	// TODO: allocate descriptors dynamically
-	// store a list of bindings and add an ApplyState/CommitBindings function which creates a new descriptor set and updates it.
-	// also look into dynamic offset descriptors?
-	VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
-
 	PipelineVK* m_currentPipeline = nullptr;
 	FrameBufferVK* m_currentFrameBuffer = nullptr;
 
-	// TODO: add a BufferVK to use as scratch uniforms buffer? Could be a dynamic offset one?
-
+	// scratch buffer used for storing frame uniform data
+	BufferVK m_uniformScratchBuffer;
+	uint32_t m_currentScratchBufferOffset = 0;
+	// trackers for the (sub)resources using the scatch buffer memory
+	std::vector<BufferRegionVK> m_uniformBufferRegions;
 
 	VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
 	// layout is going to be fixed, based on shaderCommon.h

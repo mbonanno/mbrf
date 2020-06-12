@@ -438,7 +438,7 @@ bool DeviceVK::CreateDescriptorSetLayouts()
 		bindings[currentBinding].binding = UNIFORM_BUFFER_SLOT(i);
 		bindings[currentBinding].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		bindings[currentBinding].descriptorCount = 1;
-		bindings[currentBinding].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT; // TODO: set all stages?
+		bindings[currentBinding].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT; // TODO: set all stages?
 		bindings[currentBinding].pImmutableSamplers = nullptr;
 
 		currentBinding++;
@@ -450,7 +450,7 @@ bool DeviceVK::CreateDescriptorSetLayouts()
 		bindings[currentBinding].binding = TEXTURE_SLOT(i);
 		bindings[currentBinding].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		bindings[currentBinding].descriptorCount = 1;
-		bindings[currentBinding].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+		bindings[currentBinding].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
 		bindings[currentBinding].pImmutableSamplers = nullptr;
 
 		currentBinding++;

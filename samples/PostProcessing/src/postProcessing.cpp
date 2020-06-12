@@ -9,7 +9,6 @@ void PostProcessing::OnInit()
 	CreateTestVertexAndTriangleBuffers();
 
 	CreateShaders();
-	CreateUniformBuffers();
 
 	CreateGraphicsPipelines();
 }
@@ -17,7 +16,6 @@ void PostProcessing::OnInit()
 void PostProcessing::OnCleanup()
 {
 	DestroyGraphicsPipelines();
-	DestroyUniformBuffers();
 	DestroyShaders();
 
 	DestroyTestVertexAndTriangleBuffers();
@@ -51,15 +49,12 @@ void PostProcessing::OnUpdate(double dt)
 
 // 3 passes:
 // - render the scene offscreen
-// - apply any needed postprocessing in the compute pass
+// - apply any needed postprocessing in the compute pass (2 pass separable gaussian blur)
 // - render the result to a full screen quad
 
 void PostProcessing::OnDraw()
 {
 	// TODO: implement transitions batching!
-
-	m_sceneUniformBuffer.UpdateCurrentBuffer(m_rendererVK.GetDevice(), &m_sceneUniforms);
-	m_postProcUniformBuffer.UpdateCurrentBuffer(m_rendererVK.GetDevice(), &m_postProcUniforms);
 
 	ContextVK* context = m_rendererVK.GetDevice()->GetCurrentGraphicsContext();
 	VkCommandBuffer commandBuffer = context->m_commandBuffer;
@@ -78,7 +73,7 @@ void PostProcessing::OnDraw()
 
 	context->SetVertexBuffer(&m_cubeVertexBuffer, 0);
 	context->SetIndexBuffer(&m_cubeIndexBuffer, 0);
-	context->SetUniformBuffer(&m_sceneUniformBuffer.GetCurrentBuffer(m_rendererVK.GetDevice()), 0);
+	context->SetUniformBuffer(m_rendererVK.GetDevice(), &m_sceneUniforms, sizeof(SceneUniforms), 0);
 	context->SetTexture(&m_sceneTexture, 0);
 
 	context->CommitBindings(m_rendererVK.GetDevice());
@@ -94,6 +89,17 @@ void PostProcessing::OnDraw()
 
 	context->SetPipeline(&m_computePipeline);
 
+	// Horizontal
+
+	struct ComputeConsts
+	{
+		uint32_t horizontal;
+	} compConsts;
+
+	compConsts.horizontal = 1;
+
+
+	context->SetUniformBuffer(m_rendererVK.GetDevice(), &compConsts, sizeof(ComputeConsts), 0);
 	context->SetStorageImage(&m_renderTarget, 0);
 	context->SetStorageImage(&m_computeTarget, 1);
 
@@ -103,9 +109,21 @@ void PostProcessing::OnDraw()
 	uint32_t dispatchSizes[3] = { m_computeTarget.GetWidth() / threadGroupSize, m_computeTarget.GetHeight() / threadGroupSize, 1 };
 	vkCmdDispatch(context->m_commandBuffer, dispatchSizes[0], dispatchSizes[1], dispatchSizes[2]);
 
+	// Vertical
+
+	compConsts.horizontal = 0;
+
+	context->SetUniformBuffer(m_rendererVK.GetDevice(), &compConsts, sizeof(ComputeConsts), 0);
+	context->SetStorageImage(&m_computeTarget, 0);
+	context->SetStorageImage(&m_renderTarget, 1);
+
+	context->CommitBindings(m_rendererVK.GetDevice());
+
+	vkCmdDispatch(context->m_commandBuffer, dispatchSizes[0], dispatchSizes[1], dispatchSizes[2]);
+
 	// Draw fullscreen quad
 
-	m_computeTarget.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	m_renderTarget.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	m_offscreenDepthStencil.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	currentRenderTarget = m_rendererVK.GetCurrentBackBuffer();
@@ -119,8 +137,17 @@ void PostProcessing::OnDraw()
 	context->SetVertexBuffer(&m_quadVertexBuffer, 0);
 	context->SetIndexBuffer(&m_quadIndexBuffer, 0);
 
-	context->SetUniformBuffer(&m_postProcUniformBuffer.GetCurrentBuffer(m_rendererVK.GetDevice()), 0);
-	context->SetTexture(&m_computeTarget, 0);
+	struct PostProcConsts
+	{
+		float nearPlane;
+		float farPlane;
+	}postProcConsts;
+
+	postProcConsts.nearPlane = m_nearPlane;
+	postProcConsts.farPlane = m_farPlane;
+
+	context->SetUniformBuffer(m_rendererVK.GetDevice(), &postProcConsts, sizeof(PostProcConsts), 0);
+	context->SetTexture(&m_renderTarget, 0);
 	context->SetTexture(&m_offscreenDepthStencil, 1);
 	context->SetTexture(&m_vignetteTexture, 2);
 
@@ -164,19 +191,11 @@ bool PostProcessing::CreateShaders()
 	result &= m_quadVertexShader.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/PostProcessing/quad.vert.spv", SHADER_STAGE_VERTEX);
 	result &= m_quadFragmentShader.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/PostProcessing/quad.frag.spv", SHADER_STAGE_FRAGMENT);
 
-	result &= m_computeShader.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/PostProcessing/test.comp.spv", SHADER_STAGE_COMPUTE);
+	result &= m_computeShader.CreateFromFile(m_rendererVK.GetDevice(), "../../data/shaders/PostProcessing/blur.comp.spv", SHADER_STAGE_COMPUTE);
 
 	assert(result);
 
 	return result;
-}
-
-bool PostProcessing::CreateUniformBuffers()
-{
-	m_sceneUniformBuffer.Create(m_rendererVK.GetDevice(), sizeof(SceneUniforms));
-	m_postProcUniformBuffer.Create(m_rendererVK.GetDevice(), sizeof(PostProcUniforms));
-
-	return true;
 }
 
 bool PostProcessing::CreateGraphicsPipelines()
@@ -266,12 +285,6 @@ void PostProcessing::DestroyTestVertexAndTriangleBuffers()
 
 	m_quadVertexBuffer.Destroy(m_rendererVK.GetDevice());
 	m_quadIndexBuffer.Destroy(m_rendererVK.GetDevice());
-}
-
-void PostProcessing::DestroyUniformBuffers()
-{
-	m_sceneUniformBuffer.Destroy(m_rendererVK.GetDevice());
-	m_postProcUniformBuffer.Destroy(m_rendererVK.GetDevice());
 }
 
 void PostProcessing::DestroyTextures()

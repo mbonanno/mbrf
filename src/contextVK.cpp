@@ -30,11 +30,18 @@ bool ContextVK::Create(DeviceVK* device)
 
 	CreateDescriptorPools(device);
 
+	uint32_t size = 1024 * 1024;
+	m_uniformScratchBuffer.Create(device, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+	m_uniformBufferRegions.resize(MAX_UNIFORM_BUFFER_SLOTS);
+
 	return true;
 }
 
 void ContextVK::Destroy(DeviceVK* device)
 {
+	m_uniformScratchBuffer.Destroy(device);
+
 	DestroyDescriptorPools(device);
 
 	vkDestroyFence(device->GetDevice(), m_fence, nullptr);
@@ -92,6 +99,8 @@ void ContextVK::Begin(DeviceVK* device)
 {
 	m_currentPipeline = nullptr;
 	ResetDescriptorPools(device);
+
+	m_currentScratchBufferOffset = 0;
 
 	VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 	beginInfo.flags = 0; // Optional
@@ -225,13 +234,31 @@ void ContextVK::SetIndexBuffer(const IndexBufferVK* indexBuffer, uint64_t offset
 
 void ContextVK::SetUniformBuffer(BufferVK* buffer, uint32_t bindingSlot)
 {
+	assert(bindingSlot < MAX_UNIFORM_BUFFER_SLOTS);
+
 	DescriptorBinding binding = {buffer, bindingSlot};
+
+	m_uniformBufferBindings[bindingSlot] = binding;
+}
+
+void ContextVK::SetUniformBuffer(DeviceVK* device, void* data, uint64_t size, uint32_t bindingSlot)
+{
+	assert(bindingSlot < MAX_UNIFORM_BUFFER_SLOTS);
+
+	DescriptorBinding binding = { &m_uniformBufferRegions[bindingSlot], bindingSlot };
+
+	uint32_t minUniformBufferOffsetAlignment = uint32_t(device->GetPhysicalDeviceProperties().limits.minUniformBufferOffsetAlignment);
+
+	m_uniformBufferRegions[bindingSlot].Create(device, &m_uniformScratchBuffer, size, m_currentScratchBufferOffset, data);
+	m_currentScratchBufferOffset += uint32_t(size + (minUniformBufferOffsetAlignment - (size % minUniformBufferOffsetAlignment)));
 
 	m_uniformBufferBindings[bindingSlot] = binding;
 }
 
 void ContextVK::SetTexture(TextureVK* texture, uint32_t bindingSlot)
 {
+	assert(bindingSlot < MAX_TEXTURE_SLOTS);
+
 	DescriptorBinding binding = { texture, bindingSlot };
 
 	m_textureBindings[bindingSlot] = binding;
@@ -239,6 +266,8 @@ void ContextVK::SetTexture(TextureVK* texture, uint32_t bindingSlot)
 
 void ContextVK::SetStorageImage(TextureVK* texture, uint32_t bindingSlot)
 {
+	assert(bindingSlot < MAX_STORAGE_IMAGE_SLOTS);
+
 	DescriptorBinding binding = { texture, bindingSlot };
 
 	m_storageImageBindings[bindingSlot] = binding;
@@ -261,7 +290,6 @@ void ContextVK::CommitBindings(DeviceVK* device)
 	allocInfo.descriptorSetCount = 1;
 	allocInfo.pSetLayouts = &layout;
 
-	// TODO: temporary, move all this stuff into ContextVK, per frame
 	allocInfo.descriptorPool = m_descriptorPool;
 
 	VkDescriptorSet descriptorSet;
@@ -340,7 +368,6 @@ void ContextVK::CommitBindings(DeviceVK* device)
 	assert(m_currentPipeline != nullptr);
 
 	vkCmdBindDescriptorSets(m_commandBuffer, m_currentPipeline->GetBindPoint(), m_currentPipeline->GetLayout(), 0, 1, &descriptorSet, 0, nullptr);
-	
 }
 
 }
