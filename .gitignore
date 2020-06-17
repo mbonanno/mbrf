@@ -3,3 +3,4 @@ Debug/
 x64/
 *.spv
 *.vcxproj.user
+extern/glm/out/build/
