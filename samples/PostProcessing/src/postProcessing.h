@@ -16,6 +16,9 @@ class PostProcessing: public Application
 	void CreateTextures();
 	void CreateTestVertexAndTriangleBuffers();
 
+	void CreateRenderTargets();
+	void DestroyRenderTargets();
+
 	void DestroyTextures();
 	void DestroyTestVertexAndTriangleBuffers();
 

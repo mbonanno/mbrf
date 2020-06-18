@@ -13,10 +13,10 @@ class GPUPathTracing : public Application
 	void OnUpdate(double dt);
 	void OnDraw();
 
-	void CreateTextures();
+	void CreateRenderTargets();
 	void CreateTestVertexAndTriangleBuffers();
 
-	void DestroyTextures();
+	void DestroyRenderTargets();
 	void DestroyTestVertexAndTriangleBuffers();
 
 	bool CreateShaders();

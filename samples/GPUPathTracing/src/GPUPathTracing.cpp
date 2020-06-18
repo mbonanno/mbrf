@@ -5,7 +5,7 @@ namespace MBRF
 
 void GPUPathTracing::OnInit()
 {
-	CreateTextures();
+	CreateRenderTargets();
 	CreateTestVertexAndTriangleBuffers();
 
 	CreateShaders();
@@ -19,13 +19,13 @@ void GPUPathTracing::OnCleanup()
 	DestroyShaders();
 
 	DestroyTestVertexAndTriangleBuffers();
-	DestroyTextures();
+	DestroyRenderTargets();
 }
 
 void GPUPathTracing::OnResize()
 {
-	DestroyTextures();
-	CreateTextures();
+	DestroyRenderTargets();
+	CreateRenderTargets();
 
 	DestroyGraphicsPipelines();
 	CreateGraphicsPipelines();
@@ -113,7 +113,7 @@ void GPUPathTracing::OnDraw()
 	m_numFrames++;
 }
 
-void GPUPathTracing::CreateTextures()
+void GPUPathTracing::CreateRenderTargets()
 {
 	uint32_t width = m_rendererVK.GetCurrentBackBuffer()->GetWidth();
 	uint32_t height = m_rendererVK.GetCurrentBackBuffer()->GetHeight();
@@ -198,7 +198,7 @@ void GPUPathTracing::DestroyTestVertexAndTriangleBuffers()
 	m_quadIndexBuffer.Destroy(m_rendererVK.GetDevice());
 }
 
-void GPUPathTracing::DestroyTextures()
+void GPUPathTracing::DestroyRenderTargets()
 {
 	m_computeTarget.Destroy(m_rendererVK.GetDevice());
 }

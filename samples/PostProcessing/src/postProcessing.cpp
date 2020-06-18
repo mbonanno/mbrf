@@ -24,6 +24,10 @@ void PostProcessing::OnCleanup()
 
 void PostProcessing::OnResize()
 {
+	DestroyRenderTargets();
+	CreateRenderTargets();
+
+
 	DestroyGraphicsPipelines();
 	CreateGraphicsPipelines();
 }
@@ -158,7 +162,7 @@ void PostProcessing::OnDraw()
 	context->EndPass();
 }
 
-void PostProcessing::CreateTextures()
+void PostProcessing::CreateRenderTargets()
 {
 	uint32_t width = m_rendererVK.GetCurrentBackBuffer()->GetWidth();
 	uint32_t height = m_rendererVK.GetCurrentBackBuffer()->GetHeight();
@@ -175,6 +179,11 @@ void PostProcessing::CreateTextures()
 
 	std::vector<TextureViewVK> attachments = { m_renderTarget.GetView(), m_offscreenDepthStencil.GetView() };
 	m_offscreenFramebuffer.Create(m_rendererVK.GetDevice(), width, height, attachments);
+}
+
+void PostProcessing::CreateTextures()
+{
+	CreateRenderTargets();
 
 	m_sceneTexture.LoadFromFile(m_rendererVK.GetDevice(), "../../data/textures/test.jpg");
 	m_vignetteTexture.LoadFromFile(m_rendererVK.GetDevice(), "../../data/textures/vignette.jpg");
@@ -287,17 +296,22 @@ void PostProcessing::DestroyTestVertexAndTriangleBuffers()
 	m_quadIndexBuffer.Destroy(m_rendererVK.GetDevice());
 }
 
-void PostProcessing::DestroyTextures()
+void PostProcessing::DestroyRenderTargets()
 {
 	m_offscreenFramebuffer.Destroy(m_rendererVK.GetDevice());
 
 	m_renderTarget.Destroy(m_rendererVK.GetDevice());
 	m_offscreenDepthStencil.Destroy(m_rendererVK.GetDevice());
 
+	m_computeTarget.Destroy(m_rendererVK.GetDevice());
+}
+
+void PostProcessing::DestroyTextures()
+{
+	DestroyRenderTargets();
+
 	m_sceneTexture.Destroy(m_rendererVK.GetDevice());
 	m_vignetteTexture.Destroy(m_rendererVK.GetDevice());
-
-	m_computeTarget.Destroy(m_rendererVK.GetDevice());
 }
 
 }
