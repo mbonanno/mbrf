@@ -8,6 +8,7 @@ layout (local_size_x = 16, local_size_y = 16) in;
 
 layout(set = 0, binding = UNIFORM_BUFFER_SLOT(0)) uniform UBO
 {
+	vec2 resolution;
 	int numFrameTest;
 } ubo;
 
@@ -287,7 +288,7 @@ void TestSceneTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo hitInfo)
         if (TestQuadTrace(rayPos, rayDir, hitInfo, A, B, C, D))
         {
             hitInfo.material.albedo = vec3(0.0f, 0.0f, 0.0f);
-            hitInfo.material.emissive = vec3(1.0f, 0.9f, 0.7f) * 10.0f; //20.0f;
+            hitInfo.material.emissive = vec3(1.0f, 0.9f, 0.7f) * 20.0f;
         }        
     }
     
@@ -350,6 +351,12 @@ vec3 GetColorForRay(in vec3 startRayPos, in vec3 startRayDir, inout uint rngStat
  
 		// calculate whether we are going to do a diffuse or specular reflection ray 
 		float doSpecular = (RandomFloat01(rngState) < hitInfo.material.percentSpecular) ? 1.0f : 0.0f;
+
+		// get the probability for choosing the ray type we chose
+		float rayProbability = (doSpecular == 1.0f) ? hitInfo.material.percentSpecular : 1.0f - hitInfo.material.percentSpecular;
+         
+		// avoid numerical issues causing a divide by zero, or nearly so (more important later, when we add refraction)
+		rayProbability = max(rayProbability, 0.001f);   
  
 		// Calculate a new ray direction.
 		// Diffuse uses a normal oriented cosine weighted hemisphere sample.
@@ -363,6 +370,22 @@ vec3 GetColorForRay(in vec3 startRayPos, in vec3 startRayDir, inout uint rngStat
  
 		// add in emissive lighting
 		ret += hitInfo.material.emissive * throughput;
+
+		// since we chose randomly between diffuse and specular,
+		// we need to account for the times we didn't do one or the other.
+		throughput /= rayProbability;
+
+		// Russian Roulette
+		// As the throughput gets smaller, the ray is more likely to get terminated early.
+		// Survivors have their value boosted to make up for fewer samples being in the average.
+		{
+			float p = max(throughput.r, max(throughput.g, throughput.b));
+			if (RandomFloat01(rngState) > p)
+				break;
+ 
+			// Add the energy we 'lose' by randomly terminating paths
+			throughput *= 1.0f / p;
+		}
  
 		// update the colorMultiplier
 		throughput *= mix(hitInfo.material.albedo, hitInfo.material.specularColor, doSpecular);   
@@ -380,7 +403,7 @@ void main()
 	uint rngState = uint(uint(gl_GlobalInvocationID.x) * uint(1973) + uint(gl_GlobalInvocationID.y) * uint(9277) + uint(iFrame) * uint(26699)) | uint(1);
 
 
-	vec2 resolution = vec2(800,600);
+	vec2 resolution = ubo.resolution;
 
 	// The ray starts at the camera position (the origin)
     vec3 rayPosition = vec3(0.0f, 0.0f, 0.0f);

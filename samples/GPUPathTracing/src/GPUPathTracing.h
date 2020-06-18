@@ -71,6 +71,8 @@ class GPUPathTracing : public Application
 	const float m_farPlane = 10.0f;
 
 	TextureVK m_computeTarget;
+
+	int m_numFrames = 0;
 };
 
 }

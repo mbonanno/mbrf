@@ -52,14 +52,14 @@ vec3 ACESFilm(vec3 x)
 
 void main()
 {
-	vec4 color = texture(offscreenTex, inTexCoord).rgba;
+	vec3 color = texture(offscreenTex, inTexCoord).rgb;
 
 	// apply exposure (how long the shutter is open)
-    color.rgb *= 1;
+    color *= 0.5;
     
-    color.rgb = ACESFilm(color.rgb);
+    color = ACESFilm(color);
     
-    //color.rgb = LinearToSRGB(color.rgb);
+    color = LinearToSRGB(color);
 
-	OutColor = color; // + texture(vignetteTex, inTexCoord).rgba * 0.05;
+	OutColor = vec4(color, 1.0);
 }

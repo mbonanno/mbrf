@@ -24,10 +24,13 @@ void GPUPathTracing::OnCleanup()
 
 void GPUPathTracing::OnResize()
 {
-	// TODO: resize offscreen texture
+	DestroyTextures();
+	CreateTextures();
 
 	DestroyGraphicsPipelines();
 	CreateGraphicsPipelines();
+
+	m_numFrames = 0;
 }
 
 void GPUPathTracing::OnUpdate(double dt)
@@ -49,8 +52,6 @@ void GPUPathTracing::OnUpdate(double dt)
 	m_sceneUniforms.m_mvpTransform = clip * proj * view * model;
 }
 
-int numFrameTest = 0;
-
 // 2 passes:
 // - Path Tracing compute pass
 // - render the result to a full screen quad
@@ -70,10 +71,12 @@ void GPUPathTracing::OnDraw()
 
 	struct ComputeConsts
 	{
+		glm::vec2 resolution;
 		int numFrame;
 	} compConsts;
 
-	compConsts.numFrame = numFrameTest;
+	compConsts.numFrame = m_numFrames;
+	compConsts.resolution = glm::vec2(m_computeTarget.GetWidth(), m_computeTarget.GetHeight());
 
 	context->SetUniformBuffer(m_rendererVK.GetDevice(), &compConsts, sizeof(ComputeConsts), 0);
 	context->SetStorageImage(&m_computeTarget, 0);
@@ -107,7 +110,7 @@ void GPUPathTracing::OnDraw()
 
 	context->EndPass();
 
-	numFrameTest++;
+	m_numFrames++;
 }
 
 void GPUPathTracing::CreateTextures()
@@ -115,7 +118,7 @@ void GPUPathTracing::CreateTextures()
 	uint32_t width = m_rendererVK.GetCurrentBackBuffer()->GetWidth();
 	uint32_t height = m_rendererVK.GetCurrentBackBuffer()->GetHeight();
 
-	m_computeTarget.Create(m_rendererVK.GetDevice(), VK_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	m_computeTarget.Create(m_rendererVK.GetDevice(), VK_FORMAT_R32G32B32A32_SFLOAT, width, height, 1, 1, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	m_computeTarget.TransitionImageLayoutAndSubmit(m_rendererVK.GetDevice(), VK_IMAGE_LAYOUT_GENERAL);
 }
 

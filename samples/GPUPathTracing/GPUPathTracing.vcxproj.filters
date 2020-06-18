@@ -28,14 +28,14 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\data\shaders\GPUPathTracing\blur.comp">
+    <CustomBuild Include="..\..\data\shaders\GPUPathTracing\pathTracing.comp">
       <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\data\shaders\GPUPathTracing\quad.frag">
+    </CustomBuild>
+    <CustomBuild Include="..\..\data\shaders\GPUPathTracing\quad.frag">
       <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\data\shaders\GPUPathTracing\quad.vert">
+    </CustomBuild>
+    <CustomBuild Include="..\..\data\shaders\GPUPathTracing\quad.vert">
       <Filter>shaders</Filter>
-    </None>
+    </CustomBuild>
   </ItemGroup>
 </Project>
