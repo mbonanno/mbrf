@@ -45,6 +45,7 @@ struct SMaterialInfo
 	float percentSpecular;
 	float roughness;
 	vec3 specularColor;
+	float IOR; // index of refraction
 };
  
 struct SRayHitInfo
@@ -82,6 +83,34 @@ vec3 RandomUnitVector(inout uint state)
     float x = r * cos(a);
     float y = r * sin(a);
     return vec3(x, y, z);
+}
+
+// n1: "index of refraction" of the material the ray started in (air, and we are going to use 1.0).
+// n2: "index of refraction" of the material of the object being hit. 
+// normal: normal of the surface where the ray hit. 
+// incident: ray direction when it hit the object. 
+// f0: minimum reflection of the object (when the ray and normal are 0 degrees apart)
+// f90: maximum reflection of the object (when the ray and normal are 90 degrees apart).
+float FresnelReflectAmount(float n1, float n2, vec3 normal, vec3 incident, float f0, float f90)
+{
+        // Schlick aproximation
+        float r0 = (n1-n2) / (n1+n2);
+        r0 *= r0;
+        float cosX = -dot(normal, incident);
+        if (n1 > n2)
+        {
+            float n = n1/n2;
+            float sinT2 = n*n*(1.0-cosX*cosX);
+            // Total internal reflection
+            if (sinT2 > 1.0)
+                return f90;
+            cosX = sqrt(1.0-sinT2);
+        }
+        float x = 1.0-cosX;
+        float ret = r0+(1.0-r0)*x*x*x*x*x;
+ 
+        // adjust reflect multiplier for object reflectivity
+        return mix(f0, f90, ret);
 }
 
 bool TestQuadTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo info, in vec3 a, in vec3 b, in vec3 c, in vec3 d)
@@ -299,6 +328,7 @@ void TestSceneTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo hitInfo)
 		hitInfo.material.percentSpecular = 0.1;
         hitInfo.material.roughness = 0.2;
         hitInfo.material.specularColor = vec3(0.9f, 0.9f, 0.9f);
+		hitInfo.material.IOR = 1.0;
     } 
     
 	if (TestSphereTrace(rayPos, rayDir, hitInfo, vec4(0.0f, -9.5f, 20.0f, 3.0f)+sceneTranslation4))
@@ -308,6 +338,7 @@ void TestSceneTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo hitInfo)
 		hitInfo.material.percentSpecular = 0.3;
         hitInfo.material.roughness = 0.2;
         hitInfo.material.specularColor = vec3(0.9f, 0.9f, 0.9f);
+		hitInfo.material.IOR = 1.0;
     }    
     
 	if (TestSphereTrace(rayPos, rayDir, hitInfo, vec4(9.0f, -9.5f, 20.0f, 3.0f)+sceneTranslation4))
@@ -317,6 +348,7 @@ void TestSceneTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo hitInfo)
 		hitInfo.material.percentSpecular = 0.5;
         hitInfo.material.roughness = 0.5;
         hitInfo.material.specularColor = vec3(0.9f, 0.9f, 0.9f);
+		hitInfo.material.IOR = 1.0;
     }    
 }
  
@@ -348,9 +380,19 @@ vec3 GetColorForRay(in vec3 startRayPos, in vec3 startRayDir, inout uint rngStat
          
         // update the ray position
 		rayPos = (rayPos + rayDir * hitInfo.dist) + hitInfo.normal * c_rayPosNormalNudge;
- 
+
+		// apply fresnel
+		float specularChance = hitInfo.material.percentSpecular;
+		if (specularChance > 0.0f)
+		{
+			specularChance = FresnelReflectAmount(
+				1.0,
+				hitInfo.material.IOR,
+				rayDir, hitInfo.normal, hitInfo.material.percentSpecular, 1.0f);  
+		}
+       
 		// calculate whether we are going to do a diffuse or specular reflection ray 
-		float doSpecular = (RandomFloat01(rngState) < hitInfo.material.percentSpecular) ? 1.0f : 0.0f;
+		float doSpecular = (RandomFloat01(rngState) < specularChance) ? 1.0f : 0.0f;
 
 		// get the probability for choosing the ray type we chose
 		float rayProbability = (doSpecular == 1.0f) ? hitInfo.material.percentSpecular : 1.0f - hitInfo.material.percentSpecular;
