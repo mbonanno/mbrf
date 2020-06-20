@@ -5,6 +5,9 @@
 #include "utilsVK.h"
 #include "utils.h"
 
+#include <ktx.h>
+//#include <ktxvulkan.h>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
@@ -288,6 +291,37 @@ void TextureVK::LoadFromFile(DeviceVK* device, const char* fileName)
 	Update(device, texWidth, texHeight, 1, 4, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, pixels);
 
 	stbi_image_free(pixels);
+}
+
+void TextureVK::LoadFromKTXFile(DeviceVK* device, const char* fileName, VkFormat format)
+{
+	// TODO: figure out the format automatically?
+	// TODO: handle mips
+	ktxResult result;
+	ktxTexture* ktxTexture;
+
+	uint32_t texWidth, texHeight, texDepth, bpp;
+
+	result = ktxTexture_CreateFromNamedFile(fileName, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
+
+	ktx_uint8_t *ktxTextureData = ktxTexture_GetData(ktxTexture);
+	texWidth = ktxTexture->baseWidth;
+	texHeight = ktxTexture->baseHeight;
+	texDepth = ktxTexture->baseDepth;
+	bpp = ktxTexture_GetElementSize(ktxTexture);
+	ktx_size_t ktxTextureSize = ktxTexture_GetSize(ktxTexture);
+
+	assert(result == KTX_SUCCESS);
+
+	VkDeviceSize imageSize = texWidth * texHeight * texDepth * bpp; //ktxTextureSize;
+
+	Create(device, format, texWidth, texHeight, texDepth, 1, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+
+	// upload image pixels to the GPU
+
+	Update(device, texWidth, texHeight, texDepth, bpp, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, ktxTextureData);
+
+	ktxTexture_Destroy(ktxTexture);
 }
 
 void TextureVK::TransitionImageLayout(DeviceVK* device, VkCommandBuffer commandBuffer, VkImageLayout newLayout)

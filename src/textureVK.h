@@ -58,6 +58,7 @@ public:
 	void Destroy(DeviceVK* device);
 
 	void LoadFromFile(DeviceVK* device, const char* fileName);
+	void LoadFromKTXFile(DeviceVK* device, const char* fileName, VkFormat format);
 
 	const VkImage GetImage() const { return m_image; };
 	const TextureViewVK GetView() const { return m_view; };
