@@ -83,8 +83,6 @@ class ApplicationDemo : public Application
 	VertexBufferVK m_testVertexBuffer;
 	IndexBufferVK m_testIndexBuffer;
 
-	glm::vec4 m_pushConstantTestColor = glm::vec4(0, 1, 0, 1);
-
 	// TODO: make sure of alignment requirements
 	struct UBOTest
 	{

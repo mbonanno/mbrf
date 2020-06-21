@@ -57,19 +57,6 @@ class GPUPathTracing : public Application
 	VertexBufferVK m_quadVertexBuffer;
 	IndexBufferVK m_quadIndexBuffer;
 
-	glm::vec4 m_pushConstantTestColor = glm::vec4(0, 1, 0, 1);
-
-	// TODO: make sure of alignment requirements
-	struct SceneUniforms
-	{
-		glm::mat4 m_mvpTransform;
-	};
-
-	SceneUniforms m_sceneUniforms = { glm::mat4() };
-
-	const float m_nearPlane = 0.1f;
-	const float m_farPlane = 10.0f;
-
 	TextureVK m_computeTarget;
 
 	int m_numFrames = 0;

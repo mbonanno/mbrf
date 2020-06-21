@@ -103,8 +103,6 @@ class PostProcessing: public Application
 	VertexBufferVK m_quadVertexBuffer;
 	IndexBufferVK m_quadIndexBuffer;
 
-	glm::vec4 m_pushConstantTestColor = glm::vec4(0, 1, 0, 1);
-
 	// TODO: make sure of alignment requirements
 	struct SceneUniforms
 	{

@@ -35,21 +35,7 @@ void GPUPathTracing::OnResize()
 
 void GPUPathTracing::OnUpdate(double dt)
 {
-	m_cubeRotation += (float)dt;
 
-	FrameBufferVK* backBuffer = m_rendererVK.GetCurrentBackBuffer();
-
-	glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f)) * glm::rotate(glm::mat4(1.0f), m_cubeRotation * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 4.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	glm::mat4 proj = glm::perspective(glm::radians(45.0f), backBuffer->GetWidth() / float(backBuffer->GetHeight()), m_nearPlane, m_farPlane);
-
-	// Vulkan clip space has inverted Y and half Z.
-	glm::mat4 clip = glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, -1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 0.5f, 0.0f,
-		0.0f, 0.0f, 0.5f, 1.0f);
-
-	m_sceneUniforms.m_mvpTransform = clip * proj * view * model;
 }
 
 // 2 passes:
