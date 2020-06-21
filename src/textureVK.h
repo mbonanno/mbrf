@@ -54,7 +54,8 @@ public:
 		VkImageType type = VK_IMAGE_TYPE_2D, VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED, VkMemoryPropertyFlags memoryProperty = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		VkSampleCountFlagBits sampleCount = VK_SAMPLE_COUNT_1_BIT, VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL);
 
-	bool Update(DeviceVK* device, uint32_t width, uint32_t height, uint32_t depth, uint32_t bpp, VkImageLayout newLayout, void* data);
+	bool Update(DeviceVK* device, VkDeviceSize size, VkImageLayout newLayout, void* data, std::vector<VkBufferImageCopy> regions);
+	bool Update(DeviceVK* device, uint32_t width, uint32_t height, uint32_t depth, VkDeviceSize size, VkImageLayout newLayout, void* data);
 	void Destroy(DeviceVK* device);
 
 	void LoadFromFile(DeviceVK* device, const char* fileName);

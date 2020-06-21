@@ -184,7 +184,7 @@ void PostProcessing::CreateTextures()
 {
 	CreateRenderTargets();
 
-	m_sceneTexture.LoadFromFile(m_rendererVK.GetDevice(), "../../data/textures/test.jpg");
+	m_sceneTexture.LoadFromKTXFile(m_rendererVK.GetDevice(), "../../data/textures/test.ktx", VK_FORMAT_R8G8B8A8_SRGB);
 	m_vignetteTexture.LoadFromFile(m_rendererVK.GetDevice(), "../../data/textures/vignette.jpg");
 }
 

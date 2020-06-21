@@ -5,6 +5,8 @@
 #include "utilsVK.h"
 #include "utils.h"
 
+#include <algorithm>
+
 #include <ktx.h>
 //#include <ktxvulkan.h>
 
@@ -211,7 +213,7 @@ bool TextureVK::Create(DeviceVK* device, VkFormat format, uint32_t width, uint32
 		}
 	}
 
-	m_view.Create(device, this, aspectMask);
+	m_view.Create(device, this, aspectMask, VK_IMAGE_VIEW_TYPE_2D, 0, m_mips);
 
 	m_sampler = SamplerCache::GetSampler(device, VK_FILTER_LINEAR, 0.0f, float(mips));
 
@@ -220,18 +222,13 @@ bool TextureVK::Create(DeviceVK* device, VkFormat format, uint32_t width, uint32
 	return true;
 }
 
-// NOTE: this only updates mip0. TODO: handle subresources properly!
-bool TextureVK::Update(DeviceVK* device, uint32_t width, uint32_t height, uint32_t depth, uint32_t bpp, VkImageLayout newLayout, void* data)
+bool TextureVK::Update(DeviceVK* device, VkDeviceSize size, VkImageLayout newLayout, void* data, std::vector<VkBufferImageCopy> regions)
 {
-	// TODO: check that the size we are trying to copy is less than the texture size?
-
 	if (!(m_usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT))
 	{
 		assert(!"Cannot upload data to device local memory via staging buffer. Usage needs to be VK_BUFFER_USAGE_TRANSFER_DST_BIT.");
 		return false;
 	}
-
-	VkDeviceSize size = width * height * depth * bpp;
 
 	TransitionImageLayoutAndSubmit(device, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
@@ -241,18 +238,7 @@ bool TextureVK::Update(DeviceVK* device, uint32_t width, uint32_t height, uint32
 
 	VkCommandBuffer commandBuffer = device->BeginNewCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-	VkBufferImageCopy region;
-	region.bufferOffset = 0;
-	region.bufferRowLength = 0;
-	region.bufferImageHeight = 0;
-	region.imageSubresource.aspectMask = m_view.GetAspectMask();
-	region.imageSubresource.mipLevel = 0;
-	region.imageSubresource.baseArrayLayer = 0;
-	region.imageSubresource.layerCount = 1;
-	region.imageOffset = { 0, 0, 0 };
-	region.imageExtent = { width, height, depth };
-
-	vkCmdCopyBufferToImage(commandBuffer, stagingBuffer.GetBuffer(), m_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+	vkCmdCopyBufferToImage(commandBuffer, stagingBuffer.GetBuffer(), m_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, uint32_t(regions.size()), regions.data());
 
 	device->SubmitCommandBufferAndWait(commandBuffer, true);
 
@@ -261,6 +247,26 @@ bool TextureVK::Update(DeviceVK* device, uint32_t width, uint32_t height, uint32
 	stagingBuffer.Destroy(device);
 
 	return true;
+}
+
+// NOTE: this only updates mip0
+bool TextureVK::Update(DeviceVK* device, uint32_t width, uint32_t height, uint32_t depth, VkDeviceSize size, VkImageLayout newLayout, void* data)
+{
+	std::vector<VkBufferImageCopy> regions(1);
+
+	regions[0].bufferOffset = 0;
+	regions[0].bufferRowLength = 0;
+	regions[0].bufferImageHeight = 0;
+	regions[0].imageSubresource.aspectMask = m_view.GetAspectMask();
+	regions[0].imageSubresource.mipLevel = 0;
+	regions[0].imageSubresource.baseArrayLayer = 0;
+	regions[0].imageSubresource.layerCount = 1;
+	regions[0].imageOffset = { 0, 0, 0 };
+	regions[0].imageExtent.width = width;
+	regions[0].imageExtent.height = height;
+	regions[0].imageExtent.depth = depth;
+
+	return Update(device, size, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, data, regions);
 }
 
 void TextureVK::Destroy(DeviceVK* device)
@@ -288,7 +294,7 @@ void TextureVK::LoadFromFile(DeviceVK* device, const char* fileName)
 
 	// upload image pixels to the GPU
 
-	Update(device, texWidth, texHeight, 1, 4, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, pixels);
+	Update(device, texWidth, texHeight, 1, imageSize, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, pixels);
 
 	stbi_image_free(pixels);
 }
@@ -296,11 +302,10 @@ void TextureVK::LoadFromFile(DeviceVK* device, const char* fileName)
 void TextureVK::LoadFromKTXFile(DeviceVK* device, const char* fileName, VkFormat format)
 {
 	// TODO: figure out the format automatically?
-	// TODO: handle mips
 	ktxResult result;
 	ktxTexture* ktxTexture;
 
-	uint32_t texWidth, texHeight, texDepth, bpp;
+	uint32_t texWidth, texHeight, texDepth, bpp, mipLevels;
 
 	result = ktxTexture_CreateFromNamedFile(fileName, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
 
@@ -309,17 +314,42 @@ void TextureVK::LoadFromKTXFile(DeviceVK* device, const char* fileName, VkFormat
 	texHeight = ktxTexture->baseHeight;
 	texDepth = ktxTexture->baseDepth;
 	bpp = ktxTexture_GetElementSize(ktxTexture);
+	mipLevels = ktxTexture->numLevels;
 	ktx_size_t ktxTextureSize = ktxTexture_GetSize(ktxTexture);
 
 	assert(result == KTX_SUCCESS);
 
-	VkDeviceSize imageSize = texWidth * texHeight * texDepth * bpp; //ktxTextureSize;
+	VkDeviceSize imageSize = ktxTextureSize;
 
-	Create(device, format, texWidth, texHeight, texDepth, 1, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+	Create(device, format, texWidth, texHeight, texDepth, mipLevels, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
 	// upload image pixels to the GPU
 
-	Update(device, texWidth, texHeight, texDepth, bpp, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, ktxTextureData);
+	std::vector<VkBufferImageCopy> regions;
+
+	for (uint32_t mipLevel = 0; mipLevel < m_mips; ++mipLevel)
+	{
+		ktx_size_t offset = 0;
+		KTX_error_code ret = ktxTexture_GetImageOffset(ktxTexture, mipLevel, 0, 0, &offset);
+		assert(ret == KTX_SUCCESS);
+
+		VkBufferImageCopy region;
+		region.bufferOffset = offset;
+		region.bufferRowLength = 0;
+		region.bufferImageHeight = 0;
+		region.imageSubresource.aspectMask = m_view.GetAspectMask();
+		region.imageSubresource.mipLevel = mipLevel;
+		region.imageSubresource.baseArrayLayer = 0;
+		region.imageSubresource.layerCount = 1;
+		region.imageOffset = { 0, 0, 0 };
+		region.imageExtent.width = std::max(int(texWidth >> mipLevel), 1);
+		region.imageExtent.height = std::max(int(texHeight >> mipLevel), 1);
+		region.imageExtent.depth = std::max(int(texDepth >> mipLevel), 1);
+
+		regions.emplace_back(region);
+	}
+
+	Update(device, imageSize, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, ktxTextureData, regions);
 
 	ktxTexture_Destroy(ktxTexture);
 }
