@@ -305,16 +305,14 @@ void TextureVK::LoadFromKTXFile(DeviceVK* device, const char* fileName, VkFormat
 	ktxResult result;
 	ktxTexture* ktxTexture;
 
-	uint32_t texWidth, texHeight, texDepth, bpp, mipLevels;
-
 	result = ktxTexture_CreateFromNamedFile(fileName, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
 
 	ktx_uint8_t *ktxTextureData = ktxTexture_GetData(ktxTexture);
-	texWidth = ktxTexture->baseWidth;
-	texHeight = ktxTexture->baseHeight;
-	texDepth = ktxTexture->baseDepth;
-	bpp = ktxTexture_GetElementSize(ktxTexture);
-	mipLevels = ktxTexture->numLevels;
+	uint32_t texWidth = ktxTexture->baseWidth;
+	uint32_t texHeight = ktxTexture->baseHeight;
+	uint32_t texDepth = ktxTexture->baseDepth;
+	uint32_t bpp = ktxTexture_GetElementSize(ktxTexture);
+	uint32_t mipLevels = ktxTexture->numLevels;
 	ktx_size_t ktxTextureSize = ktxTexture_GetSize(ktxTexture);
 
 	assert(result == KTX_SUCCESS);
