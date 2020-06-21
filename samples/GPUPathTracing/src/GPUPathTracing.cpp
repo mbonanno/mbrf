@@ -61,11 +61,10 @@ void GPUPathTracing::OnDraw()
 	// TODO: implement transitions batching!
 
 	ContextVK* context = m_rendererVK.GetDevice()->GetCurrentGraphicsContext();
-	VkCommandBuffer commandBuffer = context->m_commandBuffer;
 
 	// Compute Pass: Path Tracing
 
-	m_computeTarget.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_GENERAL);
+	context->TransitionImageLayout(m_rendererVK.GetDevice(), &m_computeTarget, VK_IMAGE_LAYOUT_GENERAL);
 
 	context->SetPipeline(&m_computePipeline);
 
@@ -85,11 +84,11 @@ void GPUPathTracing::OnDraw()
 
 	uint32_t threadGroupSize = 16;
 	uint32_t dispatchSizes[3] = { m_computeTarget.GetWidth() / threadGroupSize, m_computeTarget.GetHeight() / threadGroupSize, 1 };
-	vkCmdDispatch(context->m_commandBuffer, dispatchSizes[0], dispatchSizes[1], dispatchSizes[2]);
+	context->Dispatch(dispatchSizes[0], dispatchSizes[1], dispatchSizes[2]);
 
 	// Draw fullscreen quad
 
-	m_computeTarget.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	context->TransitionImageLayout(m_rendererVK.GetDevice(), &m_computeTarget, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	FrameBufferVK* currentRenderTarget = m_rendererVK.GetCurrentBackBuffer();
 

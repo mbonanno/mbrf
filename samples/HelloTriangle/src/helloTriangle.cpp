@@ -36,7 +36,6 @@ void HelloTriangle::OnDraw()
 	FrameBufferVK* currentRenderTarget = m_rendererVK.GetCurrentBackBuffer();
 
 	ContextVK* context = m_rendererVK.GetDevice()->GetCurrentGraphicsContext();
-	VkCommandBuffer commandBuffer = context->m_commandBuffer;
 
 	context->BeginPass(currentRenderTarget);
 

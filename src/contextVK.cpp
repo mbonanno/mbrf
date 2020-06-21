@@ -212,6 +212,16 @@ void ContextVK::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_
 	vkCmdDrawIndexed(m_commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
+void ContextVK::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
+{
+	vkCmdDispatch(m_commandBuffer, groupCountX, groupCountY, groupCountZ);
+}
+
+void ContextVK::TransitionImageLayout(DeviceVK* device, TextureVK* texture, VkImageLayout newLayout)
+{
+	texture->TransitionImageLayout(device, m_commandBuffer, newLayout);
+}
+
 void ContextVK::SetPipeline(PipelineVK* pipeline)
 {
 	m_currentPipeline = pipeline;

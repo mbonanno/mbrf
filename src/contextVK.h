@@ -35,6 +35,9 @@ public:
 
 	void ClearRenderTarget(int32_t x, int32_t y, uint32_t width, uint32_t height, VkClearColorValue clearColor, VkClearDepthStencilValue clearDepthStencil);
 	void DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset, uint32_t firstInstance);
+	void Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
+
+	void TransitionImageLayout(DeviceVK* device, TextureVK* texture, VkImageLayout newLayout);
 
 	void SetPipeline(PipelineVK* pipeline);
 

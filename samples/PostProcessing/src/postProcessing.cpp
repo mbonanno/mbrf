@@ -61,12 +61,11 @@ void PostProcessing::OnDraw()
 	// TODO: implement transitions batching!
 
 	ContextVK* context = m_rendererVK.GetDevice()->GetCurrentGraphicsContext();
-	VkCommandBuffer commandBuffer = context->m_commandBuffer;
 
 	// Draw scene offscreen
 
-	m_renderTarget.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	m_offscreenDepthStencil.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+	context->TransitionImageLayout(m_rendererVK.GetDevice(), &m_renderTarget, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	context->TransitionImageLayout(m_rendererVK.GetDevice(), &m_offscreenDepthStencil, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
 	FrameBufferVK* currentRenderTarget = &m_offscreenFramebuffer;
 
@@ -88,8 +87,8 @@ void PostProcessing::OnDraw()
 
 	// Compute Pass
 
-	m_renderTarget.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_GENERAL);
-	m_computeTarget.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_GENERAL);
+	context->TransitionImageLayout(m_rendererVK.GetDevice(), &m_renderTarget, VK_IMAGE_LAYOUT_GENERAL);
+	context->TransitionImageLayout(m_rendererVK.GetDevice(), &m_computeTarget, VK_IMAGE_LAYOUT_GENERAL);
 
 	context->SetPipeline(&m_computePipeline);
 
@@ -111,7 +110,7 @@ void PostProcessing::OnDraw()
 
 	uint32_t threadGroupSize = 16;
 	uint32_t dispatchSizes[3] = { m_computeTarget.GetWidth() / threadGroupSize, m_computeTarget.GetHeight() / threadGroupSize, 1 };
-	vkCmdDispatch(context->m_commandBuffer, dispatchSizes[0], dispatchSizes[1], dispatchSizes[2]);
+	context->Dispatch(dispatchSizes[0], dispatchSizes[1], dispatchSizes[2]);
 
 	// Vertical
 
@@ -123,12 +122,12 @@ void PostProcessing::OnDraw()
 
 	context->CommitBindings(m_rendererVK.GetDevice());
 
-	vkCmdDispatch(context->m_commandBuffer, dispatchSizes[0], dispatchSizes[1], dispatchSizes[2]);
+	context->Dispatch(dispatchSizes[0], dispatchSizes[1], dispatchSizes[2]);
 
 	// Draw fullscreen quad
 
-	m_renderTarget.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	m_offscreenDepthStencil.TransitionImageLayout(m_rendererVK.GetDevice(), commandBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	context->TransitionImageLayout(m_rendererVK.GetDevice(), &m_renderTarget, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	context->TransitionImageLayout(m_rendererVK.GetDevice(), &m_offscreenDepthStencil, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	currentRenderTarget = m_rendererVK.GetCurrentBackBuffer();
 
