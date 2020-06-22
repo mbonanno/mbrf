@@ -59,7 +59,8 @@ void main()
     
     color = ACESFilm(color);
     
-    color = LinearToSRGB(color);
+	// no need of color space conversion as the swapchain RThas an srgb format
+    //color = LinearToSRGB(color);
 
 	OutColor = vec4(color, 1.0);
 }
