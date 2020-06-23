@@ -8,7 +8,7 @@
 #include <algorithm>
 
 #include <ktx.h>
-//#include <ktxvulkan.h>
+#include <ktxvulkan.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -74,7 +74,7 @@ void SamplerCache::Cleanup(DeviceVK* device)
 
 // ---------------------------- TextureViewVK ----------------------------
 
-bool TextureViewVK::Create(DeviceVK* device, VkImage image, VkFormat format, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32_t baseMip, uint32_t mipCount)
+bool TextureViewVK::Create(DeviceVK* device, VkImage image, VkFormat format, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32_t baseMip, uint32_t mipCount, uint32_t numLayers)
 {
 	assert(m_imageView == VK_NULL_HANDLE);
 
@@ -101,16 +101,16 @@ bool TextureViewVK::Create(DeviceVK* device, VkImage image, VkFormat format, VkI
 	imageViewCreateInfo.subresourceRange.baseMipLevel = baseMip;
 	imageViewCreateInfo.subresourceRange.levelCount = mipCount;
 	imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-	imageViewCreateInfo.subresourceRange.layerCount = 1;
+	imageViewCreateInfo.subresourceRange.layerCount = numLayers;
 
 	VK_CHECK(vkCreateImageView(logicDevice, &imageViewCreateInfo, nullptr, &m_imageView));
 
 	return true;
 }
 
-bool TextureViewVK::Create(DeviceVK* device, TextureVK* texture, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32_t baseMip, uint32_t mipCount)
+bool TextureViewVK::Create(DeviceVK* device, TextureVK* texture, VkImageAspectFlags aspectMask, VkImageViewType viewType, uint32_t baseMip, uint32_t mipCount, uint32_t numLayers)
 {
-	return Create(device, texture->GetImage(), texture->GetFormat(), aspectMask, viewType, baseMip, mipCount);
+	return Create(device, texture->GetImage(), texture->GetFormat(), aspectMask, viewType, baseMip, mipCount, numLayers);
 }
 
 void TextureViewVK::Destroy(DeviceVK* device)
@@ -122,8 +122,8 @@ void TextureViewVK::Destroy(DeviceVK* device)
 
 // ---------------------------- TextureVK ----------------------------
 
-bool TextureVK::Create(DeviceVK* device, VkFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t mips, VkImageUsageFlags usage,
-	VkImageType type, VkImageLayout initialLayout, VkMemoryPropertyFlags memoryProperty, VkSampleCountFlagBits sampleCount, VkImageTiling tiling)
+bool TextureVK::Create(DeviceVK* device, VkFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t mips, VkImageUsageFlags usage, uint32_t layers, bool cubemap,
+					   VkImageType type, VkImageLayout initialLayout, VkMemoryPropertyFlags memoryProperty, VkSampleCountFlagBits sampleCount, VkImageTiling tiling)
 {
 	assert(m_image == VK_NULL_HANDLE);
 
@@ -136,21 +136,26 @@ bool TextureVK::Create(DeviceVK* device, VkFormat format, uint32_t width, uint32
 	m_height = height;
 	m_depth = depth;
 	m_mips = mips;
+	m_layers = layers;
+	m_isCubemap = cubemap;
+	m_isArray = cubemap ? false : m_layers > 1;
 	m_sampleCount = sampleCount;
 	m_tiling = tiling;
 	m_usage = usage;
 	m_currentLayout = initialLayout;
 
+	assert(!m_isCubemap || (m_isCubemap && m_layers == 6));
+
 	VkImageCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 	createInfo.pNext = nullptr;
-	createInfo.flags = 0;
+	createInfo.flags = m_isCubemap ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
 	createInfo.imageType = type;
 	createInfo.format = format;
 	createInfo.extent.width = width;
 	createInfo.extent.height = height;
 	createInfo.extent.depth = depth;
 	createInfo.mipLevels = mips;
-	createInfo.arrayLayers = 1;
+	createInfo.arrayLayers = layers;
 	createInfo.samples = sampleCount;
 	createInfo.tiling = tiling;
 	createInfo.usage = usage;
@@ -213,7 +218,14 @@ bool TextureVK::Create(DeviceVK* device, VkFormat format, uint32_t width, uint32
 		}
 	}
 
-	m_view.Create(device, this, aspectMask, VK_IMAGE_VIEW_TYPE_2D, 0, m_mips);
+	VkImageViewType imageViewType = VK_IMAGE_VIEW_TYPE_2D;
+
+	if (m_isCubemap)
+		imageViewType = VK_IMAGE_VIEW_TYPE_CUBE;
+	else if (m_isArray)
+		imageViewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+
+	m_view.Create(device, this, aspectMask, imageViewType, 0, m_mips, m_layers);
 
 	m_sampler = SamplerCache::GetSampler(device, VK_FILTER_LINEAR, 0.0f, float(mips));
 
@@ -306,6 +318,7 @@ void TextureVK::LoadFromKTXFile(DeviceVK* device, const char* fileName, VkFormat
 	ktxTexture* ktxTexture;
 
 	result = ktxTexture_CreateFromNamedFile(fileName, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
+	assert(result == KTX_SUCCESS);
 
 	ktx_uint8_t *ktxTextureData = ktxTexture_GetData(ktxTexture);
 	uint32_t texWidth = ktxTexture->baseWidth;
@@ -313,39 +326,51 @@ void TextureVK::LoadFromKTXFile(DeviceVK* device, const char* fileName, VkFormat
 	uint32_t texDepth = ktxTexture->baseDepth;
 	uint32_t bpp = ktxTexture_GetElementSize(ktxTexture);
 	uint32_t mipLevels = ktxTexture->numLevels;
+	uint32_t numFaces = ktxTexture->numFaces;
+	uint32_t numLayers = ktxTexture->numLayers;
 	ktx_size_t ktxTextureSize = ktxTexture_GetSize(ktxTexture);
+	bool isCubemap = ktxTexture->isCubemap;
 
-	assert(result == KTX_SUCCESS);
+	if (isCubemap)
+	{
+		assert(numLayers == 1);
+		numLayers = numFaces;
+	}
 
 	VkDeviceSize imageSize = ktxTextureSize;
 
-	Create(device, format, texWidth, texHeight, texDepth, mipLevels, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+	Create(device, format, texWidth, texHeight, texDepth, mipLevels, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, numLayers, isCubemap);
 
 	// upload image pixels to the GPU
 
 	std::vector<VkBufferImageCopy> regions;
+		
 
-	for (uint32_t mipLevel = 0; mipLevel < m_mips; ++mipLevel)
+	for (uint32_t layer = 0; layer < numLayers; ++layer)
 	{
-		ktx_size_t offset = 0;
-		KTX_error_code ret = ktxTexture_GetImageOffset(ktxTexture, mipLevel, 0, 0, &offset);
-		assert(ret == KTX_SUCCESS);
+		for (uint32_t mipLevel = 0; mipLevel < mipLevels; ++mipLevel)
+		{
+			ktx_size_t offset = 0;
+			KTX_error_code ret = ktxTexture_GetImageOffset(ktxTexture, mipLevel, isCubemap ? 0 : layer, isCubemap ? layer : 0, &offset);
+			assert(ret == KTX_SUCCESS);
 
-		VkBufferImageCopy region;
-		region.bufferOffset = offset;
-		region.bufferRowLength = 0;
-		region.bufferImageHeight = 0;
-		region.imageSubresource.aspectMask = m_view.GetAspectMask();
-		region.imageSubresource.mipLevel = mipLevel;
-		region.imageSubresource.baseArrayLayer = 0;
-		region.imageSubresource.layerCount = 1;
-		region.imageOffset = { 0, 0, 0 };
-		region.imageExtent.width = std::max(int(texWidth >> mipLevel), 1);
-		region.imageExtent.height = std::max(int(texHeight >> mipLevel), 1);
-		region.imageExtent.depth = std::max(int(texDepth >> mipLevel), 1);
+			VkBufferImageCopy region;
+			region.bufferOffset = offset;
+			region.bufferRowLength = 0;
+			region.bufferImageHeight = 0;
+			region.imageSubresource.aspectMask = m_view.GetAspectMask();
+			region.imageSubresource.mipLevel = mipLevel;
+			region.imageSubresource.baseArrayLayer = layer;
+			region.imageSubresource.layerCount = 1;
+			region.imageOffset = { 0, 0, 0 };
+			region.imageExtent.width = std::max(int(texWidth >> mipLevel), 1);
+			region.imageExtent.height = std::max(int(texHeight >> mipLevel), 1);
+			region.imageExtent.depth = std::max(int(texDepth >> mipLevel), 1);
 
-		regions.emplace_back(region);
+			regions.emplace_back(region);
+		}
 	}
+	
 
 	Update(device, imageSize, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, ktxTextureData, regions);
 

@@ -58,6 +58,7 @@ class GPUPathTracing : public Application
 	IndexBufferVK m_quadIndexBuffer;
 
 	TextureVK m_computeTarget;
+	TextureVK m_cubemap;
 
 	int m_numFrames = 0;
 };

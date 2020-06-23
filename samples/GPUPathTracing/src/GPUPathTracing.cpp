@@ -11,10 +11,14 @@ void GPUPathTracing::OnInit()
 	CreateShaders();
 
 	CreateGraphicsPipelines();
+
+	m_cubemap.LoadFromKTXFile(m_rendererVK.GetDevice(), "../../data/textures/cubemap_yokohama_bc3_unorm.ktx", VK_FORMAT_BC3_UNORM_BLOCK);
 }
 
 void GPUPathTracing::OnCleanup()
 {
+	m_cubemap.Destroy(m_rendererVK.GetDevice());
+
 	DestroyGraphicsPipelines();
 	DestroyShaders();
 
@@ -65,6 +69,7 @@ void GPUPathTracing::OnDraw()
 
 	context->SetUniformBuffer(m_rendererVK.GetDevice(), &compConsts, sizeof(ComputeConsts), 0);
 	context->SetStorageImage(&m_computeTarget, 0);
+	context->SetTexture(&m_cubemap, 0);
 
 	context->CommitBindings(m_rendererVK.GetDevice());
 

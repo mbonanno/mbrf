@@ -26,8 +26,8 @@ private:
 class TextureViewVK
 {
 public:
-	bool Create(DeviceVK* device, VkImage image, VkFormat format, VkImageAspectFlags aspectMask, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t baseMip = 0, uint32_t mipCount = 1);
-	bool Create(DeviceVK* device, TextureVK* texture, VkImageAspectFlags aspectMask, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t baseMip = 0, uint32_t mipCount = 1);
+	bool Create(DeviceVK* device, VkImage image, VkFormat format, VkImageAspectFlags aspectMask, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t baseMip = 0, uint32_t mipCount = 1, uint32_t numLayers = 1);
+	bool Create(DeviceVK* device, TextureVK* texture, VkImageAspectFlags aspectMask, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t baseMip = 0, uint32_t mipCount = 1, uint32_t numLayers = 1);
 	void Destroy(DeviceVK* device);
 
 	const VkImageView GetImageView() const { return m_imageView; };
@@ -50,8 +50,8 @@ class TextureVK : public Resource
 {
 public:
 	// TODO: add a desc param?
-	bool Create(DeviceVK* device, VkFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t mips = 1, VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-		VkImageType type = VK_IMAGE_TYPE_2D, VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED, VkMemoryPropertyFlags memoryProperty = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+	bool Create(DeviceVK* device, VkFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t mips = 1, VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, uint32_t layers=1,
+		bool cubemap = false, VkImageType type = VK_IMAGE_TYPE_2D, VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED, VkMemoryPropertyFlags memoryProperty = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		VkSampleCountFlagBits sampleCount = VK_SAMPLE_COUNT_1_BIT, VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL);
 
 	bool Update(DeviceVK* device, VkDeviceSize size, VkImageLayout newLayout, void* data, std::vector<VkBufferImageCopy> regions);
@@ -95,11 +95,15 @@ private:
 	uint32_t m_height = 0;
 	uint32_t m_depth = 0;
 	uint32_t m_mips = 1;
+	uint32_t m_layers = 1;
 
 	VkSampleCountFlagBits m_sampleCount;
 	VkImageTiling m_tiling;
 	VkImageUsageFlags m_usage;
 	VkImageLayout m_currentLayout;
+
+	bool m_isCubemap = false;
+	bool m_isArray = false;
 };
 
 }

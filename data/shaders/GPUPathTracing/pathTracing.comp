@@ -12,7 +12,8 @@ layout(set = 0, binding = UNIFORM_BUFFER_SLOT(0)) uniform UBO
 	int numFrameTest;
 } ubo;
 
-layout (binding = STORAGE_IMAGE_SLOT(0), rgba8) uniform image2D inputImage;
+layout(set = 0, binding = TEXTURE_SLOT(0)) uniform samplerCube cubemap;
+layout (binding = STORAGE_IMAGE_SLOT(0), rgba8) uniform image2D outputImage;
 
 
 // The minimunm distance a ray must travel before we consider an intersection.
@@ -400,6 +401,36 @@ void TestSceneTrace(in vec3 rayPos, in vec3 rayDir, inout SRayHitInfo hitInfo)
     	} 
     } 
 }
+
+vec3 LessThan(vec3 f, float value)
+{
+    return vec3(
+        (f.x < value) ? 1.0f : 0.0f,
+        (f.y < value) ? 1.0f : 0.0f,
+        (f.z < value) ? 1.0f : 0.0f);
+}
+
+vec3 SRGBToLinear(vec3 rgb)
+{
+    rgb = clamp(rgb, 0.0f, 1.0f);
+     
+    return mix(
+        pow(((rgb + 0.055f) / 1.055f), vec3(2.4f)),
+        rgb / 12.92f,
+        LessThan(rgb, 0.04045f)
+    );
+}
+
+vec3 LinearToSRGB(vec3 rgb)
+{
+    rgb = clamp(rgb, 0.0f, 1.0f);
+     
+    return mix(
+        pow(rgb, vec3(1.0f / 2.4f)) * 1.055f - 0.055f,
+        rgb * 12.92f,
+        LessThan(rgb, 0.0031308f)
+    );
+}
  
 vec3 GetColorForRay(in vec3 startRayPos, in vec3 startRayDir, inout uint rngState)
 {
@@ -421,7 +452,10 @@ vec3 GetColorForRay(in vec3 startRayPos, in vec3 startRayDir, inout uint rngStat
 		// if the ray missed, we are done
 		if (hitInfo.dist == c_superFar)
 		{
-			//ret += SRGBToLinear(texture(iChannel1, rayDir).rgb) * throughput;
+			vec3 uvw = rayDir;
+			// ktx loads the texture upside down. Should fix this by using the ktx tool changing the orientation, but for now flipping the V here is fine as a quick hack
+			uvw.y *= -1.0;
+			ret += SRGBToLinear(texture(cubemap, uvw).rgb) * throughput;
 			break;
 		}
      
@@ -432,7 +466,6 @@ vec3 GetColorForRay(in vec3 startRayPos, in vec3 startRayDir, inout uint rngStat
 		// get the pre-fresnel chances
 		float specularChance = hitInfo.material.specularChance;
 		float refractionChance = hitInfo.material.refractionChance;
-		//float diffuseChance = max(0.0f, 1.0f - (refractionChance + specularChance));
      
 		// take fresnel into account for specularChance and adjust other chances.
 		// specular takes priority.
@@ -447,7 +480,6 @@ vec3 GetColorForRay(in vec3 startRayPos, in vec3 startRayDir, inout uint rngStat
          
 			float chanceMultiplier = (1.0f - specularChance) / (1.0f - hitInfo.material.specularChance);
 			refractionChance *= chanceMultiplier;
-			//diffuseChance *= chanceMultiplier;
 		}
      
 		// calculate whether we are going to do a diffuse, specular, or refractive ray
@@ -563,9 +595,9 @@ void main()
 	for (int index = 0; index < c_numRendersPerFrame; ++index)
     	color += GetColorForRay(rayPosition, rayDir, rngState) / float(c_numRendersPerFrame);
  
-    // average the frames together
-    vec3 lastFrameColor = imageLoad(inputImage, ivec2(gl_GlobalInvocationID.xy)).rgb;
+    // read the last frame and average with the current
+    vec3 lastFrameColor = imageLoad(outputImage, ivec2(gl_GlobalInvocationID.xy)).rgb;
     color = mix(lastFrameColor, color, 1.0f / float(iFrame+1));
 	
-	imageStore(inputImage, ivec2(gl_GlobalInvocationID.xy), vec4(color, 1.0f));
+	imageStore(outputImage, ivec2(gl_GlobalInvocationID.xy), vec4(color, 1.0f));
 }
