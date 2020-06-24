@@ -214,7 +214,7 @@ bool PostProcessing::CreateGraphicsPipelines()
 	desc.m_vertexFormat = &m_vertexFormatPosUV;
 	desc.m_frameBuffer = &m_offscreenFramebuffer;
 	desc.m_shaders = { m_offscreenVertexShader, m_offscreenFragmentShader };
-	desc.m_cullMode = CULL_MODE_NONE;
+	desc.m_cullMode = CULL_MODE_BACK;
 
 	m_offscreenPipeline.Create(m_rendererVK.GetDevice(), desc);
 
