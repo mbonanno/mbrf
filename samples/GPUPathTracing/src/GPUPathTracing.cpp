@@ -12,7 +12,7 @@ void GPUPathTracing::OnInit()
 
 	CreateGraphicsPipelines();
 
-	m_cubemap.LoadFromKTXFile(m_rendererVK.GetDevice(), "../../data/textures/cubemap_yokohama_bc3_unorm.ktx", VK_FORMAT_BC3_UNORM_BLOCK);
+	m_cubemap.LoadFromKTXFile(m_rendererVK.GetDevice(), "../../data/textures/cubemap_yokohama_bc3_unorm.ktx", VK_FORMAT_BC3_SRGB_BLOCK);
 }
 
 void GPUPathTracing::OnCleanup()

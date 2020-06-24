@@ -455,7 +455,7 @@ vec3 GetColorForRay(in vec3 startRayPos, in vec3 startRayDir, inout uint rngStat
 			vec3 uvw = rayDir;
 			// ktx loads the texture upside down. Should fix this by using the ktx tool changing the orientation, but for now flipping the V here is fine as a quick hack
 			uvw.y *= -1.0;
-			ret += SRGBToLinear(texture(cubemap, uvw).rgb) * throughput;
+			ret += texture(cubemap, uvw).rgb * throughput;
 			break;
 		}
      
