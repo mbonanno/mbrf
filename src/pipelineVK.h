@@ -45,12 +45,20 @@ enum CullMode
 	NUM_CULL_MODES
 };
 
+enum FrontFace
+{
+	FRONT_FACE_CW,
+	FRONT_FACE_CCW,
+	NUM_FRONT_FACES
+};
+
 struct GraphicsPipelineDesc
 {
 	VertexFormatVK* m_vertexFormat = nullptr;
 	FrameBufferVK* m_frameBuffer = nullptr;
 	std::vector<ShaderVK> m_shaders;
 	CullMode m_cullMode = CULL_MODE_NONE;
+	FrontFace m_frontFace = FRONT_FACE_CCW;
 };
 
 // TODO: for now using a different layout per pipeline, even though they are actually using the same layout, 
