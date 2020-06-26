@@ -5,11 +5,11 @@
   <PropertyGroup />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)src;$(SolutionDir)data\shaders;$(SolutionDir)extern\glfw\include;$(SolutionDir)extern\vulkan\Include\;$(SolutionDir)extern\glm;$(SolutionDir)extern\stb;$(SolutionDir)extern\ktx\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)src;$(SolutionDir)data\shaders;$(SolutionDir)extern\glfw\include;$(SolutionDir)extern\vulkan\Include\;$(SolutionDir)extern\glm;$(SolutionDir)extern\stb;$(SolutionDir)extern\ktx\include;$(SolutionDir)extern\assimp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>glfw3.lib;vulkan-1.lib;ktx.lib;$(SolutionDir)x64\Release\MBRF.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)extern\glfw\lib-vc2017;$(SolutionDir)extern\vulkan\Lib;$(SolutionDir)extern\ktx\lib\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glfw3.lib;vulkan-1.lib;ktx.lib;assimp.lib;$(SolutionDir)x64\Release\MBRF.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)extern\glfw\lib-vc2017;$(SolutionDir)extern\vulkan\Lib;$(SolutionDir)extern\ktx\lib\release;$(SolutionDir)extern\assimp\libs</AdditionalLibraryDirectories>
     </Link>
     <CustomBuild>
       <Command>$(SolutionDir)data\shaders\glslc.exe -o %(Identity).spv %(Identity)</Command>

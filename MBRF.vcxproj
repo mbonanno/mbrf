@@ -16,6 +16,7 @@
     <ClCompile Include="src\contextVK.cpp" />
     <ClCompile Include="src\deviceVK.cpp" />
     <ClCompile Include="src\frameBufferVK.cpp" />
+    <ClCompile Include="src\modelLoader.cpp" />
     <ClCompile Include="src\pipelineVK.cpp" />
     <ClCompile Include="src\rendererVK.cpp" />
     <ClCompile Include="src\shaderVK.cpp" />
@@ -34,6 +35,7 @@
     <ClInclude Include="src\contextVK.h" />
     <ClInclude Include="src\deviceVK.h" />
     <ClInclude Include="src\frameBufferVK.h" />
+    <ClInclude Include="src\modelLoader.h" />
     <ClInclude Include="src\pipelineVK.h" />
     <ClInclude Include="src\rendererVK.h" />
     <ClInclude Include="src\resource.h" />
