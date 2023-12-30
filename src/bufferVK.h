@@ -25,7 +25,7 @@ private:
 	VkDeviceMemory m_memory = VK_NULL_HANDLE;
 	uint64_t m_size = 0;
 
-	VkDescriptorBufferInfo m_descriptor;
+	VkDescriptorBufferInfo m_descriptor = {};
 
 	VkBufferUsageFlags m_usage;
 	void* m_data = nullptr;

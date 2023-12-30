@@ -50,6 +50,8 @@ bool SwapchainVK::Create(DeviceVK* device, uint32_t width, uint32_t height)
 	supportedPresentModes.resize(presentModesCount);
 	VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, m_presentationSurface, &presentModesCount, supportedPresentModes.data()));
 
+	bool fallBackPresentModeSupported = false;
+
 	for (auto currentPresentMode : supportedPresentModes)
 	{
 		if (currentPresentMode == desiredPresentMode)
@@ -57,7 +59,14 @@ bool SwapchainVK::Create(DeviceVK* device, uint32_t width, uint32_t height)
 			presentMode = currentPresentMode;
 			break;
 		}
+
+		// also check that the fallback present mode is supported, in case the desired one is not supported
+		if (currentPresentMode == presentMode)
+			fallBackPresentModeSupported = true;
 	}
+
+	if (presentMode != desiredPresentMode && fallBackPresentModeSupported)
+		desiredPresentMode = presentMode;
 
 	assert(presentMode == desiredPresentMode);
 

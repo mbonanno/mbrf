@@ -303,7 +303,7 @@ bool DeviceVK::CreateDevice()
 		vkGetPhysicalDeviceProperties(device, &properties);
 		vkGetPhysicalDeviceFeatures(device, &features);
 
-		// TODO: test for required features
+		// TODO: test for required features, present modes etc
 
 		// check extensions support
 
@@ -337,9 +337,13 @@ bool DeviceVK::CreateDevice()
 			m_physicalDeviceProperties = properties;
 			m_physicalDeviceFeatures = features;
 
-			break;
+			// if the phsyical device type is not discrete keep looping to see if we find a better match
+			if (properties.deviceType != VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+				break;
 		}
 	}
+
+	std::cout << "Using GPU: " << m_physicalDeviceProperties.deviceName << std::endl;
 
 	assert(m_physicalDevice != VK_NULL_HANDLE);
 
