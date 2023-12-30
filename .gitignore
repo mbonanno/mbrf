@@ -1,5 +1,4 @@
 .vs/
-Debug/
 x64/
 *.spv
 *.vcxproj.user
