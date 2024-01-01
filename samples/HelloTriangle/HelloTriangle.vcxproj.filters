@@ -28,11 +28,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\data\shaders\HelloTriangle\helloTriangle.frag">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\data\shaders\HelloTriangle\helloTriangle.vert">
-      <Filter>shaders</Filter>
-    </None>
+    <CustomBuild Include="..\..\data\shaders\HelloTriangle\helloTriangle.frag" />
+    <CustomBuild Include="..\..\data\shaders\HelloTriangle\helloTriangle.vert" />
   </ItemGroup>
 </Project>

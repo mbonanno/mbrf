@@ -28,14 +28,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\data\shaders\ApplicationDemo\test.frag">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\data\shaders\ApplicationDemo\test.vert">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\data\shaders\ApplicationDemo\test2.frag">
-      <Filter>shaders</Filter>
-    </None>
+    <CustomBuild Include="..\..\data\shaders\ApplicationDemo\test.frag" />
+    <CustomBuild Include="..\..\data\shaders\ApplicationDemo\test.vert" />
+    <CustomBuild Include="..\..\data\shaders\ApplicationDemo\test2.frag" />
   </ItemGroup>
 </Project>
